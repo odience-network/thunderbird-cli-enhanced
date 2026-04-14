@@ -47,13 +47,13 @@ export const tools = [
   {
     name: "email_search",
     description:
-      "Search for emails across all accounts. Supports filters by sender, recipient, subject, date range, attachments, tags. Excludes junk by default. Use --fields to minimize token cost.",
+      "Search for emails across all accounts. The general query searches body, subject, and sender with OR logic. Add field-specific filters (from, to, subject) as AND constraints. Excludes junk by default.",
     inputSchema: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "Full-text search query (searches body). Optional when at least one filter is given",
+          description: "General search query — searches across message body, subject, and sender (OR logic). Use subject/from/to for field-specific AND filters. Optional when at least one filter is given.",
         },
         accountId: { type: "string", description: "Limit to specific account" },
         folderId: { type: "string", description: "Limit to specific folder" },

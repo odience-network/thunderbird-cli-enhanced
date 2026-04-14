@@ -214,30 +214,65 @@ async function handleRequest({ method, path, body }) {
             unreadOnly, flagged, limit = 25, fromDate, toDate,
             folderId, tag, hasAttachment, sizeMin, sizeMax,
             includeJunk, headerMessageId } = body || {};
-    const q = {};
-    if (query) q.body = query;
-    if (accountId) q.accountId = accountId;
-    if (fromAddress) q.author = fromAddress;
-    if (toAddress) q.recipients = toAddress;
-    if (subject) q.subject = subject;
-    if (headerMessageId) q.headerMessageId = stripAngleBrackets(headerMessageId);
-    if (unreadOnly) q.unread = true;
-    if (flagged !== undefined) q.flagged = flagged;
-    if (fromDate) q.fromDate = new Date(fromDate);
-    if (toDate) q.toDate = new Date(toDate);
-    if (folderId) q.folderId = folderId;
-    if (hasAttachment) q.attachment = true;
-    if (!includeJunk) q.junk = false;
-    if (tag) q.tags = { mode: "all", tags: { [tag]: true } };
+
+    // Build base query with all non-general-query (AND) filters.
+    const baseQ = {};
+    if (accountId) baseQ.accountId = accountId;
+    if (fromAddress) baseQ.author = fromAddress;
+    if (toAddress) baseQ.recipients = toAddress;
+    if (subject) baseQ.subject = subject;
+    if (headerMessageId) baseQ.headerMessageId = stripAngleBrackets(headerMessageId);
+    if (unreadOnly) baseQ.unread = true;
+    if (flagged !== undefined) baseQ.flagged = flagged;
+    if (fromDate) baseQ.fromDate = new Date(fromDate);
+    if (toDate) baseQ.toDate = new Date(toDate);
+    if (folderId) baseQ.folderId = folderId;
+    if (hasAttachment) baseQ.attachment = true;
+    if (!includeJunk) baseQ.junk = false;
+    if (tag) baseQ.tags = { mode: "all", tags: { [tag]: true } };
     if (sizeMin != null || sizeMax != null) {
-      q.size = {};
-      if (sizeMin != null) q.size.min = sizeMin;
-      if (sizeMax != null) q.size.max = sizeMax;
+      baseQ.size = {};
+      if (sizeMin != null) baseQ.size.min = sizeMin;
+      if (sizeMax != null) baseQ.size.max = sizeMax;
     }
 
-    return await collectMessages(
-      () => messenger.messages.query(q), limit
+    if (!query) {
+      // No general query — single search with base filters only.
+      return await collectMessages(() => messenger.messages.query(baseQ), limit);
+    }
+
+    // When a general query is provided, search across body, subject, and
+    // author with OR semantics by issuing parallel queries and deduplicating.
+    // Skip subject/author parallel queries if the user explicitly provided
+    // those filters (they're already AND constraints in baseQ).
+    const queries = [{ ...baseQ, body: query }];
+    if (!subject) queries.push({ ...baseQ, subject: query });
+    if (!fromAddress) queries.push({ ...baseQ, author: query });
+
+    // Use a higher per-query limit to improve recall before dedup & slice.
+    const fetchLimit = limit * 3;
+    const results = await Promise.all(
+      queries.map((q) => collectMessages(() => messenger.messages.query(q), fetchLimit))
     );
+
+    // Merge and deduplicate by message id.
+    const seen = new Set();
+    const merged = [];
+    for (const r of results) {
+      for (const msg of r.messages) {
+        if (!seen.has(msg.id)) {
+          seen.add(msg.id);
+          merged.push(msg);
+        }
+      }
+    }
+
+    // Sort by date descending, then apply limit on the merged results.
+    merged.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const hasMore = merged.length > limit;
+    const messages = merged.slice(0, limit);
+
+    return { messages, total: messages.length, offset: 0, hasMore };
   }
 
   // ─── List messages in folder ────────────────────────────────────
