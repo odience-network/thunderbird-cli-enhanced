@@ -10,6 +10,48 @@
 import { createRequire } from "module";
 import { Command } from "commander";
 import { api, output, outputError, getConfig, parseRelativeDate } from "./client.js";
+import { extname } from "path";
+
+const MIME_TO_EXT = {
+  "application/pdf": ".pdf",
+  "application/zip": ".zip",
+  "application/gzip": ".gz",
+  "application/x-tar": ".tar",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+  "application/msword": ".doc",
+  "application/vnd.ms-excel": ".xls",
+  "application/vnd.ms-powerpoint": ".ppt",
+  "application/rtf": ".rtf",
+  "application/json": ".json",
+  "application/xml": ".xml",
+  "text/plain": ".txt",
+  "text/html": ".html",
+  "text/csv": ".csv",
+  "text/xml": ".xml",
+  "text/calendar": ".ics",
+  "text/markdown": ".md",
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/bmp": ".bmp",
+  "image/svg+xml": ".svg",
+  "image/tiff": ".tiff",
+  "audio/mpeg": ".mp3",
+  "audio/wav": ".wav",
+  "audio/ogg": ".ogg",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
+  "video/quicktime": ".mov",
+};
+
+function mimeToExt(contentType) {
+  if (!contentType) return "";
+  const ct = contentType.toLowerCase().split(";")[0].trim();
+  return MIME_TO_EXT[ct] || "";
+}
 
 const { version } = createRequire(import.meta.url)("../package.json");
 
@@ -677,9 +719,13 @@ program
       const results = [];
       for (const att of attachments) {
         const data = await api("POST", `/messages/${messageId}/attachment`, { partName: att.partName }, timeout);
-        const filePath = join(dir, att.name || att.partName);
+        let fileName = data.name || att.name || att.partName;
+        if (!extname(fileName)) {
+          fileName += mimeToExt(data.contentType || att.contentType);
+        }
+        const filePath = join(dir, fileName);
         writeFileSync(filePath, Buffer.from(data.data, "base64"));
-        results.push({ partName: att.partName, name: att.name, path: filePath });
+        results.push({ partName: att.partName, name: fileName, path: filePath });
       }
       output(results, g.format, getOutputOpts(g));
     } else {
@@ -689,8 +735,12 @@ program
       }
       const data = await api("POST", `/messages/${messageId}/attachment`, { partName }, timeout);
       if (opts.output) {
-        writeFileSync(opts.output, Buffer.from(data.data, "base64"));
-        output({ saved: opts.output, size: data.size }, g.format, getOutputOpts(g));
+        let outPath = opts.output;
+        if (!extname(outPath)) {
+          outPath += mimeToExt(data.contentType);
+        }
+        writeFileSync(outPath, Buffer.from(data.data, "base64"));
+        output({ saved: outPath, size: data.size }, g.format, getOutputOpts(g));
       } else {
         output(data, g.format, getOutputOpts(g));
       }
