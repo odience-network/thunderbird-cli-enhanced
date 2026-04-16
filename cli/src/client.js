@@ -4,7 +4,10 @@
 
 import { readFileSync, existsSync } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { join, resolve, dirname } from "path";
+import { fileURLToPath } from "node:url";
+import http from "node:http";
+import { spawn } from "node:child_process";
 
 // Config file paths — check both locations
 const CONFIG_PATHS = [
@@ -45,10 +48,74 @@ function loadConfig() {
 const config = loadConfig();
 const BASE_URL = `http://${config.host}:${config.port}`;
 
+// ─── Bridge Auto-Start ─────────────────────────────────────────────
+
+let bridgeEnsured = false;
+
+/**
+ * Probe the bridge daemon with a short GET /bridge/status request.
+ * Returns true if the bridge responded, false otherwise.
+ */
+function probeBridge() {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { hostname: config.host, port: config.port, path: "/bridge/status", timeout: 2000 },
+      (res) => {
+        res.resume(); // drain the response
+        resolve(res.statusCode < 500);
+      },
+    );
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => { req.destroy(); resolve(false); });
+  });
+}
+
+/**
+ * Auto-start the bridge daemon if it's not already running.
+ * - Probes GET /bridge/status first; returns immediately if reachable.
+ * - If unreachable, spawns bridge.js as a detached child and retries
+ *   the probe up to 5 times with 500ms delay.
+ */
+export async function ensureBridge() {
+  if (bridgeEnsured) return;
+
+  // Quick probe — bridge is already running
+  if (await probeBridge()) {
+    bridgeEnsured = true;
+    return;
+  }
+
+  // Resolve bridge script path relative to this file's location
+  const cliDir = dirname(fileURLToPath(import.meta.url));
+  const bridgePath = resolve(cliDir, "../../bridge/bridge.js");
+
+  // Spawn as detached so the child survives parent exit
+  const child = spawn("node", [bridgePath], {
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  child.unref();
+
+  // Retry probe up to 5 times
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    await sleep(500);
+    if (await probeBridge()) {
+      bridgeEnsured = true;
+      return;
+    }
+  }
+
+  throw new Error("Bridge auto-start failed: could not connect after 5 retries");
+}
+
 /**
  * Make API call to bridge
  */
 export async function api(method, path, body = null, timeout = 30000) {
+  if (!bridgeEnsured) await ensureBridge();
+
   const url = `${BASE_URL}${path}`;
   const headers = { "Content-Type": "application/json" };
   if (config.authToken) headers["Authorization"] = `Bearer ${config.authToken}`;

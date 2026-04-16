@@ -8,7 +8,13 @@
 
 import { readFileSync, existsSync } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { join, resolve as pathResolve, dirname } from "path";
+import { request as httpRequest } from "node:http";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const CONFIG_PATHS = [
   join(homedir(), ".config", "thunderbird-cli", "config.json"),
@@ -44,10 +50,84 @@ function loadConfig() {
 const config = loadConfig();
 const BASE_URL = `http://${config.host}:${config.port}`;
 
+// ─── Bridge Auto-Start ─────────────────────────────────────────────
+
+/**
+ * Probe the bridge with a lightweight GET /bridge/status request.
+ * Returns true if the bridge responded, false otherwise.
+ */
+function probeBridge(host, port) {
+  return new Promise((ok) => {
+    const req = httpRequest(
+      { hostname: host, port, path: "/bridge/status", method: "GET", timeout: 2000 },
+      (res) => {
+        res.resume(); // drain the response
+        ok(res.statusCode >= 200 && res.statusCode < 500);
+      },
+    );
+    req.on("error", () => ok(false));
+    req.on("timeout", () => {
+      req.destroy();
+      ok(false);
+    });
+    req.end();
+  });
+}
+
+/**
+ * Sleep for a given number of milliseconds.
+ */
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+let bridgeEnsured = false;
+
+/**
+ * Ensure the bridge daemon is running, auto-starting it if necessary.
+ *
+ * On first call this probes the bridge; if unreachable it spawns the bridge
+ * as a detached child process and retries the probe up to 5 times with a
+ * 500 ms delay between attempts. Subsequent calls are no-ops.
+ */
+export async function ensureBridge() {
+  if (bridgeEnsured) return;
+
+  // Fast path — bridge already running
+  if (await probeBridge(config.host, config.port)) {
+    bridgeEnsured = true;
+    return;
+  }
+
+  // Resolve the bridge script relative to this file (mcp/src/client.js)
+  const bridgePath = pathResolve(__dirname, "../../bridge/bridge.js");
+
+  const child = spawn("node", [bridgePath], {
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  child.unref();
+
+  // Retry probe up to 5 times with 500 ms delay
+  const MAX_RETRIES = 5;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    await sleep(500);
+    if (await probeBridge(config.host, config.port)) {
+      bridgeEnsured = true;
+      return;
+    }
+  }
+
+  throw new Error("Bridge auto-start failed: could not connect after 5 retries");
+}
+
 /**
  * Make an HTTP call to the bridge daemon.
  */
 export async function api(method, path, body = null, timeout = 30000) {
+  await ensureBridge();
+
   const url = `${BASE_URL}${path}`;
   const headers = { "Content-Type": "application/json" };
   if (config.authToken) headers["Authorization"] = `Bearer ${config.authToken}`;
