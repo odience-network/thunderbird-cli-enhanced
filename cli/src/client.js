@@ -74,7 +74,7 @@ function probeBridge() {
  * Auto-start the bridge daemon if it's not already running.
  * - Probes GET /bridge/status first; returns immediately if reachable.
  * - If unreachable, spawns bridge.js as a detached child and retries
- *   the probe up to 5 times with 500ms delay.
+ *   the probe with increasing delays (~15 s total).
  */
 export async function ensureBridge() {
   if (bridgeEnsured) return;
@@ -97,17 +97,18 @@ export async function ensureBridge() {
   });
   child.unref();
 
-  // Retry probe up to 5 times
+  // Retry probe with increasing delays (~15s total)
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    await sleep(500);
+  const delays = [300, 500, 800, 1000, 1200, 1500, 2000, 2500, 3000, 3000];
+  for (const delay of delays) {
+    await sleep(delay);
     if (await probeBridge()) {
       bridgeEnsured = true;
       return;
     }
   }
 
-  throw new Error("Bridge auto-start failed: could not connect after 5 retries");
+  throw new Error("Bridge auto-start failed: could not connect within the retry window");
 }
 
 /**
