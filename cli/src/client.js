@@ -71,13 +71,43 @@ function probeBridge() {
 }
 
 /**
+ * Probe the bridge and return the full status object.
+ * Returns null if the bridge is unreachable.
+ */
+function probeBridgeStatus() {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { hostname: config.host, port: config.port, path: "/bridge/status", timeout: 2000 },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => {
+          if (res.statusCode >= 500) return resolve(null);
+          try {
+            resolve(JSON.parse(body));
+          } catch {
+            resolve(null);
+          }
+        });
+      },
+    );
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
+  });
+}
+
+/**
  * Auto-start the bridge daemon if it's not already running.
  * - Probes GET /bridge/status first; returns immediately if reachable.
  * - If unreachable, spawns bridge.js as a detached child and retries
  *   the probe with increasing delays (~15 s total).
+ * - After the bridge HTTP is up, waits for the Thunderbird extension
+ *   to connect via WebSocket (~10 s timeout).
  */
 export async function ensureBridge() {
   if (bridgeEnsured) return;
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Quick probe — bridge is already running
   if (await probeBridge()) {
@@ -97,18 +127,30 @@ export async function ensureBridge() {
   });
   child.unref();
 
-  // Retry probe with increasing delays (~15s total)
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const delays = [300, 500, 800, 1000, 1200, 1500, 2000, 2500, 3000, 3000];
-  for (const delay of delays) {
+  // Wait for bridge HTTP to be ready (~15s total)
+  const httpDelays = [300, 500, 800, 1000, 1200, 1500, 2000, 2500, 3000, 3000];
+  let httpReady = false;
+  for (const delay of httpDelays) {
     await sleep(delay);
     if (await probeBridge()) {
-      bridgeEnsured = true;
-      return;
+      httpReady = true;
+      break;
     }
   }
 
-  throw new Error("Bridge auto-start failed: could not connect within the retry window");
+  if (!httpReady) {
+    throw new Error("Bridge auto-start failed: could not connect within the retry window");
+  }
+
+  // Wait for Thunderbird extension to connect (~10s total)
+  const extDelays = [500, 500, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
+  for (const delay of extDelays) {
+    const status = await probeBridgeStatus();
+    if (status?.extension === "connected") break;
+    await sleep(delay);
+  }
+
+  bridgeEnsured = true;
 }
 
 /**
