@@ -42,10 +42,10 @@ The MCP server is stateless. It calls the bridge daemon which forwards to the Th
 
 ## Prerequisites
 
-You need three things running on your machine:
+You need three things:
 
 1. **Mozilla Thunderbird 128+** with your email accounts configured
-2. **The thunderbird-cli bridge daemon** running on `127.0.0.1:7700`
+2. **The thunderbird-cli bridge daemon** — the MCP server auto-starts it if not running (~25s on first call, instant thereafter)
 3. **The thunderbird-cli WebExtension** loaded in Thunderbird
 
 See the [main repo setup guide](https://github.com/vitalio-sh/thunderbird-cli/blob/main/docs/SETUP.md) for installing the bridge and extension.
@@ -193,7 +193,9 @@ See [SECURITY.md](https://github.com/vitalio-sh/thunderbird-cli/blob/main/SECURI
 ## Troubleshooting
 
 ### "Bridge unreachable" / connection errors
-- Is the bridge daemon running on `127.0.0.1:7700`? Test: `curl http://127.0.0.1:7700/bridge/status`
+- The MCP server auto-starts the bridge daemon — this error means auto-start failed after ~25s
+- Is the bridge installed? Run `node bridge/bridge.js` (or `tb-bridge`) manually to check for errors
+- Test directly: `curl http://127.0.0.1:7700/bridge/status`
   (if the bridge was started with `TB_AUTH_TOKEN`, add `-H "Authorization: Bearer $TB_AUTH_TOKEN"`, or the call returns 401)
 - Is Thunderbird running with the extension loaded?
 - Check Thunderbird's add-on debugging console for WebSocket errors

@@ -39,7 +39,7 @@ npm install -g thunderbird-cli thunderbird-cli-bridge
 #    Download: https://github.com/vitalio-sh/thunderbird-cli/releases/latest
 #    Thunderbird → Add-ons → ⚙ → Install Add-on From File… → thunderbird_ai_bridge-*.xpi
 
-# 3. Start the bridge daemon (keep running)
+# 3. Start the bridge daemon (optional — the CLI/MCP server auto-starts it on first use)
 tb-bridge
 
 # 4. Try it
