@@ -47,6 +47,17 @@ tb health
 tb stats
 ```
 
+**Building from source instead?** Clone the repo and run the one-command setup script, which installs
+dependencies and links the `tb` command for you:
+
+```bash
+git clone https://github.com/vitalio-sh/thunderbird-cli
+cd thunderbird-cli
+
+./setup.sh       # macOS / Linux
+.\setup.ps1      # Windows (PowerShell)
+```
+
 Full setup guide (including background service, Docker, troubleshooting): **[docs/SETUP.md](docs/SETUP.md)**
 
 ## Usage
