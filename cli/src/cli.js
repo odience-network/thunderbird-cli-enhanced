@@ -264,7 +264,7 @@ program
 // ─── Search ───────────────────────────────────────────────────────────
 
 program
-  .command("search <query>")
+  .command("search [query]")
   .description("Search messages across all accounts")
   .option("-a, --account <id>", "limit to specific account")
   .option("--folder <id>", "limit to specific folder")
