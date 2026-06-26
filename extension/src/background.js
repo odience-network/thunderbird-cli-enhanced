@@ -527,9 +527,9 @@ async function handleRequest({ method, path, body }) {
             identityId, send = false, draft = false, open = false,
             priority } = body;
     const details = {};
-    if (to) details.to = Array.isArray(to) ? to : [to];
-    if (cc) details.cc = Array.isArray(cc) ? cc : [cc];
-    if (bcc) details.bcc = Array.isArray(bcc) ? bcc : [bcc];
+    if (to) details.to = Array.isArray(to) ? to : to.split(",").map(s => s.trim());
+    if (cc) details.cc = Array.isArray(cc) ? cc : cc.split(",").map(s => s.trim());
+    if (bcc) details.bcc = Array.isArray(bcc) ? bcc : bcc.split(",").map(s => s.trim());
     if (subject) details.subject = subject;
     if (isHTML) { details.isPlainText = false; details.body = msgBody; }
     else { details.isPlainText = true; details.plainTextBody = msgBody; }
