@@ -25,6 +25,7 @@ Tested at scale: **22 accounts, 249,000+ messages, 86,000+ unread** — all mana
 - 📨 **38 CLI commands** — read, search, compose, reply, bulk ops, folder CRUD, attachments
 - 🛡️ **Safe by default** — compose/reply/forward save as drafts; permanent delete requires `--confirm`
 - 🎯 **Token-optimized** — `--fields` selection, `--compact` mode, `--max-body` truncation
+- ⚡ **Fast on large folders** — server-side sort (TB 148+), indexed `--unread`/`--flagged` filtering, `--subject`/`--from` search; 50k-message folders respond in <2s
 - 🏠 **Localhost-only** — no cloud, no telemetry, nothing leaves your machine
 - ✅ **Thunderbird 128+** — signed and approved on addons.thunderbird.net
 - 🧪 **80 tests** — 46 CLI/bridge + 34 MCP integration tests

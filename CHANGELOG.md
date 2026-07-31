@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no longer errors.
 - `tb compose` / `tb reply` / `tb forward` `--to`/`--cc`/`--bcc` now split comma-separated
   addresses into separate recipients instead of putting them all in one recipient field.
+- **`tb list` on large folders** — server-side sort via `messages.list({ sortType, sortOrder })` (TB 148+); was fetching all pages to sort in JS (timeout on 50k messages → 1.3s)
+- **`tb list --unread` / `--flagged`** — now uses `messages.query({ unread: true })` for server-side filtering (was iterating all pages client-side: 20s → 0.5s on 50k messages)
+- **`tb search` general query** — replaced 3-parallel-query OR (body+subject+author) with single `fullText` query; ~33% faster and far less resource-intensive
+- **Search latency** — reduced `autoPaginationTimeout` from 1000ms default to 200ms on all `messages.query()` calls, cutting ~800ms per low-result query
+- **`tb list` default sort** — now defaults to date-descending (was unsorted ascending)
 
 ## [1.1.0] — 2026-09-14
 

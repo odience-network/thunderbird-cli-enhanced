@@ -238,39 +238,26 @@ async function handleRequest({ method, path, body }) {
 
     if (!query) {
       // No general query — single search with base filters only.
-      return await collectMessages(() => messenger.messages.query(baseQ), limit);
+      return await collectMessages(
+        () => messenger.messages.query({ ...baseQ, autoPaginationTimeout: 200 }),
+        limit
+      );
     }
 
-    // When a general query is provided, search across body, subject, and
-    // author with OR semantics by issuing parallel queries and deduplicating.
-    // Skip subject/author parallel queries if the user explicitly provided
-    // those filters (they're already AND constraints in baseQ).
-    const queries = [{ ...baseQ, body: query }];
-    if (!subject) queries.push({ ...baseQ, subject: query });
-    if (!fromAddress) queries.push({ ...baseQ, author: query });
-
-    // Use a higher per-query limit to improve recall before dedup & slice.
-    const fetchLimit = limit * 3;
-    const results = await Promise.all(
-      queries.map((q) => collectMessages(() => messenger.messages.query(q), fetchLimit))
+    // Use fullText (subject + body + author, server-side OR) — one query instead of the
+    // previous 3-parallel-query approach that was catastrophically slow on large folders
+    // (body search alone took 30s on 50k messages).
+    const result = await collectMessages(
+      () => messenger.messages.query({
+        ...baseQ,
+        fullText: query,
+        autoPaginationTimeout: 200,
+      }),
+      limit
     );
-
-    // Merge and deduplicate by message id.
-    const seen = new Set();
-    const merged = [];
-    for (const r of results) {
-      for (const msg of r.messages) {
-        if (!seen.has(msg.id)) {
-          seen.add(msg.id);
-          merged.push(msg);
-        }
-      }
-    }
-
-    // Sort by date descending, then apply limit on the merged results.
-    merged.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const hasMore = merged.length > limit;
-    const messages = merged.slice(0, limit);
+    result.messages.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const hasMore = result.messages.length > limit;
+    const messages = result.messages.slice(0, limit);
 
     return { messages, total: messages.length, offset: 0, hasMore };
   }
@@ -282,22 +269,59 @@ async function handleRequest({ method, path, body }) {
             offset = 0, sort, sortOrder = "desc", flagged } = body || {};
     const folder = await messenger.folders.get(folderId, false);
     if (!folder) return { error: "Folder not found" };
-    const result = await collectMessages(
-      () => messenger.messages.list(folder), limit,
-      { unreadOnly, flaggedOnly: flagged || false, offset }
-    );
 
-    // Sort results if requested
-    if (sort) {
-      const dir = sortOrder === "asc" ? 1 : -1;
+    const sortMap = { date: "date", from: "author", subject: "subject", size: "size" };
+    const effectiveSort = sort || "date";
+    const effectiveOrder = sortOrder || "desc";
+
+    // When filtering by unread/flagged, use query() for server-side filtering.
+    // messages.list() only supports client-side filtering in collectMessages —
+    // catastrophically slow on large folders (20s to find 3 unread among 50k).
+    // query() with read/flagged uses the indexed msgDatabase → instant.
+    if (unreadOnly || flagged) {
+      const q = { folderId, autoPaginationTimeout: 200 };
+      if (unreadOnly) q.unread = true;
+      if (flagged) q.flagged = true;
+      const result = await collectMessages(
+        () => messenger.messages.query(q), limit, { offset }
+      );
+      // query() doesn't support sortType — sort client-side (result set is small)
+      const dir = effectiveOrder === "asc" ? 1 : -1;
       result.messages.sort((a, b) => {
-        if (sort === "date") return dir * (new Date(a.date) - new Date(b.date));
-        if (sort === "from") return dir * (a.author || "").localeCompare(b.author || "");
-        if (sort === "subject") return dir * (a.subject || "").localeCompare(b.subject || "");
-        if (sort === "size") return dir * ((a.size || 0) - (b.size || 0));
+        if (effectiveSort === "date") return dir * (new Date(a.date) - new Date(b.date));
+        if (effectiveSort === "from") return dir * (a.author || "").localeCompare(b.author || "");
+        if (effectiveSort === "subject") return dir * (a.subject || "").localeCompare(b.subject || "");
+        if (effectiveSort === "size") return dir * ((a.size || 0) - (b.size || 0));
         return 0;
       });
+      return result;
     }
+
+    // No flag filtering — use messages.list() with server-side sort (TB 148+)
+    const ver = await tbMajor();
+    if (ver >= 148 && sortMap[effectiveSort]) {
+      const result = await collectMessages(
+        () => messenger.messages.list(folder, {
+          sortType: sortMap[effectiveSort],
+          sortOrder: effectiveOrder === "asc" ? "ascending" : "descending",
+        }),
+        limit, { offset }
+      );
+      return result;
+    }
+
+    // Fallback (TB < 148 or unsupported sort type): fetch pages + sort in JS
+    const result = await collectMessages(
+      () => messenger.messages.list(folder), limit, { offset }
+    );
+    const dir = effectiveOrder === "asc" ? 1 : -1;
+    result.messages.sort((a, b) => {
+      if (effectiveSort === "date") return dir * (new Date(a.date) - new Date(b.date));
+      if (effectiveSort === "from") return dir * (a.author || "").localeCompare(b.author || "");
+      if (effectiveSort === "subject") return dir * (a.subject || "").localeCompare(b.subject || "");
+      if (effectiveSort === "size") return dir * ((a.size || 0) - (b.size || 0));
+      return 0;
+    });
 
     return result;
   }
@@ -725,7 +749,7 @@ async function handleRequest({ method, path, body }) {
     const { hours = 24, limit = 50, accountId, unreadOnly = false } = body || {};
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
     const result = await collectMessages(
-      () => messenger.messages.query({ fromDate: since }), limit,
+      () => messenger.messages.query({ fromDate: since, autoPaginationTimeout: 200 }), limit,
       { unreadOnly, accountId: accountId || null }
     );
     result.messages.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1092,4 +1116,14 @@ function drainIpcQueue() {
         drainIpcQueue();
       });
   }
+}
+
+let _tbMajor = null;
+async function tbMajor() {
+  if (_tbMajor !== null) return _tbMajor;
+  try {
+    const m = navigator.userAgent.match(/Thunderbird\/(\d+)/);
+    _tbMajor = m ? parseInt(m[1]) : 0;
+  } catch { _tbMajor = 0; }
+  return _tbMajor;
 }
