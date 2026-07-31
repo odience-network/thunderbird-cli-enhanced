@@ -115,9 +115,11 @@ tb recent [options]
 ```bash
 tb move <messageIds> <folderId>               # move (comma-separated IDs)
 tb copy <messageIds> <folderId>               # copy
-tb delete <messageIds>                        # delete (to trash)
+tb delete <messageIds>                        # delete (to trash, marked read by default)
+tb delete <messageIds> --keep-unread          # delete to trash, keep unread state
 tb delete <messageIds> --permanent --confirm  # permanent delete
-tb archive <messageIds>                       # archive
+tb archive <messageIds>                       # archive (marked read by default)
+tb archive <messageIds> --keep-unread         # archive, keep unread state
 ```
 
 Deletion (`tb delete`, `tb bulk delete`, `tb folder-delete`) is disabled by default and

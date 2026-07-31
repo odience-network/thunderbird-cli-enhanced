@@ -379,7 +379,7 @@ export const tools = [
   {
     name: "email_archive",
     description:
-      "Archive, move, or delete messages. Operations: 'archive' (move to archive folder), 'move' (to specific folder), 'delete' (to trash). Permanent delete requires confirm=true. 'delete' is refused (FORBIDDEN) unless the Thunderbird add-on was built with access policy delete=true; use 'move' to Trash instead.",
+      "Archive, move, or delete messages. Operations: 'archive' (move to archive folder), 'move' (to specific folder), 'delete' (to trash). Permanent delete requires confirm=true. 'delete' is refused (FORBIDDEN) unless the Thunderbird add-on was built with access policy delete=true; use 'move' to Trash instead. archive and non-permanent delete mark messages read by default; pass keepUnread=true to keep unread state.",
     inputSchema: {
       type: "object",
       properties: {
@@ -405,12 +405,18 @@ export const tools = [
           type: "boolean",
           description: "Required for permanent delete",
         },
+        keepUnread: {
+          type: "boolean",
+          description: "Do not mark messages read before archiving or trashing (default: false, marks read)",
+          default: false,
+        },
       },
       required: ["messageIds", "operation"],
     },
     handler: async (args, api) => {
+      const keepUnread = args.keepUnread || false;
       if (args.operation === "archive") {
-        return await api("POST", "/messages/archive", { messageIds: args.messageIds });
+        return await api("POST", "/messages/archive", { messageIds: args.messageIds, keepUnread });
       }
       if (args.operation === "move") {
         if (!args.destinationFolderId) {
@@ -428,6 +434,7 @@ export const tools = [
         return await api("POST", "/messages/delete", {
           messageIds: args.messageIds,
           permanent: args.permanent || false,
+          keepUnread,
         });
       }
       return { error: `Unknown operation: ${args.operation}` };
