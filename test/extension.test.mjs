@@ -131,6 +131,7 @@ const messenger = {
     },
     list: async () => ({ messages: [...store.values()].map((s) => s.header) }),
     continueList: async () => null,
+    abortList: async () => {},
     update: (id, props) => track(async () => { calls.update.push({ id, props }); }),
     getAttachmentFile: async () => {
       const bytes = randomBytes(100_000);
@@ -313,6 +314,76 @@ calls.query.length = 0;
 await handle("POST", "/messages/search", { headerMessageId: "<abc@host>" });
 test("headerMessageId forwarded to query without brackets", calls.query[0]?.headerMessageId === "abc@host");
 test("junk still excluded by default", calls.query[0]?.junk === false);
+
+// Match beyond the original limit; simulate Thunderbird's native query filters.
+queryHandlers.length = 0;
+queryHandlers.push((q) => ({ messages: [
+  header(20, { tags: [], size: 10 }),
+  header(21, { tags: ["$label1"], size: 100 }),
+  header(22, { tags: ["$label1"], size: 200 }),
+].filter((m) => (!q.tags || Object.entries(q.tags.tags).every(([tag, value]) => m.tags.includes(tag) === value))
+  && (q.size?.min === undefined || m.size >= q.size.min)
+  && (q.size?.max === undefined || m.size <= q.size.max)) }));
+for (const [label, filters, expectedId] of [
+  ["tag", { tag: "$label1" }, 21],
+  ["minimum size", { sizeMin: 100 }, 21],
+  ["maximum size", { sizeMax: 10 }, 20],
+  ["tag and inclusive size range", { tag: "$label1", sizeMin: 100, sizeMax: 100 }, 21],
+]) {
+  const r = await handle("POST", "/messages/search", { ...filters, limit: 1 });
+  test(`${label} applied before limit`, r.messages.length === 1 && r.messages[0].id === expectedId);
+}
+const zeroSize = await handle("POST", "/messages/search", { sizeMax: 0, limit: 1 });
+test("zero maximum size is not ignored", zeroSize.total === 0);
+test("tag is passed to native query", calls.query.some((q) => q.tags?.mode === "all" && q.tags.tags.$label1 === true));
+test("size range is passed to native query", calls.query.some((q) => q.size?.min === 100 && q.size?.max === 100));
+
+// Test the shared collector with Thunderbird-sized pages, not one record per page.
+const previousContinue = messenger.messages.continueList;
+const previousAbort = messenger.messages.abortList;
+const continued = [], aborted = [];
+let pages;
+messenger.messages.continueList = async (id) => {
+  continued.push(id);
+  const page = pages.get(id);
+  if (page instanceof Error) throw page;
+  return page;
+};
+messenger.messages.abortList = async (id) => { aborted.push(id); };
+async function collect(first, following = [], limit = 1, options = {}) {
+  pages = new Map(following);
+  continued.length = 0;
+  aborted.length = 0;
+  return ctx.collectMessages(async () => first, limit, options);
+}
+let pageResult = await collect({ messages: [header(30), header(31)] });
+test("truncation inside final page reports hasMore", pageResult.total === 1 && pageResult.hasMore);
+pageResult = await collect({ messages: [header(30)] });
+test("exact limit on final page reports no more", pageResult.total === 1 && !pageResult.hasMore);
+pageResult = await collect({ messages: [] });
+test("empty result reports no more", pageResult.total === 0 && !pageResult.hasMore);
+pageResult = await collect({ id: "next", messages: [header(30)] }, [["next", { messages: [header(31)] }]]);
+test("lookahead finds a match on next page", pageResult.hasMore && continued.length === 1);
+pageResult = await collect({ id: "next", messages: [header(30)] }, [["next", { messages: [] }]]);
+test("empty trailing page does not imply more results", !pageResult.hasMore);
+pageResult = await collect({ messages: [header(30), header(31, { read: true })] }, [], 1, { unreadOnly: true });
+test("filtered tail does not imply more results", !pageResult.hasMore);
+pageResult = await collect({ id: "next", messages: [header(30)] }, [["next", {
+  id: "last", messages: [header(31, { read: true })],
+}], ["last", { messages: [header(32)] }]], 1, { unreadOnly: true });
+test("lookahead crosses filtered pages", pageResult.hasMore && continued.length === 2);
+pageResult = await collect({ messages: [header(30), header(31), header(32)] }, [], 1, { offset: 1 });
+test("offset skips matches before limit and lookahead", pageResult.messages[0]?.id === 31 && pageResult.offset === 1 && pageResult.hasMore);
+pageResult = await collect({ id: "next", messages: [header(30), header(31)] }, [], 1);
+test("early completion releases Thunderbird list", pageResult.hasMore && aborted[0] === "next" && continued.length === 0);
+pageResult = await collect({ id: "next", messages: [header(30)] }, [["next", { messages: [header(31)] }]], Infinity);
+test("unbounded callers still collect all pages", pageResult.total === 2 && !pageResult.hasMore);
+let pageError;
+try { await collect({ id: "next", messages: [header(30)] }, [["next", new Error("page failed")]]); }
+catch (e) { pageError = e; }
+test("pagination errors propagate and release list", pageError?.message === "page failed" && aborted[0] === "next");
+messenger.messages.continueList = previousContinue;
+messenger.messages.abortList = previousAbort;
 
 // ─── Read batch / bulk ──────────────────────────────────────────────
 

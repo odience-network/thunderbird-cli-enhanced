@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Search tag and size filters are applied by Thunderbird before the result limit, so
+  matching messages beyond the first unfiltered batch are not missed.
+- Limited message collection checks for an additional matching message before reporting
+  `hasMore`, including when truncating within the final page, and releases unfinished
+  message lists.
 - `tb reply` / `email_reply` now preserve Thunderbird's native reply relationship and
   generated quotation/signature instead of replacing the whole compose body with plain text.
   When the identity doesn't quote by default, a deterministic plain-text quotation is added.

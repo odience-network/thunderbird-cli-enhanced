@@ -218,23 +218,16 @@ async function handleRequest({ method, path, body }) {
     if (folderId) q.folderId = folderId;
     if (hasAttachment) q.attachment = true;
     if (!includeJunk) q.junk = false;
-
-    const result = await collectMessages(
-      () => messenger.messages.query(q), limit
-    );
-
-    // Client-side filtering for tag, sizeMin, sizeMax
-    if (tag || sizeMin || sizeMax) {
-      result.messages = result.messages.filter((msg) => {
-        if (tag && !(msg.tags || []).includes(tag)) return false;
-        if (sizeMin && (msg.size || 0) < sizeMin) return false;
-        if (sizeMax && (msg.size || 0) > sizeMax) return false;
-        return true;
-      });
-      result.total = result.messages.length;
+    if (tag) q.tags = { mode: "all", tags: { [tag]: true } };
+    if (sizeMin != null || sizeMax != null) {
+      q.size = {};
+      if (sizeMin != null) q.size.min = sizeMin;
+      if (sizeMax != null) q.size.max = sizeMax;
     }
 
-    return result;
+    return await collectMessages(
+      () => messenger.messages.query(q), limit
+    );
   }
 
   // ─── List messages in folder ────────────────────────────────────
@@ -879,20 +872,26 @@ async function collectMessages(queryFn, limit, { unreadOnly = false, flaggedOnly
   let page = await queryFn();
   const messages = [];
   let skipped = 0;
-  while (page && messages.length < limit) {
-    for (const msg of page.messages) {
-      if (unreadOnly && msg.read) continue;
-      if (flaggedOnly && !msg.flagged) continue;
-      if (accountId && msg.folder?.accountId !== accountId) continue;
-      if (skipped < offset) { skipped++; continue; }
-      messages.push(formatMessage(msg));
-      if (messages.length >= limit) break;
-    }
-    if (page.id && messages.length < limit) {
+  try {
+    while (page) {
+      for (const msg of page.messages) {
+        if (unreadOnly && msg.read) continue;
+        if (flaggedOnly && !msg.flagged) continue;
+        if (accountId && msg.folder?.accountId !== accountId) continue;
+        if (skipped < offset) { skipped++; continue; }
+        // One extra matching message proves more exist, even inside a final page.
+        if (messages.length >= limit) {
+          return { messages, total: messages.length, offset, hasMore: true };
+        }
+        messages.push(formatMessage(msg));
+      }
+      if (!page.id) break;
       page = await messenger.messages.continueList(page.id);
-    } else break;
+    }
+    return { messages, total: messages.length, offset, hasMore: false };
+  } finally {
+    if (page?.id) await messenger.messages.abortList(page.id);
   }
-  return { messages, total: messages.length, offset, hasMore: !!page?.id };
 }
 
 function filterBulkMessages(messages, filters) {
