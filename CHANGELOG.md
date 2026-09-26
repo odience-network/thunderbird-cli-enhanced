@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Message and folder deletion are now **disabled by default** by a build-time add-on access policy (`delete`, `folderDelete`, both `false`). Delete routes return `FORBIDDEN` before any side effect, and the `messagesDelete` permission is only requested when `delete` is enabled. Re-enable with `npm run build:xpi -- --access-config access.local.json` — see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md). `GET /access` reports the loaded policy. Moving to Trash is unaffected.
 
+### Changed
+- The extension's add-on ID is now `thunderbird-cli-enhanced@odience.net` (was `thunderbird-ai@extension`,
+  which belongs to the upstream author's addons.thunderbird.net account and can't be signed by this fork).
+  Thunderbird treats it as a separate add-on: remove the old "Thunderbird AI Bridge" before installing.
+
 ### Added
 - `tb reply` / `tb forward` and MCP `email_reply` / `email_forward` now append the earlier
   thread (resolved the same way as `tb thread`, oldest first, quoted `>` style) below the body.

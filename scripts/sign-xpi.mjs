@@ -15,7 +15,8 @@
  *   ATN_SIGN_TIMEOUT        seconds to wait for signing, default 900
  *
  * The add-on ID in manifest.json must be new or owned by the API key's ATN account.
- * Re-running for a version that is already signed in dist/releases/ is a no-op, and
+ * Re-running for a version that is already signed in dist/releases/ is a no-op (an
+ * unsigned file under the same name is replaced), and
  * a version that was already uploaded (HTTP 409) resumes polling instead of failing.
  */
 
@@ -63,8 +64,11 @@ const outPath = join(outDir, `${slug}-${version}-tb.xpi`);
 console.log(`Signing ${name} v${version} (${guid}) via ${API_URL}, channel ${CHANNEL}`);
 
 if (existsSync(outPath)) {
-  console.log(`✓ ${basename(outPath)} already exists — nothing to do`);
-  process.exit(0);
+  if (new AdmZip(outPath).getEntry("META-INF/mozilla.rsa")) {
+    console.log(`✓ ${basename(outPath)} is already signed — nothing to do`);
+    process.exit(0);
+  }
+  console.log(`  ${basename(outPath)} exists but carries no signature — replacing it`);
 }
 
 const { MOZILLA_HUB_JWT_ISSUER: issuer, MOZILLA_HUB_JWT_SECRET: secret } = process.env;

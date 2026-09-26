@@ -10,7 +10,7 @@ import AdmZip from "adm-zip";
 import { spawn } from "child_process";
 import { createHmac } from "crypto";
 import { createServer } from "http";
-import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -140,7 +140,17 @@ await scenario("happy path", async ({ input, out, signedPath }) => {
   test("re-run with the signed file present is a no-op", again.code, 0);
 });
 
-await scenario("already uploaded resumes", async ({ input, out, signedPath }) => {
+await scenario("unsigned file in place", async ({ input, out, signedPath }) => {
+  mkdirSync(out, { recursive: true });
+  writeFileSync(signedPath, xpi());
+  const atn = await startAtn("ok");
+  const r = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn.url });
+  atn.close();
+  test("an unsigned file under the output name is re-signed", r.code, 0);
+  test("the unsigned file is replaced by the signed one", !!new AdmZip(readFileSync(signedPath)).getEntry("META-INF/mozilla.rsa"), true);
+});
+
+await scenario("already uploaded resumes",async ({ input, out, signedPath }) => {
   const atn = await startAtn("already-uploaded");
   const r = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn.url });
   atn.close();
