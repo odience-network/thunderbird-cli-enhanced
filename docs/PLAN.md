@@ -48,9 +48,19 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
    browser-origin-defense work added since). All test suites green (48 extension /
    38 MCP / 46 quick / 15 bridge-auth / 33 bridge-security); CI green.
 3. `dboeckenhoff` multi-account filter fixes — 5 commits outstanding vs `origin/main`.
-4. `reinhardullrich` access policy + delete-capability removal — 7 commits outstanding,
-   including the delete-capability removal the author flagged as needing separate
-   agreement before merge.
+4. `reinhardullrich` access policy + delete-capability removal — split into pieces:
+   - **Shipped** (PR #2, commit `dace9b9` equivalent): search filter-before-limit +
+     accurate `hasMore` + list-iterator cleanup. Self-contained, no policy implications.
+   - **Outstanding, needs a dedicated pass**: `93178cb`, the configurable access-policy
+     feature (~1300 lines across 32 files: `access-control.js`, `access-config.js`,
+     `docs/ACCESS-CONTROL.md`, new test suites) — too large to hand-adapt safely in one
+     sitting; requires its own focused session.
+   - **Outstanding, blocked on board sign-off**: `b5b7714`, removal of all message/folder
+     delete capability — a security-posture change the fork author explicitly flagged as
+     needing separate agreement. Do not merge silently alongside the rest of this fork.
+   - Not yet assessed: `0b169db` (CLI-only install consolidation), `720ff9b` (bridge
+     hardening/mail-status — check for overlap with already-merged browser-defense work
+     from PR #25 first), `db5ca49`/`879d596` (docs-only).
 5. `le-dawg` MCP/bridge concurrency & reconnect hardening — ~15 commits outstanding.
 6. `KaiSingL` search/UX features + setup scripts — ~25+ commits outstanding.
 7. `inrainbws` reply/forward history — 2 commits outstanding (after inspecting the
