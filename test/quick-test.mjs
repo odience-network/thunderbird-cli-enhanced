@@ -14,6 +14,7 @@ let passed = 0, failed = 0;
 
 function handle({ method, path, body }) {
   if (path === "/health") return { status: "ok", version: "2.0.0", thunderbird: true };
+  if (path === "/access" && method === "GET") return { policy: { delete: false, folderDelete: false } };
   if (path === "/accounts") return [{ id: "acct1", name: "Test", type: "imap", identities: [{ id: "id1", email: "t@t.com", name: "T" }], rootFolder: { id: "rf", name: "" } }];
   if (path?.match(/^\/accounts\/[^/]+$/) && method === "GET") return { id: "acct1", name: "Test" };
   if (path?.match(/^\/accounts\/[^/]+\/folders$/)) return [{ id: "f1", name: "Inbox", path: "/Inbox", type: "inbox", depth: 0, unreadMessageCount: 5, totalMessageCount: 50 }];
@@ -125,6 +126,7 @@ console.log("\n\x1b[1m=== thunderbird-cli API Tests ===\x1b[0m\n");
 console.log("\x1b[1mConnection\x1b[0m");
 test("GET /health", await httpCall("GET", "/health"), r => r.status === "ok");
 test("GET /bridge/status", await httpCall("GET", "/bridge/status"), r => r.bridge === "running");
+test("GET /access", await httpCall("GET", "/access"), r => r.policy?.delete === false);
 
 console.log("\n\x1b[1mAccounts\x1b[0m");
 test("GET /accounts", await httpCall("GET", "/accounts"), r => Array.isArray(r) && r.length === 1);
