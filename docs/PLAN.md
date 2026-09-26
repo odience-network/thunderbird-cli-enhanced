@@ -47,7 +47,15 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
    fork's `56f9118` would have reverted concurrency, thread-matching, and
    browser-origin-defense work added since). All test suites green (48 extension /
    38 MCP / 46 quick / 15 bridge-auth / 33 bridge-security); CI green.
-3. `dboeckenhoff` multi-account filter fixes — 5 commits outstanding vs `origin/main`.
+3. `dboeckenhoff` multi-account filter fixes — **already fully present on `origin/main`**
+   (no PR needed). Verified by diffing all 5 fork commits' end state against current
+   `background.js`/`thread-utils.js`: `collectMessages` already filters `accountId` inside
+   the pagination loop (not post-filter-capped), `/recent` already passes `accountId` through,
+   and the thread endpoint already uses `getRaw()` + `buildThreadIds()`/`stripAngleBrackets()`/
+   `parseReferences()` from `thread-utils.js` (hand-adapted differently from the fork's
+   version — ES exports vs. globals — but functionally equivalent, and `test/thread-utils.test.mjs`
+   plus the 66 extension / 46 quick tests are green). Extension version (`2.1.0`) already
+   exceeds the fork's `2.0.2` bump.
 4. `reinhardullrich` access policy + delete-capability removal — split into pieces:
    - **Shipped** (PR #2, commit `dace9b9` equivalent): search filter-before-limit +
      accurate `hasMore` + list-iterator cleanup. Self-contained, no policy implications.
