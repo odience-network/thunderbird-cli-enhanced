@@ -59,7 +59,7 @@ function connect() {
     } catch (err) {
       socket.send(JSON.stringify({
         id: request.id,
-        error: { message: err.message, stack: err.stack },
+        error: { message: err.message, code: err.code, stack: err.stack },
       }));
     }
   };
@@ -118,7 +118,7 @@ async function handleRequest({ method, path, body }) {
     return { policy: ACCESS_POLICY };
   }
 
-  enforceAccess(method, path);
+  enforceAccess(method, path, body);
 
   // ─── Accounts ───────────────────────────────────────────────────
 
