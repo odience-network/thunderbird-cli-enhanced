@@ -11,3 +11,6 @@ cli/config.json
 # Build output — exclude dist/ except for signed releases
 dist/*
 !dist/releases/
+
+# Local add-on access policy (see docs/ACCESS-CONTROL.md)
+access.local.json

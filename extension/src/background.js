@@ -113,6 +113,13 @@ async function handleRequest({ method, path, body }) {
     return { status: "ok", version: messenger.runtime.getManifest().version, thunderbird: true };
   }
 
+  // Access policy of the loaded add-on (build-time; see access-control.js)
+  if (path === "/access" && method === "GET") {
+    return { policy: ACCESS_POLICY };
+  }
+
+  enforceAccess(method, path);
+
   // ─── Accounts ───────────────────────────────────────────────────
 
   if (path === "/accounts" && method === "GET") {

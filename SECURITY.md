@@ -455,6 +455,7 @@ adversarial text, never as instructions.
 | Junk exclusion | CLI defaults | Excludes spam from results | Spam-based injection |
 | Caller authentication | Bridge | Requires `Authorization: Bearer` (`TB_AUTH_TOKEN`) | Untrusted local process reaching the mailbox |
 | Origin / Host checks | Bridge | Rejects browser origins, rebinding hosts, web-page WebSockets | Hostile web page (CSRF, DNS rebinding, extension hijack) |
+| Access policy | Extension | Deletion off unless built with `delete` / `folderDelete` ([ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)) | Mass/permanent deletion by any caller |
 | Read-only mode | Bridge | Disables all writes | Any write-based attack |
 | Rate limiting | Bridge | Throttles write ops | Mass exfiltration/deletion |
 | Audit log | Bridge | Logs all writes | Post-incident forensics |
