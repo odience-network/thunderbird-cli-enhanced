@@ -96,6 +96,11 @@ const messenger = {
       });
       return { id };
     },
+    beginForward: async (messageId, forwardType, details) => {
+      const id = nextComposeTabId++;
+      composeTabs.set(id, { type: forwardType, relatedMessageId: messageId, plainTextBody: details.plainTextBody || "" });
+      return { id };
+    },
     getComposeDetails: async (tabId) => ({ ...composeTabs.get(tabId) }),
     setComposeDetails: async (tabId, details) => {
       Object.assign(composeTabs.get(tabId), details);
@@ -288,6 +293,32 @@ test("--send sends immediately", r4.action === "sent" && calls.sendMessage.lengt
 
 const r5 = await handle("POST", "/reply", { messageId: 20, body: "Thanks", open: true });
 test("--open returns the compose tab without saving or sending", r5.action === "draft_opened" && typeof r5.tabId === "number");
+
+// ─── Conversation history (reply/forward) ────────────────────────────
+
+console.log("\n\x1b[1mConversation history\x1b[0m");
+
+// Message 3 (from the Thread section above) references ancestors 1 and 2.
+const rh1 = await handle("POST", "/reply", { messageId: 3, body: "Sounds good", open: true });
+const rh1Body = composeTabs.get(rh1.tabId).plainTextBody;
+test("reply appends ancestor thread as quoted history",
+  rh1Body.includes("Conversation History") && rh1Body.includes("> body 1") && rh1Body.includes("> body 2"));
+const rh1History = rh1Body.slice(rh1Body.indexOf("Conversation History"));
+test("history section excludes the message being replied to (already quoted above it)", !rh1History.includes("> body 3"));
+test("reply history is ordered oldest first", rh1Body.indexOf("> body 1") < rh1Body.indexOf("> body 2"));
+
+const rh2 = await handle("POST", "/reply", { messageId: 3, body: "Sounds good", open: true, includeHistory: false });
+test("includeHistory: false opts out for reply", !composeTabs.get(rh2.tabId).plainTextBody.includes("Conversation History"));
+
+const fh1 = await handle("POST", "/forward", { messageId: 3, to: "x@example.org", body: "FYI", open: true });
+test("forward appends ancestor thread as quoted history",
+  composeTabs.get(fh1.tabId).plainTextBody.includes("Conversation History"));
+
+const fh2 = await handle("POST", "/forward", { messageId: 3, to: "x@example.org", body: "FYI", open: true, includeHistory: false });
+test("includeHistory: false opts out for forward", !composeTabs.get(fh2.tabId).plainTextBody.includes("Conversation History"));
+
+const rh3 = await handle("POST", "/reply", { messageId: 20, body: "Thanks", open: true });
+test("history is a no-op for a message with no thread", !composeTabs.get(rh3.tabId).plainTextBody.includes("Conversation History"));
 
 // ─── Recent ─────────────────────────────────────────────────────────
 

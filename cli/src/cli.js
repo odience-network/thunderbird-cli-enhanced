@@ -573,6 +573,7 @@ program
   .option("--draft", "save as draft (default)")
   .option("--open", "open compose window")
   .option("--send", "send immediately")
+  .option("--no-history", "don't append the earlier thread as quoted conversation history")
   .action(run(async (messageId, opts) => {
     const g = program.opts();
     let body = opts.body || "";
@@ -585,6 +586,7 @@ program
       messageId: parseInt(messageId),
       body,
       replyAll: opts.all || false,
+      includeHistory: opts.history,
     };
     if (opts.from) payload.identityId = opts.from;
 
@@ -610,12 +612,14 @@ program
   .option("--draft", "save as draft (default)")
   .option("--open", "open compose window")
   .option("--send", "send immediately")
+  .option("--no-history", "don't append the earlier thread as quoted conversation history")
   .action(run(async (messageId, opts) => {
     const g = program.opts();
     const payload = {
       messageId: parseInt(messageId),
       to: opts.to,
       body: opts.body || "",
+      includeHistory: opts.history,
     };
 
     if (opts.send) {

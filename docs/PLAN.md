@@ -69,10 +69,23 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
    - Not yet assessed: `0b169db` (CLI-only install consolidation), `720ff9b` (bridge
      hardening/mail-status — check for overlap with already-merged browser-defense work
      from PR #25 first), `db5ca49`/`879d596` (docs-only).
-5. `le-dawg` MCP/bridge concurrency & reconnect hardening — ~15 commits outstanding.
-6. `KaiSingL` search/UX features + setup scripts — ~25+ commits outstanding.
-7. `inrainbws` reply/forward history — 2 commits outstanding (after inspecting the
-   unlabeled `fix` commit `5b55c3e`).
+5. `le-dawg` MCP/bridge concurrency & reconnect hardening — ~15 commits outstanding
+   (tracked as its own child issue, ODIAA-2312).
+6. `KaiSingL` search/UX features + setup scripts — ~25+ commits outstanding
+   (tracked as its own child issue, ODIAA-2313).
+7. `inrainbws` reply/forward history — **shipped** (PR #3). Inspected the unlabeled `fix`
+   commit `5b55c3e` first: it was a real bugfix (angle-bracket stripping so thread
+   resolution wasn't always empty), already superseded by the equivalent fix in main's
+   `thread-utils.js`. Hand-adapted the actual feature (`6349728`) on top of current
+   `background.js` rather than cherry-picking: extracted `resolveReferencedMessages()` /
+   `resolveThreadReferenceIds()` out of the `/thread` handler so `/reply` and `/forward`
+   reuse the same upstream-reference resolution (and existing `thread-utils.js` helpers)
+   instead of duplicating it, added `buildConversationHistory()`, and wired
+   `includeHistory` (default `true`) through `/reply`, `/forward`, the CLI (`--no-history`),
+   and MCP (`email_reply`/`email_forward`). Excludes the message being replied to/forwarded
+   itself (already quoted separately) — the fork's version didn't, which looked like an
+   unintended duplication bug. 7 new tests added (`test/extension.test.mjs`); all 205
+   existing tests plus the new ones green.
 
 Each item becomes its own child issue with a scoped PR so conflicts are resolved in small,
 reviewable batches instead of one mega-merge.
