@@ -41,6 +41,7 @@ tb tags                               # list available tags
 
 # Reply / Compose (default: saves as draft)
 tb reply <messageId> --body "Thanks"
+tb reply <messageId> --body "Thanks" --from <identityId>
 tb reply <messageId> --body "text" --send     # send immediately
 tb compose --to "a@b.com" --subject "Hi" --body "Hello"
 tb compose --to "a@b.com" --body "Hi" --send  # send immediately

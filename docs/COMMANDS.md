@@ -158,6 +158,7 @@ tb reply <messageId> [options]
   --body <text>            # reply text
   --body-file <path>       # read from file
   --all                    # reply to all
+  --from <identityId>      # override the identity inferred from the message account
   --draft / --open / --send
 
 tb forward <messageId> [options]
@@ -165,6 +166,10 @@ tb forward <messageId> [options]
   --body <text>            # additional text
   --draft / --open / --send
 ```
+
+Replies preserve Thunderbird's native reply relationship, generated signature,
+and quotation. When `--from` is omitted, the identity is selected from the
+original message's account by matching its addressed recipients.
 
 ## Attachments
 

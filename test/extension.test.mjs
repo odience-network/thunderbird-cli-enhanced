@@ -55,7 +55,7 @@ function header(id, extra = {}) {
   };
 }
 
-const calls = { query: [], getRaw: [], update: [] };
+const calls = { query: [], getRaw: [], update: [], sendMessage: [], saveMessage: [], tabsRemove: [] };
 let inFlight = 0, maxInFlight = 0;
 const track = async (fn) => {
   inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
@@ -66,10 +66,46 @@ const track = async (fn) => {
 const store = new Map();
 const queryHandlers = [];
 
+const accounts = new Map();
+const composeTabs = new Map();
+let nextComposeTabId = 1;
+
 const messenger = {
   runtime: { getManifest: () => manifest },
   idle: { onStateChanged: { addListener: (fn) => idleListeners.push(fn) } },
   folders: { get: async (id) => ({ id, accountId: "acct1" }) },
+  accounts: {
+    get: async (accountId) => {
+      if (!accounts.has(accountId)) throw new Error(`Account ${accountId} not found`);
+      return accounts.get(accountId);
+    },
+  },
+  compose: {
+    beginReply: async (messageId, type, details) => {
+      const id = nextComposeTabId++;
+      const original = store.get(messageId);
+      const identityId = details.identityId || accounts.get(original.header.folder.accountId)?.identities?.[0]?.id;
+      composeTabs.set(id, {
+        type,
+        relatedMessageId: messageId,
+        identityId,
+        plainTextBody: (accounts.get(original.header.folder.accountId)?.identities || [])
+          .find((idn) => idn.id === identityId)?.signatureQuotes
+          ? `> quoted signature line\n\n-- \nSignature`
+          : "",
+      });
+      return { id };
+    },
+    getComposeDetails: async (tabId) => ({ ...composeTabs.get(tabId) }),
+    setComposeDetails: async (tabId, details) => {
+      Object.assign(composeTabs.get(tabId), details);
+    },
+    sendMessage: async (tabId) => { calls.sendMessage.push(tabId); },
+    saveMessage: async (tabId) => { calls.saveMessage.push(tabId); },
+  },
+  tabs: {
+    remove: async (tabId) => { calls.tabsRemove.push(tabId); composeTabs.delete(tabId); },
+  },
   messages: {
     get: (id) => track(async () => {
       if (!store.has(id)) throw new Error(`Message ${id} not found`);
@@ -209,6 +245,48 @@ test("falls back to getFull headers when getRaw fails", t6.thread.some((m) => m.
 let missingErr = null;
 try { await handle("GET", "/messages/999/thread"); } catch (e) { missingErr = e; }
 test("unknown message still reports an error", missingErr?.message.includes("not found"));
+
+// ─── Reply ──────────────────────────────────────────────────────────
+
+console.log("\n\x1b[1mReply\x1b[0m");
+accounts.set("acct1", {
+  identities: [
+    { id: "id1", email: "me@acct1.example" },
+    { id: "id2", email: "other@acct1.example" },
+  ],
+});
+accounts.set("acct-quoting", { identities: [{ id: "id3", email: "quoter@example.org", signatureQuotes: true }] });
+
+store.set(20, {
+  header: header(20, { author: "sender@example.org", folder: folder("acct1"), recipients: ["me@acct1.example"] }),
+  full: { contentType: "text/plain", body: "Original message body" },
+});
+calls.sendMessage.length = 0; calls.saveMessage.length = 0; calls.tabsRemove.length = 0;
+const r1 = await handle("POST", "/reply", { messageId: 20, body: "Thanks" });
+test("reply infers identity from addressed recipients", r1.identityId === "id1", r1.identityId);
+test("reply without native quote falls back to a deterministic quotation", r1.quotedOriginal === true);
+test("default reply action saves a draft and closes the tab", r1.action === "draft_saved" && calls.saveMessage.length === 1 && calls.tabsRemove.length === 1);
+
+const r2 = await handle("POST", "/reply", { messageId: 20, body: "Thanks", identityId: "id2" });
+test("explicit identity overrides inference", r2.identityId === "id2");
+
+let identityErr = null;
+try { await handle("POST", "/reply", { messageId: 20, body: "Thanks", identityId: "does-not-exist" }); }
+catch (e) { identityErr = e; }
+test("identity outside the message account is rejected", identityErr?.message.includes("does not belong"));
+
+store.set(21, {
+  header: header(21, { author: "sender@example.org", folder: folder("acct-quoting"), recipients: ["quoter@example.org"] }),
+  full: { contentType: "text/plain", body: "Original message body" },
+});
+const r3 = await handle("POST", "/reply", { messageId: 21, body: "Thanks" });
+test("native quotation is preserved instead of the deterministic fallback", r3.quotedOriginal === true);
+
+const r4 = await handle("POST", "/reply", { messageId: 20, body: "Thanks", send: true });
+test("--send sends immediately", r4.action === "sent" && calls.sendMessage.length === 1);
+
+const r5 = await handle("POST", "/reply", { messageId: 20, body: "Thanks", open: true });
+test("--open returns the compose tab without saving or sending", r5.action === "draft_opened" && typeof r5.tabId === "number");
 
 // ─── Recent ─────────────────────────────────────────────────────────
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `tb reply` / `email_reply` now preserve Thunderbird's native reply relationship and
+  generated quotation/signature instead of replacing the whole compose body with plain text.
+  When the identity doesn't quote by default, a deterministic plain-text quotation is added.
+- Reply identity is inferred from the original message's account and addressed recipients,
+  with explicit override via `tb reply --from <identityId>` / MCP `email_reply.from`.
+- Reply results expose `identityId`, `type`, `relatedMessageId`, and `quotedOriginal` for
+  verification.
+
 ## [1.1.0] — 2026-09-14
 
 npm packages `thunderbird-cli`, `thunderbird-cli-bridge`, `thunderbird-cli-mcp` 1.1.0; Thunderbird extension 2.1.0.
