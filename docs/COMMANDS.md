@@ -119,6 +119,10 @@ tb delete <messageIds> --permanent --confirm  # permanent delete
 tb archive <messageIds>                       # archive
 ```
 
+Deletion (`tb delete`, `tb bulk delete`, `tb folder-delete`) is disabled by default and
+returns `FORBIDDEN` unless the add-on was built with it enabled — see
+[ACCESS-CONTROL.md](ACCESS-CONTROL.md).
+
 ## Mark & Tags
 
 ```bash

@@ -379,7 +379,7 @@ export const tools = [
   {
     name: "email_archive",
     description:
-      "Archive, move, or delete messages. Operations: 'archive' (move to archive folder), 'move' (to specific folder), 'delete' (to trash). Permanent delete requires confirm=true.",
+      "Archive, move, or delete messages. Operations: 'archive' (move to archive folder), 'move' (to specific folder), 'delete' (to trash). Permanent delete requires confirm=true. 'delete' is refused (FORBIDDEN) unless the Thunderbird add-on was built with access policy delete=true; use 'move' to Trash instead.",
     inputSchema: {
       type: "object",
       properties: {

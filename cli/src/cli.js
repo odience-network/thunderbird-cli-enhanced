@@ -173,7 +173,7 @@ program
 
 program
   .command("folder-delete <folderId>")
-  .description("Delete a folder")
+  .description("Delete a folder; needs add-on access policy folderDelete=true")
   .option("--confirm", "required to confirm deletion")
   .action(run(async (folderId, opts) => {
     const g = program.opts();
@@ -396,7 +396,7 @@ program
 
 program
   .command("delete <messageIds>")
-  .description("Delete message(s) (to trash)")
+  .description("Delete message(s) (to trash); needs add-on access policy delete=true")
   .option("--permanent", "permanently delete (skip trash)")
   .option("--confirm", "required for permanent delete")
   .action(run(async (messageIds, opts) => {
@@ -862,7 +862,7 @@ bulk
 
 bulk
   .command("delete <folderId>")
-  .description("Bulk delete messages in folder")
+  .description("Bulk delete messages in folder; needs add-on access policy delete=true")
   .option("--older-than <days>", "only messages older than N days")
   .option("--from <address>", "filter by sender")
   .option("--subject <pattern>", "filter by subject")
