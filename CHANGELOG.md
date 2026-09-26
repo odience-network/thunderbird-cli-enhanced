@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `tb reply` / `tb forward` and MCP `email_reply` / `email_forward` now append the earlier
+  thread (resolved the same way as `tb thread`, oldest first, quoted `>` style) below the body.
+  On by default; opt out with `--no-history` / `includeHistory: false`.
+
 ### Fixed
 - Search tag and size filters are applied by Thunderbird before the result limit, so
   matching messages beyond the first unfiltered batch are not missed.

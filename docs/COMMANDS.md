@@ -159,17 +159,23 @@ tb reply <messageId> [options]
   --body-file <path>       # read from file
   --all                    # reply to all
   --from <identityId>      # override the identity inferred from the message account
+  --no-history             # don't append the earlier thread as quoted conversation history
   --draft / --open / --send
 
 tb forward <messageId> [options]
   --to <address>           # required
   --body <text>            # additional text
+  --no-history             # don't append the earlier thread as quoted conversation history
   --draft / --open / --send
 ```
 
 Replies preserve Thunderbird's native reply relationship, generated signature,
 and quotation. When `--from` is omitted, the identity is selected from the
 original message's account by matching its addressed recipients.
+
+Both `reply` and `forward` append the earlier messages in the thread (resolved
+the same way as `tb thread`, oldest first, quoted `>` style) below the body by
+default. Pass `--no-history` to omit it.
 
 ## Attachments
 

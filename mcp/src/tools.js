@@ -275,7 +275,7 @@ export const tools = [
   {
     name: "email_reply",
     description:
-      "Reply to a message. Default mode is 'draft'. Use mode='send' for immediate send. Set replyAll=true to reply to all recipients.",
+      "Reply to a message. Default mode is 'draft'. Use mode='send' for immediate send. Set replyAll=true to reply to all recipients. The earlier thread is appended below the reply as quoted conversation history by default; set includeHistory=false to omit it.",
     inputSchema: {
       type: "object",
       properties: {
@@ -283,6 +283,7 @@ export const tools = [
         body: { type: "string", description: "Reply body" },
         replyAll: { type: "boolean", description: "Reply to all recipients" },
         from: { type: "string", description: "Thunderbird identity ID to reply from (default: inferred from the message account)" },
+        includeHistory: { type: "boolean", description: "Append the earlier thread as quoted conversation history (default: true)" },
         mode: {
           type: "string",
           enum: ["draft", "open", "send"],
@@ -296,6 +297,7 @@ export const tools = [
         messageId: args.messageId,
         body: args.body,
         replyAll: args.replyAll || false,
+        includeHistory: args.includeHistory !== false,
       };
       if (args.from) payload.identityId = args.from;
       const mode = args.mode || "draft";
@@ -310,13 +312,14 @@ export const tools = [
   {
     name: "email_forward",
     description:
-      "Forward a message to a new recipient. Default mode is 'draft' for human review.",
+      "Forward a message to a new recipient. Default mode is 'draft' for human review. The earlier thread is appended below the body as quoted conversation history by default; set includeHistory=false to omit it.",
     inputSchema: {
       type: "object",
       properties: {
         messageId: { type: "number", description: "Message ID to forward" },
         to: { type: "string", description: "Recipient address" },
         body: { type: "string", description: "Optional additional text" },
+        includeHistory: { type: "boolean", description: "Append the earlier thread as quoted conversation history (default: true)" },
         mode: {
           type: "string",
           enum: ["draft", "open", "send"],
@@ -330,6 +333,7 @@ export const tools = [
         messageId: args.messageId,
         to: args.to,
         body: args.body || "",
+        includeHistory: args.includeHistory !== false,
       };
       const mode = args.mode || "draft";
       if (mode === "send") payload.send = true;

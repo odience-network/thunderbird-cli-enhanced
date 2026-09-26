@@ -424,26 +424,6 @@ async function handleRequest({ method, path, body }) {
     const msgId = parseInt(threadMatch[1]);
     const msg = await messenger.messages.get(msgId);
 
-    // getFull() does not reliably expose RFC 2822 headers; parse them from the raw source.
-    let ids = new Set();
-    try {
-      const raw = await messenger.messages.getRaw(msgId);
-      if (typeof raw === "string") ids = buildThreadIds(raw);
-    } catch {}
-    if (ids.size === 0) {
-      try {
-        const full = await messenger.messages.getFull(msgId);
-        const header = (name) => full.headers?.[name]?.[0] || "";
-        ids = new Set([
-          ...parseReferences(header("references")),
-          ...parseReferences(header("in-reply-to")),
-          stripAngleBrackets(header("message-id")),
-        ].filter(Boolean));
-      } catch {}
-    }
-    // messages.query() matches headerMessageId without angle brackets
-    if (msg?.headerMessageId) ids.add(stripAngleBrackets(msg.headerMessageId));
-
     const seen = new Set();
     const thread = [];
     const add = (m, threadMatch) => {
@@ -453,14 +433,8 @@ async function handleRequest({ method, path, body }) {
     };
 
     // Upstream: every message named in References / In-Reply-To
-    const pages = await mapWithIpcLimit([...ids], async (hdrId) => {
-      try {
-        return (await messenger.messages.query({ headerMessageId: hdrId }))?.messages || [];
-      } catch {
-        return [];
-      }
-    });
-    for (const messages of pages) messages.forEach((m) => add(m, "references"));
+    const referenced = await resolveReferencedMessages(msgId, msg);
+    referenced.forEach((m) => add(m, "references"));
 
     // Downstream: replies that don't reference this message yet share its normalized subject.
     // Thunderbird's subject query is a substring match, so keep exact matches only; these are
@@ -534,7 +508,8 @@ async function handleRequest({ method, path, body }) {
 
   if (path === "/reply" && method === "POST") {
     const { messageId, body: replyBody, replyAll = false,
-            identityId, send = false, draft = false, open = false } = body;
+            identityId, send = false, draft = false, open = false,
+            includeHistory = true } = body;
     const type = replyAll ? "replyToAll" : "replyToSender";
 
     // Resolve the sender identity from the original message's account. Without an explicit
@@ -567,6 +542,11 @@ async function handleRequest({ method, path, body }) {
     let composeDetails = await messenger.compose.getComposeDetails(tab.id);
     let quotedOriginal = false;
 
+    // Earlier messages in the thread, appended below the immediate quoted parent (which is
+    // already handled by Thunderbird's native quoting or the fallback below). Empty when the
+    // message has no resolvable ancestors, so this is a no-op for non-threaded mail.
+    const historyText = includeHistory ? await buildConversationHistory(messageId) : "";
+
     if (replyBody) {
       let generatedBody = composeDetails.plainTextBody || "";
       quotedOriginal = generatedBody.split(/\r?\n/).some((line) => line.trimStart().startsWith(">"));
@@ -583,7 +563,12 @@ async function handleRequest({ method, path, body }) {
       }
 
       await messenger.compose.setComposeDetails(tab.id, {
-        plainTextBody: `${replyBody.trimEnd()}\n\n${generatedBody}`,
+        plainTextBody: `${replyBody.trimEnd()}\n\n${generatedBody}${historyText}`,
+      });
+      composeDetails = await messenger.compose.getComposeDetails(tab.id);
+    } else if (historyText) {
+      await messenger.compose.setComposeDetails(tab.id, {
+        plainTextBody: `${composeDetails.plainTextBody || ""}${historyText}`,
       });
       composeDetails = await messenger.compose.getComposeDetails(tab.id);
     }
@@ -611,10 +596,12 @@ async function handleRequest({ method, path, body }) {
 
   if (path === "/forward" && method === "POST") {
     const { messageId, to, body: fwdBody,
-            send = false, draft = false, open = false } = body;
+            send = false, draft = false, open = false,
+            includeHistory = true } = body;
+    const historyText = includeHistory ? await buildConversationHistory(messageId) : "";
     const tab = await messenger.compose.beginForward(
       messageId, "forwardAsAttachment",
-      { to: Array.isArray(to) ? to : [to], isPlainText: true, plainTextBody: fwdBody || "" }
+      { to: Array.isArray(to) ? to : [to], isPlainText: true, plainTextBody: `${fwdBody || ""}${historyText}` }
     );
     if (send) {
       await messenger.compose.sendMessage(tab.id, { mode: "sendNow" });
@@ -837,6 +824,80 @@ function extractParts(part, result = { text: "", html: "", attachments: [] }) {
   }
   if (part.parts) for (const sub of part.parts) extractParts(sub, result);
   return result;
+}
+
+// Message-IDs (without brackets) named in a message's own References / In-Reply-To / Message-ID
+// headers — i.e. its upstream ancestors plus itself. getFull() does not reliably expose RFC 2822
+// headers, so the raw source is parsed first, falling back to getFull()'s header map.
+async function resolveThreadReferenceIds(msgId, msg) {
+  let ids = new Set();
+  try {
+    const raw = await messenger.messages.getRaw(msgId);
+    if (typeof raw === "string") ids = buildThreadIds(raw);
+  } catch {}
+  if (ids.size === 0) {
+    try {
+      const full = await messenger.messages.getFull(msgId);
+      const header = (name) => full.headers?.[name]?.[0] || "";
+      ids = new Set([
+        ...parseReferences(header("references")),
+        ...parseReferences(header("in-reply-to")),
+        stripAngleBrackets(header("message-id")),
+      ].filter(Boolean));
+    } catch {}
+  }
+  // messages.query() matches headerMessageId without angle brackets
+  if (msg?.headerMessageId) ids.add(stripAngleBrackets(msg.headerMessageId));
+  return ids;
+}
+
+// Ancestor messages referenced by msgId's own References/In-Reply-To, oldest first. Excludes
+// msgId itself, since callers (thread view, conversation history) already know that message.
+async function resolveReferencedMessages(msgId, msg) {
+  const ids = await resolveThreadReferenceIds(msgId, msg);
+  const seen = new Set([msgId]);
+  const results = [];
+  const pages = await mapWithIpcLimit([...ids], async (hdrId) => {
+    try {
+      return (await messenger.messages.query({ headerMessageId: hdrId }))?.messages || [];
+    } catch {
+      return [];
+    }
+  });
+  for (const messages of pages) {
+    for (const m of messages) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      results.push(m);
+    }
+  }
+  results.sort((a, b) => new Date(a.date) - new Date(b.date));
+  return results;
+}
+
+// Plain-text, oldest-first, quoted rendering of the messages upstream of msgId, for appending to
+// a reply/forward body. Returns "" if msgId has no resolvable ancestors.
+async function buildConversationHistory(msgId) {
+  try {
+    const msg = await messenger.messages.get(msgId);
+    const ancestors = await resolveReferencedMessages(msgId, msg);
+    if (ancestors.length === 0) return "";
+    const bodies = await mapWithIpcLimit(ancestors, async (m) => {
+      try {
+        return extractParts(await messenger.messages.getFull(m.id)).text || "";
+      } catch {
+        return "";
+      }
+    });
+    const blocks = ancestors.map((m, i) => {
+      const quoted = bodies[i].split(/\r?\n/).map((l) => `> ${l}`.trimEnd()).join("\n");
+      const date = m.date ? new Date(m.date).toLocaleString() : "unknown date";
+      return `On ${date}, ${m.author || "unknown"} wrote:\n${quoted}`;
+    });
+    return `\n\n----- Conversation History -----\n\n${blocks.join("\n\n")}`;
+  } catch {
+    return "";
+  }
 }
 
 async function flattenFolders(folder, depth = 0) {
