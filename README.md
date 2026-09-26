@@ -122,7 +122,7 @@ Without the skill, the MCP still works. With it, Claude automatically uses the s
 |---|---|
 | **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs. 43 route handlers. |
 | **Bridge** (`bridge/`) | Stateless HTTP↔WebSocket proxy daemon. No business logic. |
-| **CLI** (`cli/`) | `tb` command — 38 commands. Thin HTTP client. JSON output. |
+| **CLI** (`cli/`) | `tb` command — 39 commands. Thin HTTP client. JSON output. |
 | **MCP** (`mcp/`) | `tb-mcp` server — 12 curated tools for Claude Desktop. |
 
 Thunderbird is the source of truth. The CLI never caches or stores email data.
