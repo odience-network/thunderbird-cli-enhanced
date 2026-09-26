@@ -389,6 +389,7 @@ tb reply <messageId> [options]
   --body-file <path>       # read body from file
   --html                   # HTML reply
   --all                    # reply to all
+  --from <identityId>      # override identity inferred from original account/recipients
   --draft                  # save as draft (default)
   --open                   # open in Thunderbird compose window
   --send                   # send immediately
@@ -401,6 +402,12 @@ tb forward <messageId> [options]
   --open
   --send
 ```
+
+Replies are created with `messenger.compose.beginReply()`. The supplied body is
+prepended after Thunderbird establishes the native reply relationship and
+generates identity-specific signature/quotation content. The result includes
+`identityId`, compose `type`, `relatedMessageId`, and `quotedOriginal` for
+verification.
 
 ### 13. Attachments
 

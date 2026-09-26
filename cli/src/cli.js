@@ -569,6 +569,7 @@ program
   .option("--body-file <path>", "read reply from file")
   .option("--all", "reply to all")
   .option("--html", "body is HTML")
+  .option("--from <identityId>", "reply from a specific identity (default: inferred from the message account)")
   .option("--draft", "save as draft (default)")
   .option("--open", "open compose window")
   .option("--send", "send immediately")
@@ -585,6 +586,7 @@ program
       body,
       replyAll: opts.all || false,
     };
+    if (opts.from) payload.identityId = opts.from;
 
     if (opts.send) {
       payload.send = true;

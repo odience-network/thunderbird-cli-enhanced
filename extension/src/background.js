@@ -541,22 +541,77 @@ async function handleRequest({ method, path, body }) {
 
   if (path === "/reply" && method === "POST") {
     const { messageId, body: replyBody, replyAll = false,
-            send = false, draft = false, open = false } = body;
+            identityId, send = false, draft = false, open = false } = body;
     const type = replyAll ? "replyToAll" : "replyToSender";
-    const tab = await messenger.compose.beginReply(messageId, type, {
-      isPlainText: true, plainTextBody: replyBody,
-    });
+
+    // Resolve the sender identity from the original message's account. Without an explicit
+    // identity Thunderbird can fall back to the global default, which may not be the address
+    // the original message was sent to.
+    const original = await messenger.messages.get(messageId);
+    const account = await messenger.accounts.get(original.folder.accountId, true);
+    const accountIdentities = account.identities || [];
+    let selectedIdentityId = identityId;
+    if (selectedIdentityId && !accountIdentities.some((id) => id.id === selectedIdentityId)) {
+      throw new Error("Requested reply identity does not belong to the message account");
+    }
+    if (!selectedIdentityId) {
+      const addressedRecipients = [
+        ...(original.recipients || []),
+        ...(original.ccList || []),
+        ...(original.bccList || []),
+      ].map((recipient) => String(recipient).toLowerCase()).join("\n");
+      const matchingIdentity = accountIdentities.find((id) =>
+        id.email && addressedRecipients.includes(id.email.toLowerCase())
+      );
+      selectedIdentityId = matchingIdentity?.id || accountIdentities[0]?.id;
+    }
+
+    // Let Thunderbird establish the reply relationship and generate the identity's configured
+    // signature and quotation before inserting the supplied text.
+    const details = { isPlainText: true };
+    if (selectedIdentityId) details.identityId = selectedIdentityId;
+    const tab = await messenger.compose.beginReply(messageId, type, details);
+    let composeDetails = await messenger.compose.getComposeDetails(tab.id);
+    let quotedOriginal = false;
+
+    if (replyBody) {
+      let generatedBody = composeDetails.plainTextBody || "";
+      quotedOriginal = generatedBody.split(/\r?\n/).some((line) => line.trimStart().startsWith(">"));
+
+      // Some identities are configured not to quote. Preserve any generated signature, then
+      // add a deterministic plain-text quotation fallback.
+      if (!quotedOriginal) {
+        const full = await messenger.messages.getFull(messageId);
+        const originalText = extractParts(full).text.trimEnd();
+        const quotation = originalText.split(/\r?\n/).map((line) => `> ${line}`).join("\n");
+        const attribution = `On ${original.date.toLocaleString()}, ${original.author} wrote:`;
+        generatedBody = [generatedBody.trimEnd(), attribution, quotation].filter(Boolean).join("\n\n");
+        quotedOriginal = Boolean(originalText);
+      }
+
+      await messenger.compose.setComposeDetails(tab.id, {
+        plainTextBody: `${replyBody.trimEnd()}\n\n${generatedBody}`,
+      });
+      composeDetails = await messenger.compose.getComposeDetails(tab.id);
+    }
+
+    const verification = {
+      identityId: composeDetails.identityId,
+      type: composeDetails.type,
+      relatedMessageId: composeDetails.relatedMessageId,
+      quotedOriginal,
+    };
     if (send) {
       await messenger.compose.sendMessage(tab.id, { mode: "sendNow" });
-      return { success: true, action: "sent" };
+      return { success: true, action: "sent", ...verification };
     }
     if (open) {
-      return { success: true, action: "draft_opened", tabId: tab.id };
+      return { success: true, action: "draft_opened", tabId: tab.id, ...verification };
     }
     // Default: save as draft and close
     await messenger.compose.saveMessage(tab.id, { mode: "draft" });
     await messenger.tabs.remove(tab.id);
-    return { success: true, action: "draft_saved" };
+    return { success: true, action: "draft_saved", ...verification };
   }
 
   // ─── Forward ────────────────────────────────────────────────────
