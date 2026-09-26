@@ -35,13 +35,26 @@ verified, not re-created:
 
 Rather than one large merge, integrate fork-by-fork as separate reviewable PRs against
 `origin/main`, in this priority order (security/correctness first):
-1. `jctots` bridge auth token enforcement
-2. `bfg1981` dependency security updates + reply identity fix
-3. `dboeckenhoff` multi-account filter fixes
-4. `reinhardullrich` access policy + delete-capability removal
-5. `le-dawg` MCP/bridge concurrency & reconnect hardening
-6. `KaiSingL` search/UX features + setup scripts
-7. `inrainbws` reply/forward history (after inspecting the unlabeled `fix` commit)
+1. `jctots` bridge auth token enforcement — **already fully merged into `origin/main`**
+   (via upstream PR #25, commit `a052c8d`/`71f111f`). Verified by cherry-picking
+   `ba56442` onto `origin/main`: every conflict resolved to an empty diff, i.e. the
+   substantive change already exists there. No PR needed for this fork.
+2. `bfg1981` dependency security updates + reply identity fix — the dependency-update
+   half is **already superseded** on `origin/main` (newer package versions than the
+   fork, `npm audit` clean). Only the reply-identity/quoted-body-preservation fix was
+   genuinely outstanding; shipped as PR #1 (`fork/bfg1981-reply-identity-quoting`),
+   adapted by hand against the current `background.js` (a blind cherry-pick of the
+   fork's `56f9118` would have reverted concurrency, thread-matching, and
+   browser-origin-defense work added since). All test suites green (48 extension /
+   38 MCP / 46 quick / 15 bridge-auth / 33 bridge-security); CI green.
+3. `dboeckenhoff` multi-account filter fixes — 5 commits outstanding vs `origin/main`.
+4. `reinhardullrich` access policy + delete-capability removal — 7 commits outstanding,
+   including the delete-capability removal the author flagged as needing separate
+   agreement before merge.
+5. `le-dawg` MCP/bridge concurrency & reconnect hardening — ~15 commits outstanding.
+6. `KaiSingL` search/UX features + setup scripts — ~25+ commits outstanding.
+7. `inrainbws` reply/forward history — 2 commits outstanding (after inspecting the
+   unlabeled `fix` commit `5b55c3e`).
 
 Each item becomes its own child issue with a scoped PR so conflicts are resolved in small,
 reviewable batches instead of one mega-merge.
@@ -80,8 +93,14 @@ not a metered SaaS.
 
 ## 6. Open questions for the CEO / board
 
-- Should the `pr-27` divergence from `upstream/integrate/open-prs` (test file deletions) be
-  treated as accidental and discarded, or intentional and kept? Needs a decision before any
-  fork-integration PR builds on top of it.
+- ~~Should the `pr-27` divergence from `upstream/integrate/open-prs` (test file deletions)
+  be treated as accidental and discarded, or intentional and kept?~~ **Resolved**: the two
+  branches were never meant to match. `pr-27` (head `879d596`) is reinhardullrich's actual
+  fork PR #27 head; `upstream/integrate/open-prs` (`c5e5d02`) is a stale pre-merge staging
+  ref for a different, already-superseded PR aggregation effort (already merged into
+  `origin/main` via PR #25). The "44 files / -1554 lines" figure was a reversed-direction
+  diff between two unrelated branches, not a deletion within one branch's history — no
+  accidental data loss occurred. `pr-27` is safe to use as-is for fork #4 (reinhardullrich)
+  integration.
 - Signing credentials for the Thunderbird extension (AMO/private signing key) — where are
   these stored/injected? Needed before the signed-build workflow can run in CI.
