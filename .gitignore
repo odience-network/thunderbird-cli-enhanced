@@ -2,6 +2,12 @@ node_modules/
 .DS_Store
 cli/config.json
 
+# Local agent/editor tooling (not part of project source)
+.claude/
+.cursor/
+.cursor-plugin/
+.serena/
+
 # Build output — exclude dist/ except for signed releases
 dist/*
 !dist/releases/
