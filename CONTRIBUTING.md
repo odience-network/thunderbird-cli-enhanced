@@ -49,7 +49,10 @@ node cli/src/cli.js stats
 ```bash
 npm test           # CLI/bridge integration (46 tests, mock bridge)
 npm run test:mcp   # MCP server integration (34 tests, spawns server)
+npm run verify     # everything CI runs: build XPI, lint, all test suites
 ```
+
+To run `npm run verify` before every push: `git config core.hooksPath .githooks`.
 
 Both test suites use a mock bridge + mock extension running in-process — no Thunderbird needed.
 

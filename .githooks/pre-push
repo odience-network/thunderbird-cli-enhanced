@@ -1,0 +1,5 @@
+#!/bin/sh
+# Local equivalent of the CI build → lint → test gate (.github/workflows/sign-xpi.yml).
+# Enable once per clone: git config core.hooksPath .githooks
+# Skip in an emergency: git push --no-verify
+exec npm run --silent verify

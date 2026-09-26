@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tb reply` / `tb forward` and MCP `email_reply` / `email_forward` now append the earlier
   thread (resolved the same way as `tb thread`, oldest first, quoted `>` style) below the body.
   On by default; opt out with `--no-history` / `includeHistory: false`.
+- Signed-release pipeline: `npm run sign:xpi` signs the built XPI through the
+  addons.thunderbird.net API and saves it to `dist/releases/`; the `sign-xpi` workflow runs
+  build → lint → test → sign → commit when the extension version changes on `main`.
+  `npm run verify` (build, `node --check` + addons-linter, all test suites) is the local
+  equivalent, wired as an opt-in pre-push hook via `git config core.hooksPath .githooks`.
 
 ### Fixed
 - Search tag and size filters are applied by Thunderbird before the result limit, so

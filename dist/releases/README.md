@@ -36,3 +36,13 @@ The extension will persist across restarts. No "unsigned" warnings.
 5. Download the signed `.xpi` from ATN's "My Submissions" page
 6. Save it to this directory with naming: `thunderbird_ai_bridge-<version>-tb.xpi`
 7. Commit, tag `v<version>`, push — GitHub Actions will attach it to the Release
+
+Steps 2–6 are automated: merging the version bump to `main` runs the `sign-xpi` workflow,
+which builds, lints, tests, signs via the ATN API and commits the signed file here. Locally:
+
+```bash
+npm run verify
+MOZILLA_HUB_JWT_ISSUER=… MOZILLA_HUB_JWT_SECRET=… npm run sign:xpi
+```
+
+A genuinely signed XPI contains `META-INF/mozilla.rsa`; `sign:xpi` refuses to save one that doesn't.
