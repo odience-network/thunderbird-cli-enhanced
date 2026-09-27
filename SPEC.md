@@ -21,7 +21,7 @@
 │       ┌────────────────────┬──────────────────────┐         │
 │       ↕                    ↕                      ↕         │
 │  tb CLI (Node)      tb-mcp Server          Direct HTTP      │
-│  (38 commands)      (12 MCP tools)         (curl, scripts)  │
+│  (39 commands)      (13 MCP tools)         (curl, scripts)  │
 │       ↕                    ↕                                │
 │  AI Agent           Claude Desktop                          │
 │  (Claude Code)      (stdio MCP transport)                   │
@@ -40,8 +40,8 @@
 | **Thunderbird** | Host | Source of truth. Stores all emails, syncs IMAP, renders UI for human oversight |
 | **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Translates bridge requests into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
-| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 38 commands. Auto-starts bridge daemon if not running. Zero state |
-| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 12 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
+| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 39 commands. Auto-starts bridge daemon if not running. Zero state |
+| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 13 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
 
 ### Key Design Principles
 
@@ -403,6 +403,20 @@ tb forward <messageId> [options]
   --draft                  # default
   --open
   --send
+
+# Edit existing draft
+tb edit <messageId> [options]
+  --to <address>           # replace To (optional)
+  --cc / --bcc <address>
+  --subject <text>
+  --body <text> | --body-file <path>
+  --html
+  --from <identityId>
+  --priority <highest|high|normal|low|lowest>
+  --draft | --open | --send
+
+# Only messages in a drafts folder. Pass only fields to change.
+# saveMessage may assign a new messageId — response includes messageId + previousMessageId.
 ```
 
 Replies are created with `messenger.compose.beginReply()`. The supplied body is
@@ -648,6 +662,7 @@ The bridge is spawned as a detached process (`child.unref()`) so it outlives the
 | Compose | `messenger.compose.beginNew()` | ✅ Implemented |
 | Reply | `messenger.compose.beginReply()` | ✅ Implemented |
 | Forward | `messenger.compose.beginForward()` | ✅ Implemented |
+| Edit draft | `beginNew(id)` + `setComposeDetails` + `saveMessage` | ✅ Implemented |
 | Send | `messenger.compose.sendMessage()` | ✅ Implemented |
 | Save draft | `messenger.compose.saveMessage()` | ✅ Implemented |
 | Contacts | `messenger.contacts.list()` | ✅ Implemented |
@@ -764,6 +779,7 @@ Note: Extension development cannot happen in Docker. Edit `extension/src/backgro
 - [x] `tb compose --draft` (save draft without opening UI)
 - [x] `tb reply --draft`
 - [x] `tb forward --draft`
+- [x] `tb edit` (edit existing draft in place)
 - [x] `--body-file` support (read body from file)
 - [x] `--html` support for HTML compose
 - [ ] Custom header support (`--header`) — partially implemented
@@ -1050,12 +1066,12 @@ Claude Desktop ──stdio JSON-RPC──> tb-mcp ──HTTP──> Bridge ─�
 The MCP server:
 - Has **no state** — every tool call is independent
 - **Reuses** `cli/src/client.js` for HTTP calls (no code duplication)
-- Exposes **12 high-level tools** rather than all 38 CLI commands
-- Defaults to **safe behavior** (compose/reply/forward → draft, not send)
+- Exposes **13 high-level tools** rather than all 39 CLI commands
+- Defaults to **safe behavior** (compose/reply/forward/edit → draft, not send)
 
 ### Tool Catalog
 
-The 12 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
+The 13 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
 
 | MCP Tool | Maps to CLI commands |
 |----------|---------------------|
@@ -1067,6 +1083,7 @@ The 12 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 | `email_compose` | `tb compose` (draft/open/send modes) |
 | `email_reply` | `tb reply` |
 | `email_forward` | `tb forward` |
+| `email_edit` | `tb edit` (draft/open/send modes) |
 | `email_mark` | `tb mark` (batch) |
 | `email_archive` | `tb archive`, `tb move`, `tb delete` (consolidated) |
 | `email_attachments` | `tb attachments`, `tb attachment-download` |
@@ -1074,7 +1091,7 @@ The 12 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (38 commands) | MCP (12 tools) |
+| | CLI (39 commands) | MCP (13 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |

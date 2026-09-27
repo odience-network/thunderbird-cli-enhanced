@@ -693,6 +693,70 @@ program
     output(data, g.format, getOutputOpts(g));
   }));
 
+// ─── Edit draft ───────────────────────────────────────────────────────
+
+program
+  .command("edit <messageId>")
+  .description("Edit an existing draft message")
+  .option("--to <address>", "recipient(s), comma-separated")
+  .option("--cc <address>", "CC recipient(s)")
+  .option("--bcc <address>", "BCC recipient(s)")
+  .option("--subject <text>", "subject line")
+  .option("--body <text>", "message body")
+  .option("--body-file <path>", "read body from file")
+  .option("--html", "body is HTML")
+  .option("--from <identityId>", "send from specific identity")
+  .option("--priority <level>", "priority: highest|high|normal|low|lowest")
+  .option("--draft", "save as draft (default)")
+  .option("--open", "open compose window")
+  .option("--send", "send immediately")
+  .action(run(async (messageId, opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+
+    let body = opts.body;
+    if (opts.bodyFile) {
+      const { readFileSync } = await import("fs");
+      body = readFileSync(opts.bodyFile, "utf-8");
+    }
+
+    const hasFieldChange = opts.to !== undefined || opts.cc !== undefined
+      || opts.bcc !== undefined || opts.subject !== undefined
+      || body !== undefined || opts.from !== undefined
+      || opts.priority !== undefined;
+
+    if (!hasFieldChange && !opts.open && !opts.send) {
+      outputError({
+        message: "Provide at least one field to change (--to, --subject, --body, …), or use --open",
+        code: "INVALID_ARGS",
+      }, fmt);
+      return;
+    }
+
+    const payload = { messageId: parseInt(messageId) };
+    if (opts.to !== undefined) payload.to = opts.to;
+    if (opts.cc !== undefined) payload.cc = opts.cc;
+    if (opts.bcc !== undefined) payload.bcc = opts.bcc;
+    if (opts.subject !== undefined) payload.subject = opts.subject;
+    if (body !== undefined) {
+      payload.body = body;
+      payload.isHTML = opts.html || false;
+    }
+    if (opts.from) payload.identityId = opts.from;
+    if (opts.priority) payload.priority = opts.priority;
+
+    if (opts.send) {
+      payload.send = true;
+    } else if (opts.open) {
+      payload.open = true;
+    } else {
+      payload.draft = true;
+    }
+
+    const data = await api("POST", "/compose/edit", payload, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
 // ─── Attachments ──────────────────────────────────────────────────────
 
 program

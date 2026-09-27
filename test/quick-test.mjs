@@ -44,6 +44,17 @@ function handle({ method, path, body }) {
   if (path === "/tags") return [{ key: "$l1", tag: "Important", color: "#FF0000" }];
   if (path === "/tags/create") return { success: true, ...body };
   if (path === "/compose") return { success: true, action: body?.send ? "sent" : body?.open ? "draft_opened" : "draft_saved" };
+  if (path === "/compose/edit") {
+    if (!body?.messageId) return { error: "messageId is required" };
+    const action = body?.send ? "sent" : body?.open ? "draft_opened" : "draft_saved";
+    return {
+      success: true,
+      action,
+      messageId: body?.send ? undefined : (body.messageId + 1000),
+      previousMessageId: body.messageId,
+      ...(body?.open ? { tabId: 42 } : {}),
+    };
+  }
   if (path === "/reply") return { success: true, action: body?.send ? "sent" : "draft_saved" };
   if (path === "/forward") return { success: true, action: body?.send ? "sent" : "draft_saved" };
   if (path === "/stats") return { totalAccounts: 1, totalUnread: 5, totalMessages: 100, accounts: [] };
@@ -172,6 +183,9 @@ console.log("\n\x1b[1mCompose\x1b[0m");
 test("POST /compose draft", await httpCall("POST", "/compose", { to: "a@b", subject: "T", body: "Hi" }), r => r.success && r.action === "draft_saved");
 test("POST /compose send", await httpCall("POST", "/compose", { to: "a@b", body: "Hi", send: true }), r => r.action === "sent");
 test("POST /compose open", await httpCall("POST", "/compose", { to: "a@b", body: "Hi", open: true }), r => r.action === "draft_opened");
+test("POST /compose/edit draft", await httpCall("POST", "/compose/edit", { messageId: 10, body: "Revised" }), r => r.success && r.action === "draft_saved" && r.messageId === 1010 && r.previousMessageId === 10);
+test("POST /compose/edit open", await httpCall("POST", "/compose/edit", { messageId: 10, open: true }), r => r.action === "draft_opened" && r.tabId === 42);
+test("POST /compose/edit send", await httpCall("POST", "/compose/edit", { messageId: 10, subject: "Go", send: true }), r => r.action === "sent" && r.previousMessageId === 10);
 test("POST /reply", await httpCall("POST", "/reply", { messageId: 1, body: "Thanks" }), r => r.success);
 test("POST /forward", await httpCall("POST", "/forward", { messageId: 1, to: "c@d", body: "FYI" }), r => r.success);
 

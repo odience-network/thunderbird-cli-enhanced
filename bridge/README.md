@@ -120,7 +120,7 @@ curl http://127.0.0.1:7700/bridge/status
 
 ### Everything else
 
-All other paths get forwarded to the Thunderbird extension via WebSocket and the response is returned as JSON. See [SPEC.md](https://github.com/vitalio-sh/thunderbird-cli/blob/main/SPEC.md) for the full route list (43 routes).
+All other paths get forwarded to the Thunderbird extension via WebSocket and the response is returned as JSON. See [SPEC.md](https://github.com/vitalio-sh/thunderbird-cli/blob/main/SPEC.md) for the full route list (44 routes).
 
 ## Prerequisites
 

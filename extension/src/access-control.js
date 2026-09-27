@@ -90,7 +90,7 @@ function enforceAccess(method, path, body, policy = ACCESS_POLICY) {
     return requireAccess("downloadAttachments");
   }
 
-  if (method === "POST" && (path === "/compose" || path === "/reply" || path === "/forward")) {
+  if (method === "POST" && (path === "/compose" || path === "/compose/edit" || path === "/reply" || path === "/forward")) {
     requireAccess("compose");
     if (body?.send) requireAccess("send");
     return;

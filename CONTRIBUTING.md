@@ -19,7 +19,7 @@ The four runtime components are intentionally separated:
 - **extension** — runs inside Thunderbird, calls `messenger.*` APIs, talks to bridge over WebSocket
 - **bridge** — stateless HTTP↔WS proxy, no business logic
 - **cli** — thin HTTP client, parses args, formats JSON output
-- **mcp** — MCP server, exposes 12 curated tools to Claude Desktop and other MCP clients
+- **mcp** — MCP server, exposes 13 curated tools to Claude Desktop and other MCP clients
 
 ## Local development
 

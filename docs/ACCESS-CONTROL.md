@@ -12,7 +12,7 @@ closed instead of shipping unrestricted.
 | Key | Default | What it allows |
 |---|---|---|
 | `downloadAttachments` | `true` | Downloading attachment content (`tb attachment-download`, MCP `email_attachments operation=download`) |
-| `compose` | `true` | Creating a draft via `tb compose`/`tb reply`/`tb forward` |
+| `compose` | `true` | Creating a draft via `tb compose`/`tb reply`/`tb forward`, or editing one via `tb edit` |
 | `send` | `true` | Sending immediately with `--send` (requires `compose: true`) |
 | `move` | `true` | `tb move`, `tb bulk move` |
 | `copy` | `true` | `tb copy` |
