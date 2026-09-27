@@ -65,7 +65,10 @@ function load(config) {
       getComposeDetails: async () => ({ isPlainText: true }),
       setComposeDetails: async () => {},
       sendMessage: async (tabId) => { calls.composeSent.push(tabId); },
-      saveMessage: async (tabId) => { calls.composeSaved.push(tabId); return {}; },
+      saveMessage: async (tabId) => {
+        calls.composeSaved.push(tabId);
+        return { messages: [{ id: 2, folder: { accountId: "a1", path: "/Drafts", name: "Drafts" } }] };
+      },
     },
     tabs: {
       remove: async () => {},
