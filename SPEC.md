@@ -21,7 +21,7 @@
 │       ┌────────────────────┬──────────────────────┐         │
 │       ↕                    ↕                      ↕         │
 │  tb CLI (Node)      tb-mcp Server          Direct HTTP      │
-│  (39 commands)      (13 MCP tools)         (curl, scripts)  │
+│  (40 commands)      (13 MCP tools)         (curl, scripts)  │
 │       ↕                    ↕                                │
 │  AI Agent           Claude Desktop                          │
 │  (Claude Code)      (stdio MCP transport)                   │
@@ -40,7 +40,7 @@
 | **Thunderbird** | Host | Source of truth. Stores all emails, syncs IMAP, renders UI for human oversight |
 | **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Translates bridge requests into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
-| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 39 commands. Auto-starts bridge daemon if not running. Zero state |
+| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 40 commands. Auto-starts bridge daemon if not running. Zero state |
 | **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 13 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
 
 ### Key Design Principles
@@ -604,6 +604,8 @@ covered by it.
 | `NOT_FOUND` | Message/folder/account not found |
 | `INVALID_ARGS` | Bad CLI arguments |
 | `THUNDERBIRD_ERROR` | Error from Thunderbird messenger API |
+| `EVENT_TIMEOUT` | No matching bridge event arrived before the wait timeout |
+| `RECONNECT_TIMEOUT` | Extension did not reconnect after `tb extension-reload` |
 
 ### Bridge Protocol (HTTP ↔ WebSocket)
 
@@ -617,6 +619,26 @@ Bridge → CLI (HTTP):  200 OK  {...}
 ```
 
 Timeout: 30 seconds. Configurable via `--timeout <ms>` flag on CLI.
+
+### Bridge Events
+
+The extension can also push unsolicited messages over the same WebSocket connection — distinguished from request/response traffic by having no `id` and a `type: "event"` field:
+
+```
+Extension → Bridge (WS): {"type": "event", "name": "extension-ready", "data": {}}
+```
+
+The bridge ring-buffers the last 100 events (in-memory, per-process) and exposes them over HTTP:
+
+```
+GET /bridge/events                                       # all buffered events since {since=0}
+GET /bridge/events?since=<ts>                             # buffered events at/after a timestamp
+GET /bridge/events?wait=<name>&since=<ts>&timeout=<ms>     # long-poll for the next matching event
+```
+
+`wait` long-polls until an event named `<name>` with `receivedAt >= since` arrives, checking the buffer first so an event that already landed isn't missed. If none arrives within `timeout` (default 30s, capped at 120s), the bridge responds `408` with `code: "EVENT_TIMEOUT"`.
+
+Today the only emitted event is `extension-ready`, sent by the extension's `onopen` handler on every (re)connection, so `tb extension-reload` can detect when the reload completes.
 
 ### Bridge Auto-Start
 
@@ -731,7 +753,7 @@ thunderbird-cli/
 }
 ```
 
-Note: Extension development cannot happen in Docker. Edit `extension/src/background.js` on host, reload in Thunderbird via about:debugging → Reload.
+Note: Extension development cannot happen in Docker. Edit `extension/src/background.js` on host, then reload in Thunderbird via about:debugging → Reload, or run `tb extension-reload` from the host.
 
 ### Testing Strategy
 
@@ -1066,7 +1088,7 @@ Claude Desktop ──stdio JSON-RPC──> tb-mcp ──HTTP──> Bridge ─�
 The MCP server:
 - Has **no state** — every tool call is independent
 - **Reuses** `cli/src/client.js` for HTTP calls (no code duplication)
-- Exposes **13 high-level tools** rather than all 39 CLI commands
+- Exposes **13 high-level tools** rather than all 40 CLI commands
 - Defaults to **safe behavior** (compose/reply/forward/edit → draft, not send)
 
 ### Tool Catalog
@@ -1091,7 +1113,7 @@ The 13 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (39 commands) | MCP (13 tools) |
+| | CLI (40 commands) | MCP (13 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |

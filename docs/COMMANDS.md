@@ -1,6 +1,6 @@
 # CLI Command Reference
 
-All 39 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
+All 40 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
 
 ## Global Options
 
@@ -19,6 +19,7 @@ tb [command] [options]
 tb health                  # check bridge + extension status
 tb bridge-status           # bridge-only status (works without extension)
 tb access                  # show the access policy enforced by the installed add-on (see ACCESS-CONTROL.md)
+tb extension-reload        # reload the extension, wait for reconnection (--no-wait to skip)
 ```
 
 ## Accounts & Identities
@@ -286,3 +287,5 @@ Config file: `~/.config/thunderbird-cli/config.json`
 | `NOT_FOUND` | Message/folder/account not found |
 | `INVALID_ARGS` | Bad arguments or missing `--confirm` |
 | `THUNDERBIRD_ERROR` | Error from Thunderbird messenger API |
+| `EVENT_TIMEOUT` | No matching bridge event arrived before the wait timeout |
+| `RECONNECT_TIMEOUT` | Extension did not reconnect after `tb extension-reload` |
