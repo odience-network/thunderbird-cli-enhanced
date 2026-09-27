@@ -79,6 +79,7 @@ const messenger = {
       if (!accounts.has(accountId)) throw new Error(`Account ${accountId} not found`);
       return accounts.get(accountId);
     },
+    list: async () => [...accounts].map(([id, a]) => ({ id, ...a })),
   },
   compose: {
     beginReply: async (messageId, type, details) => {
@@ -106,7 +107,10 @@ const messenger = {
       Object.assign(composeTabs.get(tabId), details);
     },
     sendMessage: async (tabId) => { calls.sendMessage.push(tabId); },
-    saveMessage: async (tabId) => { calls.saveMessage.push(tabId); },
+    saveMessage: async (tabId) => {
+      calls.saveMessage.push(tabId);
+      return { messages: [{ id: 900 + tabId, folder: { accountId: "acct1", path: "/Drafts", name: "Drafts" } }] };
+    },
   },
   tabs: {
     remove: async (tabId) => { calls.tabsRemove.push(tabId); composeTabs.delete(tabId); },

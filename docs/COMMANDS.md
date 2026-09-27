@@ -181,6 +181,7 @@ tb reply <messageId> [options]
 tb forward <messageId> [options]
   --to <address>           # required
   --body <text>            # additional text
+  --from <identityId>      # override the identity inferred from the message account
   --no-history             # don't append the earlier thread as quoted conversation history
   --draft / --open / --send
 
@@ -205,7 +206,16 @@ tb edit <messageId> [options]
 
 Replies preserve Thunderbird's native reply relationship, generated signature,
 and quotation. When `--from` is omitted, the identity is selected from the
-original message's account by matching its addressed recipients.
+original message's account by matching its addressed recipients (forward
+does the same). `--from` may name an identity from any account.
+
+`--draft` (the default) confirms the save: the response carries the draft's
+`messageId` and the `folder` it landed in, and the command errors instead of
+reporting `draft_saved` when Thunderbird returns no saved message. When the
+draft lands outside the account's real drafts folder — e.g. a Gmail account's
+bare `/Drafts` instead of `/[Gmail]/Drafts` — the response includes a
+`warning`; fix the identity's drafts-folder setting. The draft is deliberately
+not moved (moving between Gmail's two drafts folders fails server-side).
 
 Both `reply` and `forward` append the earlier messages in the thread (resolved
 the same way as `tb thread`, oldest first, quoted `>` style) below the body by
