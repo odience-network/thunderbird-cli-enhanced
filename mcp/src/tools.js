@@ -11,6 +11,7 @@
  */
 
 import { parseRelativeDate } from "./client.js";
+import { listNotes, readNote, saveNote, appendNote, renderNoteHtml } from "./notes.js";
 
 export const tools = [
   // ─── 1. Stats ──────────────────────────────────────────────────
@@ -594,7 +595,6 @@ export const tools = [
     },
   },
 
-  // ─── 14. Contact search ────────────────────────────────────────
   {
     name: "contact_search",
     description:
@@ -693,6 +693,105 @@ export const tools = [
       if (args.org) properties.Company = args.org;
       if (Object.keys(properties).length === 0) return { error: "at least one contact property required" };
       return await api("POST", "/contacts/update", { id: args.contactId, properties });
+    },
+  },
+  // ─── 17. Notes: list ─────────────────────────────────────────────
+  {
+    name: "note_list",
+    description:
+      "List all notes in the local Markdown notes workspace (title, created date, source message id if any, size, last modified). Purely local — no Thunderbird round-trip.",
+    inputSchema: { type: "object", properties: {} },
+    handler: async () => listNotes(),
+  },
+
+  // ─── 18. Notes: read ─────────────────────────────────────────────
+  {
+    name: "note_read",
+    description:
+      "Read a note's full Markdown body and metadata by name. Use this to pull a saved note in as context for the current conversation (\"Use as Context\").",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Note name (without the .md extension)" },
+      },
+      required: ["name"],
+    },
+    handler: async (args) => readNote(args.name),
+  },
+
+  // ─── 19. Notes: save ─────────────────────────────────────────────
+  {
+    name: "note_save",
+    description:
+      "Save a note to the local Markdown notes workspace, overwriting it if a note with the same name already exists (\"Save to Notes\"). Use this to save an AI reply, summary, or other generated content as a note.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Note name (without the .md extension); letters, numbers, spaces, '.', '_', '-' only" },
+        body: { type: "string", description: "Note body (Markdown)" },
+        title: { type: "string", description: "Note title (defaults to name)" },
+        source: { type: "string", description: "Source email message ID this note came from, if any" },
+      },
+      required: ["name", "body"],
+    },
+    handler: async (args) => saveNote(args.name, args.body, { title: args.title, source: args.source }),
+  },
+
+  // ─── 20. Notes: append ───────────────────────────────────────────
+  {
+    name: "note_append",
+    description:
+      "Append Markdown text to a note, creating it first if it doesn't exist yet (\"Save to Notes\" for incremental additions, e.g. appending a new AI reply to an existing note).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Note name (without the .md extension); letters, numbers, spaces, '.', '_', '-' only" },
+        body: { type: "string", description: "Markdown text to append" },
+        title: { type: "string", description: "Note title, only applied when the note is created" },
+        source: { type: "string", description: "Source email message ID this note came from, if any" },
+      },
+      required: ["name", "body"],
+    },
+    handler: async (args) => appendNote(args.name, args.body, { title: args.title, source: args.source }),
+  },
+
+  // ─── 21. Notes: to draft ─────────────────────────────────────────
+  {
+    name: "note_to_draft",
+    description:
+      "Render a note's Markdown to sanitized HTML and open it as a new email draft via the same compose route as email_compose. Default mode is 'draft' (saved to Drafts, not sent); mode='open' opens it in Thunderbird's compose window for human review. This tool never sends — there is no 'send' mode.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Note name (without the .md extension)" },
+        to: { type: "string", description: "Recipient(s), comma-separated for multiple" },
+        cc: { type: "string", description: "CC recipients" },
+        bcc: { type: "string", description: "BCC recipients" },
+        subject: { type: "string", description: "Subject line (defaults to the note's title)" },
+        from: { type: "string", description: "Identity ID to send from" },
+        mode: {
+          type: "string",
+          enum: ["draft", "open"],
+          default: "draft",
+          description: "'draft' saves silently (default), 'open' opens the compose window for review",
+        },
+      },
+      required: ["name", "to"],
+    },
+    handler: async (args, api) => {
+      const note = readNote(args.name);
+      const payload = {
+        to: args.to,
+        subject: args.subject || note.title,
+        body: renderNoteHtml(note.body),
+        isHTML: true,
+      };
+      if (args.cc) payload.cc = args.cc;
+      if (args.bcc) payload.bcc = args.bcc;
+      if (args.from) payload.identityId = args.from;
+      if (args.mode === "open") payload.open = true;
+      else payload.draft = true;
+      return await api("POST", "/compose", payload);
     },
   },
 ];

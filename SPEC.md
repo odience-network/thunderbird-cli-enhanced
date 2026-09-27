@@ -549,6 +549,60 @@ tb bulk tag <folderId> <tagKey> [options]
 tb bulk fetch <folderId> [--limit <n>]
 ```
 
+### 18. Notes
+
+Local Markdown workspace on disk — storage is entirely CLI/MCP-side, no
+extension route or bridge round-trip except `to-draft`. Files are plain
+`.md` with optional `---`-delimited front matter (`title`, `created`,
+`source`). Workspace dir: `notesDir` in config, `TB_NOTES_DIR` env var, or
+default `~/.config/thunderbird-cli/notes`. Filenames are sanitized against
+a charset allowlist and re-checked for path-traversal containment.
+
+```bash
+# List all notes
+tb notes list
+# Returns: [{name, title, created, source, size, modified}]
+
+# Read a note (also "Use as Context")
+tb notes read <name>
+# Returns: {name, title, created, source, body}
+
+# Save a note, overwriting if it exists ("Save to Notes")
+tb notes save <name> --body <text> [--body-file <path>] [--title <t>] [--source <messageId>]
+
+# Append to a note, creating it if missing
+tb notes append <name> --body <text> [--body-file <path>] [--title <t>] [--source <messageId>]
+
+# Delete a note
+tb notes delete <name> --confirm
+
+# Search note titles and bodies
+tb notes search <query>
+# Returns: [{name, title, snippet}]
+
+# Render a note's Markdown to sanitized HTML and open it as an email draft.
+# Uses the same /compose route as `tb compose` — never sends.
+tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [--from <identityId>] [--open]
+```
+
+Markdown → HTML uses `marked` (rendering) and `sanitize-html` (stripping
+scripts, event handlers, and unsafe URL schemes) before the HTML ever
+reaches a compose draft.
+
+### 19. Calendars
+
+Read-only, experimental — requires the `calendar` Experiment API vendored into
+the extension (see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md)
+for the tech-decision doc, including why the signed-XPI release track doesn't
+currently build with this API present). Lists local Thunderbird calendars only;
+no event or task read/write yet.
+
+```bash
+# List calendars
+tb calendars
+# Returns: [{id, name, type, url, readOnly, enabled, color}]
+```
+
 ---
 
 ## Implementation Details
@@ -876,7 +930,8 @@ Note: Extension development cannot happen in Docker. Edit `extension/src/backgro
 - [x] Extension branding and toolbar status indicator (#16)
 - [x] `tb extension-reload` + `/bridge/events` (#17)
 - [x] Opt-in v2 output format, `--output-version 2` (#19)
-- [ ] Calendar, contacts write, notes, tasks — roadmap, see [docs/PLAN.md](docs/PLAN.md)
+- [x] Calendar read-only spike (`tb calendars`, Experiment API) — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) (ODIAA-2327)
+- [ ] Calendar events/tasks CRUD, contacts write, notes, tasks — roadmap, see [docs/PLAN.md](docs/PLAN.md)
 
 ---
 
@@ -1161,13 +1216,22 @@ The 16 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 | `email_archive` | `tb archive`, `tb move`, `tb delete` (consolidated) |
 | `email_attachments` | `tb attachments`, `tb attachment-download` |
 | `email_folders` | `tb folders`, `tb folder-info`, `tb sync` (consolidated) |
+| `note_list` | `tb notes list` |
+| `note_read` | `tb notes read` ("Use as Context") |
+| `note_save` | `tb notes save` ("Save to Notes") |
+| `note_append` | `tb notes append` |
+| `note_to_draft` | `tb notes to-draft` (draft/open modes, never sends) |
 | `contact_search` | `tb contacts`, `tb contacts-search` |
 | `contact_create` | `tb contacts create` (requires `contactsWrite`) |
 | `contact_update` | `tb contacts update` (requires `contactsWrite`) |
 
+Notes are also exposed as MCP **resources** (`note://<name>`, `text/markdown`) so
+clients that browse resources rather than call tools can list and read the
+local notes workspace directly.
+
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (43 commands) | MCP (16 tools) |
+| | CLI (43 commands) | MCP (21 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |

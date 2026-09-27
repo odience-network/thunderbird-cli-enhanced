@@ -79,6 +79,13 @@ tb contact <contactId>
 
 # Identities (for --from flag in compose)
 tb identities
+
+# Notes (local Markdown workspace)
+tb notes list
+tb notes read <name>                              # "Use as Context"
+tb notes save <name> --body "text" [--title <t>]  # "Save to Notes"
+tb notes append <name> --body "more text"
+tb notes to-draft <name> --to "a@b.com"           # render to HTML draft, never sends
 ```
 
 ## Output Format

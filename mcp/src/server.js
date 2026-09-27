@@ -24,12 +24,15 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { createRequire } from "module";
 
 import { api } from "./client.js";
 import { tools } from "./tools.js";
+import { listNotes, readNote } from "./notes.js";
 
 const { version } = createRequire(import.meta.url)("../package.json");
 
@@ -43,6 +46,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
@@ -89,6 +93,37 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true,
     };
   }
+});
+
+// Notes are exposed as MCP resources (in addition to the note_* tools) so
+// clients that browse resources — rather than calling tools — can still see
+// and read the local notes workspace.
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  return {
+    resources: listNotes().map((note) => ({
+      uri: `note://${encodeURIComponent(note.name)}`,
+      name: note.title,
+      description: `Note last modified ${note.modified}`,
+      mimeType: "text/markdown",
+    })),
+  };
+});
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const match = /^note:\/\/(.+)$/.exec(request.params.uri);
+  if (!match) {
+    throw Object.assign(new Error(`Unknown resource: ${request.params.uri}`), { code: "NOT_FOUND" });
+  }
+  const note = readNote(decodeURIComponent(match[1]));
+  return {
+    contents: [
+      {
+        uri: request.params.uri,
+        mimeType: "text/markdown",
+        text: note.body,
+      },
+    ],
+  };
 });
 
 // ─── Start ─────────────────────────────────────────────────────────
