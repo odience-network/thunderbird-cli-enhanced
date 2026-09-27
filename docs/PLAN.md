@@ -59,15 +59,21 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
 4. `reinhardullrich` access policy + delete-capability removal — split into pieces:
    - **Shipped** (PR #2, commit `dace9b9` equivalent): search filter-before-limit +
      accurate `hasMore` + list-iterator cleanup. Self-contained, no policy implications.
-   - **Outstanding, needs a dedicated pass**: `93178cb`, the configurable access-policy
-     feature (~1300 lines across 32 files: `access-control.js`, `access-config.js`,
-     `docs/ACCESS-CONTROL.md`, new test suites) — too large to hand-adapt safely in one
-     sitting; requires its own focused session.
    - **Shipped, modified per board decision**: `b5b7714` (removal of all delete capability)
      was *not* merged as-is. The board chose to keep the code and gate it instead: deletion
      is off by default behind build-time access-policy switches `delete` / `folderDelete`
-     (`extension/src/access-control.js`, `docs/ACCESS-CONTROL.md`). The switch keys and
-     build flow match `93178cb`'s design so the full policy (ODIAA-2311) extends it.
+     (`extension/src/access-control.js`, `docs/ACCESS-CONTROL.md`). Shipped as PR #4
+     (`fd494b7`).
+   - **Shipped** (ODIAA-2311): the rest of `93178cb`'s configurable access-policy feature —
+     the remaining switches (`downloadAttachments`, `compose`, `send`, `move`, `copy`,
+     `archive`, `mark`, `tag`, `tagCreate`, `folderCreate`, `folderRename`), deny-by-default
+     for any unclassified route, and the `tb access` CLI command. Not a blind port of
+     `93178cb`: only its access-control classification logic was adapted, layered onto PR #4's
+     already-merged `access-config.js`/`access-control.js` foundation; the fork's bundled
+     "reviewed correctness fixes" (pagination, bulk filters, thread lookups, MCP validation,
+     bridge hardening) were left out as unrelated to this feature. New switches default `true`
+     (no behavior change for existing installs); `delete`/`folderDelete` stay `false` per the
+     ODIAA-2304 board decision.
    - Not yet assessed: `0b169db` (CLI-only install consolidation), `720ff9b` (bridge
      hardening/mail-status — check for overlap with already-merged browser-defense work
      from PR #25 first), `db5ca49`/`879d596` (docs-only).

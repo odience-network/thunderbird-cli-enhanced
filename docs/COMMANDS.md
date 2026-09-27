@@ -1,6 +1,6 @@
 # CLI Command Reference
 
-All 38 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
+All 39 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
 
 ## Global Options
 
@@ -18,6 +18,7 @@ tb [command] [options]
 ```bash
 tb health                  # check bridge + extension status
 tb bridge-status           # bridge-only status (works without extension)
+tb access                  # show the access policy enforced by the installed add-on (see ACCESS-CONTROL.md)
 ```
 
 ## Accounts & Identities

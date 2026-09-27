@@ -64,6 +64,17 @@ program
     output(data, g.format, getOutputOpts(g));
   }));
 
+// ─── Access Policy ──────────────────────────────────────────────────────
+
+program
+  .command("access")
+  .description("Show the access policy enforced by the installed Thunderbird add-on")
+  .action(run(async () => {
+    const g = program.opts();
+    const data = await api("GET", "/access", null, getTimeout(g));
+    output(data, g.format, getOutputOpts(g));
+  }));
+
 // ─── Bridge Status ────────────────────────────────────────────────────
 
 program

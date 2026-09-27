@@ -1,4 +1,15 @@
 {
+  "downloadAttachments": true,
+  "compose": true,
+  "send": true,
+  "move": true,
+  "copy": true,
+  "archive": true,
   "delete": false,
+  "mark": true,
+  "tag": true,
+  "tagCreate": true,
+  "folderCreate": true,
+  "folderRename": true,
   "folderDelete": false
 }

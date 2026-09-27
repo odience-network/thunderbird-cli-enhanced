@@ -291,9 +291,9 @@ const httpServer = createServer(async (req, res) => {
     res.writeHead(200);
     res.end(JSON.stringify(result));
   } catch (err) {
-    const status = err.message?.includes("not connected") ? 503 : 500;
+    const status = err.code === "FORBIDDEN" ? 403 : err.message?.includes("not connected") ? 503 : 500;
     res.writeHead(status);
-    res.end(JSON.stringify({ error: err.message || "Unknown error" }));
+    res.end(JSON.stringify({ error: err.message || "Unknown error", code: err.code }));
   }
 });
 
