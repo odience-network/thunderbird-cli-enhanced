@@ -101,6 +101,7 @@ tb stats --compact                               # strip nulls
 - **Relative dates** work in `--since`/`--until`: `7d`, `2w`, `3m`, `1y`, `today`, `yesterday`
 - **Batch operations** — `mark`, `move`, `copy`, `delete`, `archive` all accept comma-separated IDs
 - **Timeout** — SMTP send operations may need `--timeout 60000` (60s)
+- **Performance on large folders** — `tb list` uses server-side sort (TB 148+); `tb search` with `--subject`/`--from` is fast. General full-text search (`tb search "word"`) scans message bodies and is slow on folders with 10k+ messages — always add `--since 7d` or `--folder` to narrow scope
 - All email credentials stay in Thunderbird — nothing leaves the machine
 
 ## Email Security Rules
