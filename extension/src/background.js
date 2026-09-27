@@ -14,12 +14,14 @@ const RECONNECT_MAX_MS = 15000;
 // Max per-message operations (each one or two messenger.* calls) in flight across all requests.
 const IPC_CONCURRENCY = 8;
 const BASE64_CHUNK_SIZE = 0x8000;
+const FOLDER_INFO_CACHE_TTL_MS = 30000;
 
 let ws = null;
 let reconnectTimer = null;
 let reconnectDelay = RECONNECT_BASE_MS;
 let ipcInFlight = 0;
 const ipcQueue = [];
+const folderInfoCache = new Map(); // folderId -> { info, expiresAt }
 
 // ─── WebSocket Connection ───────────────────────────────────────────
 
@@ -907,9 +909,18 @@ async function buildConversationHistory(msgId) {
   }
 }
 
-async function flattenFolders(folder, depth = 0) {
+async function getCachedFolderInfo(folder) {
+  const now = Date.now();
+  const cached = folderInfoCache.get(folder.id);
+  if (cached && cached.expiresAt > now) return cached.info;
   let info = {};
   try { info = await messenger.folders.getFolderInfo(folder); } catch {}
+  folderInfoCache.set(folder.id, { info, expiresAt: now + FOLDER_INFO_CACHE_TTL_MS });
+  return info;
+}
+
+async function flattenFolders(folder, depth = 0) {
+  const info = await getCachedFolderInfo(folder);
   const result = [{
     id: folder.id, name: folder.name, path: folder.path,
     type: folder.type,
@@ -927,8 +938,7 @@ async function flattenFolders(folder, depth = 0) {
 
 async function countFolder(folder, stats) {
   stats.folders++;
-  let info = {};
-  try { info = await messenger.folders.getFolderInfo(folder); } catch {}
+  const info = await getCachedFolderInfo(folder);
   stats.unreadTotal += info.unreadMessageCount || 0;
   stats.messageTotal += info.totalMessageCount || 0;
   if (folder.subFolders) {
