@@ -1,6 +1,6 @@
 # CLI Command Reference
 
-All 43 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
+All 47 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
 
 ## Global Options
 
@@ -295,6 +295,19 @@ tb calendar delete <eventId> --calendar <calendarId>
                                            # delete an event (requires calendarWrite)
 tb calendar clashes --start <date> --end <date>
                                            # find overlapping events across all calendars
+```
+
+## Deterministic Skills
+
+Zero-LLM-reasoning shortcuts (ODIAA-2332): each composes existing read-only endpoints above and
+prints compact, pre-formatted Markdown by default — pass `--format json|compact|table` to get the
+underlying structured data instead (e.g. for scripting). All read-only, ungated.
+
+```bash
+tb today                                  # today's calendar events + unread/flagged mail counts
+tb week                                   # calendar events for the next 7 days, grouped by day
+tb clashes [--days <n>]                   # overlapping events across all calendars (default: next 7 days)
+tb from <address> [-l, --limit <n>]       # recent mail from a sender/domain, grouped into threads
 ```
 
 ## Bulk Operations
