@@ -339,7 +339,7 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 22 tools", toolList, (r) => Array.isArray(r) && r.length === 22);
+test("tools/list returns 26 tools", toolList, (r) => Array.isArray(r) && r.length === 26);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
@@ -662,7 +662,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 22 && r.toolsBCount === 22
+  (r) => r.toolsACount === 26 && r.toolsBCount === 26
 );
 clientA.close();
 clientB.close();

@@ -41,7 +41,7 @@
 | **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Checks every request against the build-time access policy (`access-control.js`, see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)), then translates it into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
 | **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 43 commands. Auto-starts bridge daemon if not running. Zero state |
-| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 16 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
+| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 26 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
 
 ### Request flow
 
@@ -594,13 +594,52 @@ reaches a compose draft.
 Read-only, experimental — requires the `calendar` Experiment API vendored into
 the extension (see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md)
 for the tech-decision doc, including the ATN manual-review requirement this adds
-to signed releases). Lists local Thunderbird calendars only; no event or task
-read/write yet.
+to signed releases). Lists local Thunderbird calendars only; no event read or
+write yet.
 
 ```bash
 # List calendars
 tb calendars
 # Returns: [{id, name, type, url, readOnly, enabled, color}]
+```
+
+### 20. Tasks
+
+Calendar tasks (VTODO), through the vendored `calendar.tasks` Experiment API
+(same `calendar` Experiment as Calendars above — see
+[docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md)).
+Writes are gated by the `tasksWrite` access switch (default off, see
+[docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)).
+
+```bash
+# List tasks, optionally filtered by calendar or completion state
+tb tasks list [--calendar <calendarId>] [--completed] [--pending]
+# Returns: [{id, calendarId, title, due, allDay, priority, completed, description, source}]
+
+# Create a task (requires tasksWrite)
+tb tasks create --calendar <calendarId> --title <title> [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>]
+
+# Update a task's fields (requires tasksWrite)
+tb tasks update <taskId> --calendar <calendarId> [--title <title>] [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>] [--completed] [--pending]
+```
+
+`priority` follows RFC 5545: 0 = undefined, 1-4 = high, 5 = normal, 6-9 = low.
+`source` links a task back to the email it was created from, mirroring Notes'
+`--source` convention.
+
+### 21. Action Items
+
+Deterministic (no LLM) extraction of candidate action items from a message
+body — checklist/bullet syntax, imperative sentences ("Send the report..."),
+request phrases ("please...", "can you...", "need to..."), and "by \<date\>"
+due-date hints. Pure function (`extension/src/action-items.js`), unit tested
+against fixtures independently of the bridge.
+
+```bash
+tb action-items <messageId>
+# Returns: {items: [{text, checked, dueHint}], markdown}
 ```
 
 ---
@@ -931,7 +970,9 @@ Note: Extension development cannot happen in Docker. Edit `extension/src/backgro
 - [x] `tb extension-reload` + `/bridge/events` (#17)
 - [x] Opt-in v2 output format, `--output-version 2` (#19)
 - [x] Calendar read-only spike (`tb calendars`, Experiment API) — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) (ODIAA-2327)
-- [ ] Calendar events/tasks CRUD, contacts write, notes, tasks — roadmap, see [docs/PLAN.md](docs/PLAN.md)
+- [x] Contacts write (`contactsWrite`), Notes (`tb notes`)
+- [x] Tasks CRUD (`tasksWrite`) + deterministic action-item extraction (`tb tasks`, `tb action-items`) (ODIAA-2329)
+- [ ] Calendar events CRUD — roadmap, see [docs/PLAN.md](docs/PLAN.md)
 
 ---
 
@@ -1194,15 +1235,16 @@ Claude Desktop ──stdio JSON-RPC──> tb-mcp ──HTTP──> Bridge ─�
 The MCP server:
 - Has **no state** — every tool call is independent
 - **Reuses** `cli/src/client.js` for HTTP calls (no code duplication)
-- Exposes **16 high-level tools** rather than all 43 CLI commands
+- Exposes **26 high-level tools** rather than all CLI commands
 - Defaults to **safe behavior** (compose/reply/forward/edit → draft, not send)
 
 ### Tool Catalog
 
-The 16 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
+The 26 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
 
 | MCP Tool | Maps to CLI commands |
 |----------|---------------------|
+| `calendar_list` | `tb calendars` |
 | `email_stats` | `tb stats` |
 | `email_search` | `tb search` |
 | `email_list` | `tb list` |
@@ -1224,6 +1266,10 @@ The 16 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 | `contact_search` | `tb contacts`, `tb contacts-search` |
 | `contact_create` | `tb contacts create` (requires `contactsWrite`) |
 | `contact_update` | `tb contacts update` (requires `contactsWrite`) |
+| `task_list` | `tb tasks list` |
+| `task_create` | `tb tasks create` (requires `tasksWrite`) |
+| `task_update` | `tb tasks update` (requires `tasksWrite`) |
+| `email_action_items` | `tb action-items` |
 
 Notes are also exposed as MCP **resources** (`note://<name>`, `text/markdown`) so
 clients that browse resources rather than call tools can list and read the

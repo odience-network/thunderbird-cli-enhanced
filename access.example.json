@@ -12,5 +12,6 @@
   "folderCreate": true,
   "folderRename": true,
   "folderDelete": false,
-  "contactsWrite": false
+  "contactsWrite": false,
+  "tasksWrite": false
 }

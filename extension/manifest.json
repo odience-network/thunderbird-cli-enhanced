@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Thunderbird CLI Enhanced",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Connects Thunderbird to CLI agents via WebSocket bridge",
   "author": "thunderbird-cli-enhanced",
   "browser_specific_settings": {
@@ -42,7 +42,7 @@
     "tabs"
   ],
   "background": {
-    "scripts": ["src/access-config.js", "src/access-control.js", "src/thread-utils.js", "src/background.js"]
+    "scripts": ["src/access-config.js", "src/access-control.js", "src/thread-utils.js", "src/action-items.js", "src/background.js"]
   },
   "experiment_apis": {
     "calendar_calendars": {
@@ -51,6 +51,14 @@
         "scopes": ["addon_parent"],
         "script": "experiments/calendar/parent/ext-calendar-calendars.js",
         "paths": [["calendar", "calendars"]]
+      }
+    },
+    "calendar_tasks": {
+      "schema": "experiments/calendar/schema/calendar-tasks.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "experiments/calendar/parent/ext-calendar-tasks.js",
+        "paths": [["calendar", "tasks"]]
       }
     }
   }

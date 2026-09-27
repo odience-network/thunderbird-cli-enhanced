@@ -278,10 +278,32 @@ tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [
 ## Calendars
 
 Read-only, experimental (see `docs/decisions/calendar-backend.md`). Lists local Thunderbird
-calendars only; no event/task read or write yet.
+calendars only; no event read or write yet.
 
 ```bash
 tb calendars                              # list calendars
+```
+
+## Tasks
+
+Calendar tasks (VTODO), through the vendored `calendar.tasks` Experiment API (see
+`docs/decisions/calendar-backend.md`).
+
+```bash
+tb tasks list [--calendar <calendarId>] [--completed] [--pending]  # list tasks
+
+# Requires tasksWrite access switch (default off, see docs/ACCESS-CONTROL.md)
+tb tasks create --calendar <calendarId> --title <title> [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>]
+tb tasks update <taskId> --calendar <calendarId> [--title <title>] [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>] [--completed] [--pending]
+```
+
+## Action Items
+
+```bash
+tb action-items <messageId>   # deterministic (no LLM) extraction of candidate action items
+                               # from a message body, rendered as a Markdown checklist
 ```
 
 ## Bulk Operations

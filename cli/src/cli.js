@@ -1339,6 +1339,92 @@ notes
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
+// ─── Tasks (ODIAA-2329, VTODO through the calendar_tasks Experiment API) ────
+
+function taskPropertiesFromOpts(opts) {
+  const properties = {};
+  if (opts.title) properties.title = opts.title;
+  if (opts.due) properties.due = opts.due;
+  if (opts.allDay) properties.allDay = true;
+  if (opts.priority !== undefined) properties.priority = parseInt(opts.priority, 10);
+  if (opts.description) properties.description = opts.description;
+  if (opts.source) properties.source = opts.source;
+  return properties;
+}
+
+const tasks = program.command("tasks").description("Calendar tasks (VTODO)");
+
+tasks
+  .command("list")
+  .description("List tasks, filtered by calendar/completion")
+  .option("--calendar <calendarId>", "limit to one calendar")
+  .option("--completed", "only completed tasks")
+  .option("--pending", "only pending (not completed) tasks")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const body = {};
+    if (opts.calendar) body.calendarId = opts.calendar;
+    if (opts.completed) body.completed = true;
+    else if (opts.pending) body.completed = false;
+    const data = await api("POST", "/tasks/list", body, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+tasks
+  .command("create")
+  .description("Create a task (requires tasksWrite access)")
+  .requiredOption("--calendar <calendarId>", "target calendar")
+  .requiredOption("--title <title>", "task title")
+  .option("--due <date>", "due date (ISO date/time, or YYYY-MM-DD with --all-day)")
+  .option("--all-day", "all-day due date")
+  .option("--priority <n>", "priority 0-9 (1-4 high, 5 normal, 6-9 low)")
+  .option("--description <description>", "description")
+  .option("--source <messageId>", "message id this task was created from")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const properties = taskPropertiesFromOpts(opts);
+    const data = await api("POST", "/tasks/create", { calendarId: opts.calendar, ...properties }, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+tasks
+  .command("update <taskId>")
+  .description("Update a task's fields (tasksWrite required)")
+  .requiredOption("--calendar <calendarId>", "calendar the task belongs to")
+  .option("--title <title>", "task title")
+  .option("--due <date>", "due date (ISO date/time, or YYYY-MM-DD with --all-day)")
+  .option("--all-day", "all-day due date")
+  .option("--priority <n>", "priority 0-9 (1-4 high, 5 normal, 6-9 low)")
+  .option("--description <description>", "description")
+  .option("--source <messageId>", "message id this task was created from")
+  .option("--completed", "mark completed")
+  .option("--pending", "mark not completed")
+  .action(run(async (taskId, opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    const outOpts = getOutputOpts(g);
+    const properties = taskPropertiesFromOpts(opts);
+    if (opts.completed) properties.completed = true;
+    else if (opts.pending) properties.completed = false;
+    if (Object.keys(properties).length === 0) {
+      outputError({ message: "Provide at least one task property to update", code: "INVALID_ARGS" }, fmt, outOpts);
+      return;
+    }
+    const data = await api("POST", "/tasks/update", { calendarId: opts.calendar, id: taskId, ...properties }, getTimeout(g));
+    output(data, fmt, outOpts);
+  }));
+
+// ─── Action items (ODIAA-2329, deterministic extraction from an email body) ─
+
+program
+  .command("action-items <messageId>")
+  .description("Extract candidate action items from a message body as a Markdown checklist (deterministic, no LLM)")
+  .action(run(async (messageId) => {
+    const g = program.opts();
+    const data = await api("POST", `/messages/${messageId}/action-items`, {}, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
 // ─── Parse & Run ──────────────────────────────────────────────────────
 
 program.parseAsync(process.argv).catch(err => {
