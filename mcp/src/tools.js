@@ -284,6 +284,7 @@ export const tools = [
         body: { type: "string", description: "Reply body" },
         replyAll: { type: "boolean", description: "Reply to all recipients" },
         from: { type: "string", description: "Thunderbird identity ID to reply from (default: inferred from the message account)" },
+        subject: { type: "string", description: "Override the subject (default: Thunderbird's, Re:-prefixed)" },
         includeHistory: { type: "boolean", description: "Append the earlier thread as quoted conversation history (default: true)" },
         mode: {
           type: "string",
@@ -301,6 +302,7 @@ export const tools = [
         includeHistory: args.includeHistory !== false,
       };
       if (args.from) payload.identityId = args.from;
+      if (args.subject) payload.subject = args.subject;
       const mode = args.mode || "draft";
       if (mode === "send") payload.send = true;
       else if (mode === "open") payload.open = true;
@@ -320,6 +322,7 @@ export const tools = [
         messageId: { type: "number", description: "Message ID to forward" },
         to: { type: "string", description: "Recipient address" },
         body: { type: "string", description: "Optional additional text" },
+        from: { type: "string", description: "Thunderbird identity ID to forward from (default: inferred from the message account)" },
         includeHistory: { type: "boolean", description: "Append the earlier thread as quoted conversation history (default: true)" },
         mode: {
           type: "string",
@@ -336,6 +339,7 @@ export const tools = [
         body: args.body || "",
         includeHistory: args.includeHistory !== false,
       };
+      if (args.from) payload.identityId = args.from;
       const mode = args.mode || "draft";
       if (mode === "send") payload.send = true;
       else if (mode === "open") payload.open = true;

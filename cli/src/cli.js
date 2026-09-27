@@ -688,6 +688,7 @@ program
   .option("--body-file <path>", "read reply from file")
   .option("--all", "reply to all")
   .option("--html", "body is HTML")
+  .option("--subject <text>", "override the subject (default: Thunderbird's, Re:-prefixed)")
   .option("--from <identityId>", "reply from a specific identity (default: inferred from the message account)")
   .option("--draft", "save as draft (default)")
   .option("--open", "open compose window")
@@ -708,6 +709,7 @@ program
       includeHistory: opts.history,
     };
     if (opts.from) payload.identityId = opts.from;
+    if (opts.subject) payload.subject = opts.subject;
 
     if (opts.send) {
       payload.send = true;
@@ -728,6 +730,7 @@ program
   .description("Forward a message")
   .requiredOption("--to <address>", "forward to")
   .option("--body <text>", "additional text")
+  .option("--from <identityId>", "forward from a specific identity (default: inferred from the message account)")
   .option("--draft", "save as draft (default)")
   .option("--open", "open compose window")
   .option("--send", "send immediately")
@@ -740,6 +743,7 @@ program
       body: opts.body || "",
       includeHistory: opts.history,
     };
+    if (opts.from) payload.identityId = opts.from;
 
     if (opts.send) {
       payload.send = true;

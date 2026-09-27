@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   actively maintained) and sanitizes with
   [`sanitize-html`](https://www.npmjs.com/package/sanitize-html) (parser-driven, not regex-based)
   before the HTML ever reaches an email draft.
+- `--from <identityId>` on `tb forward` (`from` on MCP `email_forward`); `--from` on reply/forward may now name an identity from any account (unknown identities are still rejected).
+- `--subject <text>` on `tb reply` (`subject` on MCP `email_reply`).
+- `npm run test:draft` — draft-routing regression suite (identity resolution, cross-account `--from`, Gmail dual-drafts warning, unconfirmed-save errors, reply subject/quote/HTML handling), also part of `test:extension`.
 - **`tb edit <messageId>`** — edit an existing draft in place (to/cc/bcc/subject/body/from/priority) with `--draft`/`--open`/`--send` modes
 - **`email_edit` MCP tool** — same capability for agents; returns `messageId` + `previousMessageId` (IMAP may reassign draft IDs on save)
 - Extension route `POST /compose/edit` using `compose.beginNew` + `setComposeDetails` + `saveMessage`, gated by the same `compose`/`send` access policy switches as `POST /compose` (see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
@@ -58,6 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ATN approval and checks the download against ATN's published sha256.
 
 ### Fixed
+- **`tb forward` (and `/compose` without `--from`) could file the draft into the wrong account.** Forward composed without an `identityId`, so Thunderbird fell back to the global default identity and filed the draft into *that* account's Drafts. Forward now resolves the identity from the source message's account, the same way reply already did.
+- `compose`/`reply`/`forward` in draft mode now **confirm the draft was written** and error instead of reporting `draft_saved` when Thunderbird returns no saved message. The response carries the draft's `messageId` and the `folder` it landed in.
+- A draft filed outside the account's real drafts folder — e.g. a Gmail account's bare `/Drafts` instead of `/[Gmail]/Drafts` — is reported with a `warning` naming both folders. It is deliberately **not** relocated: moving between a Gmail account's two drafts folders aborts server-side (NS error 0x80550021) and renumbers the message. Placement is judged against the *composing identity's* account, so a deliberate cross-account `--from` does not raise a false warning.
+- `tb reply` into an HTML compose window no longer drops the reply text (it was written to `plainTextBody`, which HTML windows ignore); it is now inserted above the generated HTML quote. A generated subject missing its `Re:` prefix gets one, never doubled.
 - Search tag and size filters are applied by Thunderbird before the result limit, so
   matching messages beyond the first unfiltered batch are not missed.
 - Limited message collection checks for an additional matching message before reporting

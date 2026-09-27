@@ -664,40 +664,19 @@ async function handleRequest({ method, path, body }) {
       return { success: true, action: "draft_opened", tabId: tab.id };
     }
     // Default: save as draft and close
-    await messenger.compose.saveMessage(tab.id, { mode: "draft" });
-    await messenger.tabs.remove(tab.id);
-    return { success: true, action: "draft_saved" };
+    return await saveDraft(tab.id, await accountForIdentity(identityId));
   }
 
   // ─── Reply ──────────────────────────────────────────────────────
 
   if (path === "/reply" && method === "POST") {
-    const { messageId, body: replyBody, replyAll = false,
+    const { messageId, body: replyBody, replyAll = false, subject,
             identityId, send = false, draft = false, open = false,
             includeHistory = true } = body;
     const type = replyAll ? "replyToAll" : "replyToSender";
 
-    // Resolve the sender identity from the original message's account. Without an explicit
-    // identity Thunderbird can fall back to the global default, which may not be the address
-    // the original message was sent to.
     const original = await messenger.messages.get(messageId);
-    const account = await messenger.accounts.get(original.folder.accountId, true);
-    const accountIdentities = account.identities || [];
-    let selectedIdentityId = identityId;
-    if (selectedIdentityId && !accountIdentities.some((id) => id.id === selectedIdentityId)) {
-      throw new Error("Requested reply identity does not belong to the message account");
-    }
-    if (!selectedIdentityId) {
-      const addressedRecipients = [
-        ...(original.recipients || []),
-        ...(original.ccList || []),
-        ...(original.bccList || []),
-      ].map((recipient) => String(recipient).toLowerCase()).join("\n");
-      const matchingIdentity = accountIdentities.find((id) =>
-        id.email && addressedRecipients.includes(id.email.toLowerCase())
-      );
-      selectedIdentityId = matchingIdentity?.id || accountIdentities[0]?.id;
-    }
+    const selectedIdentityId = await resolveComposeIdentity(original, identityId);
 
     // Let Thunderbird establish the reply relationship and generate the identity's configured
     // signature and quotation before inserting the supplied text.
@@ -712,7 +691,27 @@ async function handleRequest({ method, path, body }) {
     // message has no resolvable ancestors, so this is a no-op for non-threaded mail.
     const historyText = includeHistory ? await buildConversationHistory(messageId) : "";
 
-    if (replyBody) {
+    // An explicit subject wins; otherwise keep Thunderbird's generated one, adding the reply
+    // prefix only when it is missing, so a staged reply still threads as one.
+    const replySubject = subject || withReplyPrefix(composeDetails.subject || original.subject);
+    if (replySubject && replySubject !== composeDetails.subject) {
+      await messenger.compose.setComposeDetails(tab.id, { subject: replySubject });
+      composeDetails = await messenger.compose.getComposeDetails(tab.id);
+    }
+
+    if (composeDetails.isPlainText === false) {
+      // setComposeDetails cannot switch an open window between HTML and plain text (Thunderbird
+      // throws), and an HTML window ignores plainTextBody. Write above the generated HTML quote.
+      const text = replyBody ? `<p>${plainTextToHtml(replyBody.trimEnd())}</p>` : "";
+      const history = historyText ? `<p>${plainTextToHtml(historyText.trim())}</p>` : "";
+      if (text || history) {
+        await messenger.compose.setComposeDetails(tab.id, {
+          body: `${text}${composeDetails.body || ""}${history}`,
+        });
+        composeDetails = await messenger.compose.getComposeDetails(tab.id);
+      }
+      quotedOriginal = /<blockquote/i.test(composeDetails.body || "");
+    } else if (replyBody) {
       let generatedBody = composeDetails.plainTextBody || "";
       quotedOriginal = generatedBody.split(/\r?\n/).some((line) => line.trimStart().startsWith(">"));
 
@@ -752,33 +751,34 @@ async function handleRequest({ method, path, body }) {
       return { success: true, action: "draft_opened", tabId: tab.id, ...verification };
     }
     // Default: save as draft and close
-    await messenger.compose.saveMessage(tab.id, { mode: "draft" });
-    await messenger.tabs.remove(tab.id);
-    return { success: true, action: "draft_saved", ...verification };
+    const saved = await saveDraft(tab.id, await expectedDraftAccount(selectedIdentityId, original.folder.accountId));
+    return { ...saved, ...verification };
   }
 
   // ─── Forward ────────────────────────────────────────────────────
 
   if (path === "/forward" && method === "POST") {
     const { messageId, to, body: fwdBody,
-            send = false, draft = false, open = false,
+            identityId, send = false, draft = false, open = false,
             includeHistory = true } = body;
+    const original = await messenger.messages.get(messageId);
+    const selectedIdentityId = await resolveComposeIdentity(original, identityId);
     const historyText = includeHistory ? await buildConversationHistory(messageId) : "";
-    const tab = await messenger.compose.beginForward(
-      messageId, "forwardAsAttachment",
-      { to: Array.isArray(to) ? to : [to], isPlainText: true, plainTextBody: `${fwdBody || ""}${historyText}` }
-    );
+    const details = {
+      to: Array.isArray(to) ? to : [to], isPlainText: true, plainTextBody: `${fwdBody || ""}${historyText}`,
+    };
+    if (selectedIdentityId) details.identityId = selectedIdentityId;
+    const tab = await messenger.compose.beginForward(messageId, "forwardAsAttachment", details);
     if (send) {
       await messenger.compose.sendMessage(tab.id, { mode: "sendNow" });
-      return { success: true, action: "sent" };
+      return { success: true, action: "sent", identityId: selectedIdentityId };
     }
     if (open) {
-      return { success: true, action: "draft_opened", tabId: tab.id };
+      return { success: true, action: "draft_opened", tabId: tab.id, identityId: selectedIdentityId };
     }
     // Default: save as draft and close
-    await messenger.compose.saveMessage(tab.id, { mode: "draft" });
-    await messenger.tabs.remove(tab.id);
-    return { success: true, action: "draft_saved" };
+    const saved = await saveDraft(tab.id, await expectedDraftAccount(selectedIdentityId, original.folder.accountId));
+    return { ...saved, identityId: selectedIdentityId };
   }
 
   // ─── Edit existing draft ────────────────────────────────────────
@@ -1083,6 +1083,99 @@ async function handleRequest({ method, path, body }) {
   // ─── Not found ─────────────────────────────────────────────────
 
   return { error: `Not found: ${method} ${path}` };
+}
+
+// ─── Draft helpers ──────────────────────────────────────────────────
+//
+// Thunderbird files a saved draft into the drafts folder configured on the *identity* that
+// composed it, falling back to the global default identity when none is given — so a reply to
+// one account's message could silently land in another account's Drafts. On top of that, a
+// Gmail account exposes both a bare "/Drafts" and the real server-side "/[Gmail]/Drafts", and
+// only the latter shows up as a draft in Gmail.
+
+// Identity for a reply/forward. An explicit identity may come from any account (a deliberate
+// cross-account --from); otherwise prefer the message account's identity it was addressed to.
+async function resolveComposeIdentity(original, identityId) {
+  if (identityId) {
+    if (!(await accountForIdentity(identityId))) {
+      throw new Error(`Requested identity ${identityId} does not belong to any account`);
+    }
+    return identityId;
+  }
+  const account = await messenger.accounts.get(original.folder.accountId, true);
+  const accountIdentities = account?.identities || [];
+  const addressedRecipients = [
+    ...(original.recipients || []),
+    ...(original.ccList || []),
+    ...(original.bccList || []),
+  ].map((recipient) => String(recipient).toLowerCase()).join("\n");
+  const matchingIdentity = accountIdentities.find((id) =>
+    id.email && addressedRecipients.includes(id.email.toLowerCase())
+  );
+  return matchingIdentity?.id || accountIdentities[0]?.id || null;
+}
+
+function withReplyPrefix(subject) {
+  if (!subject) return null;
+  return /^\s*re\s*:/i.test(subject) ? subject : `Re: ${subject}`;
+}
+
+async function accountForIdentity(identityId) {
+  if (!identityId) return null;
+  const accounts = await messenger.accounts.list(true);
+  const owner = accounts.find((a) => (a.identities || []).some((id) => id.id === identityId));
+  return owner?.id || null;
+}
+
+// Placement is decided by the composing identity's draft_folder, so the expected account follows
+// that identity — not the account of the message being replied to or forwarded.
+async function expectedDraftAccount(identityId, fallbackAccountId) {
+  return (await accountForIdentity(identityId)) || fallbackAccountId;
+}
+
+// The account's real drafts folder: prefer Gmail's "[Gmail]/Drafts" over a bare "Drafts".
+async function draftsFolderForAccount(accountId) {
+  if (!accountId) return null;
+  const account = await messenger.accounts.get(accountId, true);
+  const drafts = [];
+  (function walk(folder) {
+    if (!folder) return;
+    if (folder.type === "drafts") drafts.push(folder);
+    (folder.subFolders || []).forEach(walk);
+  })(account?.rootFolder);
+  return drafts.find((f) => f.path.startsWith("/[Gmail]/")) || drafts[0] || null;
+}
+
+// Save as draft and confirm it landed; throws rather than reporting "draft_saved" for a write we
+// could not verify. A misfiled draft is deliberately NOT relocated: moving a message between a
+// Gmail account's two drafts folders aborts server-side (NS error 0x80550021) and renumbers it,
+// trading a findable draft for a messageId that no longer resolves. Warn instead, so the
+// identity's draft_folder gets fixed.
+async function saveDraft(tabId, accountId) {
+  const saved = await messenger.compose.saveMessage(tabId, { mode: "draft" });
+  await messenger.tabs.remove(tabId);
+
+  const header = saved?.messages?.[0];
+  if (!header) {
+    throw new Error("Draft save did not return a saved message — nothing was written to the mailbox");
+  }
+
+  const folder = header.folder;
+  const result = {
+    success: true,
+    action: "draft_saved",
+    messageId: header.id,
+    folder: folder ? { accountId: folder.accountId, path: folder.path, name: folder.name } : null,
+  };
+
+  const target = await draftsFolderForAccount(accountId);
+  if (target && folder && folder.path !== target.path) {
+    result.warning =
+      `Draft was filed into ${folder.path}, but this account's drafts folder is ${target.path}. ` +
+      "The composing identity's draft_folder points at the wrong folder, so the draft will not " +
+      "show up where drafts are normally read.";
+  }
+  return result;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
