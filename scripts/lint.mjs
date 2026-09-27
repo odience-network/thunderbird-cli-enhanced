@@ -41,7 +41,7 @@ for (const file of files) {
 console.log(`${failed ? "✗" : "✓"} node --check: ${files.length - failed}/${files.length} files OK`);
 
 const { version } = JSON.parse(readFileSync(join(REPO_ROOT, "extension/manifest.json"), "utf-8"));
-const xpiPath = join(REPO_ROOT, "dist", `thunderbird-cli-${version}.xpi`);
+const xpiPath = join(REPO_ROOT, "dist", `thunderbird-cli-enhanced-${version}.xpi`);
 if (!existsSync(xpiPath)) {
   console.error(`✗ ${relative(REPO_ROOT, xpiPath)} not found — run \`npm run build:xpi\` first`);
   process.exit(1);
