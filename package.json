@@ -22,6 +22,7 @@
     "bridge/package.json",
     "mcp/src/",
     "mcp/package.json",
+    "lib/",
     "skills/thunderbird-cli/",
     "server.json",
     "CHANGELOG.md"
@@ -44,7 +45,8 @@
     "test:sign": "node test/sign-xpi.test.mjs",
     "test:docs": "node test/docs.test.mjs",
     "test:notes": "node test/notes-test.mjs",
-    "test:all": "npm test && npm run test:bridge-auth && npm run test:bridge-security && npm run test:extension && npm run test:sign && npm run test:docs && npm run test:notes && npm run test:mcp && npm run test:mcp-concurrency && npm run test:pack",
+    "test:skills": "node test/skills.test.mjs",
+    "test:all": "npm test && npm run test:bridge-auth && npm run test:bridge-security && npm run test:extension && npm run test:sign && npm run test:docs && npm run test:notes && npm run test:skills && npm run test:mcp && npm run test:mcp-concurrency && npm run test:pack",
     "test:live-smoke": "node test/live-smoke.mjs",
     "test:live-attachment": "node test/live-attachment-smoke.mjs",
     "build:diagrams": "node scripts/build-diagrams.mjs",

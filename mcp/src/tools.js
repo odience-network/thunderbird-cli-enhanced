@@ -12,6 +12,21 @@
 
 import { parseRelativeDate } from "./client.js";
 import { listNotes, readNote, saveNote, appendNote, renderNoteHtml } from "./notes.js";
+import {
+  startOfDay,
+  addDays,
+  renderToday,
+  renderWeek,
+  renderClashes,
+  groupMessagesIntoThreads,
+  renderFrom,
+} from "../../lib/skills.js";
+
+// /calendar/events/list and /calendar/clashes return { error } (not a thrown error) when the
+// calendar Experiment API hasn't loaded — see docs/decisions/calendar-backend.md.
+function calendarErrorOf(result) {
+  return !Array.isArray(result) && result?.error ? result.error : null;
+}
 
 export const tools = [
   // ─── 0. Calendar list (ODIAA-2327 proof, read-only) ─────────────
@@ -924,6 +939,105 @@ export const tools = [
     handler: async (args, api) => {
       if (!args.start || !args.end) return { error: "start and end required" };
       return await api("POST", "/calendar/clashes", { start: args.start, end: args.end });
+    },
+  },
+
+  // ─── Deterministic skills (ODIAA-2332) ───────────────────────────
+  // Zero-LLM-reasoning tools: they compose existing read-only endpoints and hand back
+  // pre-formatted, compact Markdown — no JSON for the model to parse or summarize.
+  {
+    name: "skill_today",
+    description:
+      "Today at a glance: today's calendar events (all calendars) plus unread and flagged mail counts. Returns ready-to-show Markdown, not JSON — do not reformat or re-summarize it.",
+    inputSchema: { type: "object", properties: {} },
+    handler: async (_args, api) => {
+      const date = startOfDay(new Date());
+      const end = addDays(date, 1);
+      const [eventsResult, stats, flaggedResult] = await Promise.all([
+        api("POST", "/calendar/events/list", { start: date.toISOString(), end: end.toISOString() }),
+        api("GET", "/stats"),
+        api("POST", "/messages/search", { flagged: true, limit: 200 }),
+      ]);
+      const calendarError = calendarErrorOf(eventsResult);
+      const markdown = renderToday({
+        date,
+        events: calendarError ? [] : eventsResult,
+        calendarError,
+        unreadTotal: stats?.totalUnread,
+        flagged: flaggedResult?.messages
+          ? { count: flaggedResult.messages.length, hasMore: !!flaggedResult.hasMore }
+          : null,
+      });
+      return { markdown };
+    },
+  },
+
+  {
+    name: "skill_week",
+    description:
+      "This week at a glance: calendar events (all calendars) for the next 7 days, grouped by day. Returns ready-to-show Markdown, not JSON — do not reformat or re-summarize it.",
+    inputSchema: { type: "object", properties: {} },
+    handler: async (_args, api) => {
+      const start = startOfDay(new Date());
+      const end = addDays(start, 7);
+      const eventsResult = await api("POST", "/calendar/events/list", {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+      const calendarError = calendarErrorOf(eventsResult);
+      const markdown = renderWeek({
+        start,
+        numDays: 7,
+        events: calendarError ? [] : eventsResult,
+        calendarError,
+      });
+      return { markdown };
+    },
+  },
+
+  {
+    name: "skill_clashes",
+    description:
+      "Find overlapping ('clashing') events across all calendars in the next N days (default 7). Ignores cancelled and free/transparent events. Returns ready-to-show Markdown, not JSON — do not reformat or re-summarize it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        days: { type: "number", description: "Look ahead this many days (default 7)" },
+      },
+    },
+    handler: async (args, api) => {
+      const days = args.days > 0 ? args.days : 7;
+      const start = startOfDay(new Date());
+      const end = addDays(start, days);
+      const result = await api("POST", "/calendar/clashes", {
+        start: start.toISOString(),
+        end: end.toISOString(),
+      });
+      const calendarError = calendarErrorOf(result);
+      const markdown = renderClashes({ start, end, clashes: result?.clashes, calendarError });
+      return { markdown };
+    },
+  },
+
+  {
+    name: "skill_from",
+    description:
+      "Recent mail from a sender address or domain, grouped into threads by subject. Returns ready-to-show Markdown, not JSON — do not reformat or re-summarize it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        address: { type: "string", description: "Sender email address or domain (e.g. '@example.com')" },
+        limit: { type: "number", description: "Max messages to consider (default 50)" },
+      },
+      required: ["address"],
+    },
+    handler: async (args, api) => {
+      if (!args.address) return { error: "address required" };
+      const limit = args.limit > 0 ? args.limit : 50;
+      const result = await api("POST", "/messages/search", { fromAddress: args.address, limit });
+      const threads = groupMessagesIntoThreads(result?.messages);
+      const markdown = renderFrom({ address: args.address, threads, hasMore: !!result?.hasMore });
+      return { markdown };
     },
   },
 ];
