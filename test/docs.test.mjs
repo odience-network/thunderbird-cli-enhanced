@@ -55,8 +55,13 @@ const cli = new Map(); // "bulk move" → Set(flags)
 for (const cmd of commandsOf(top)) {
   const text = help(cmd);
   const subs = commandsOf(text);
-  if (subs.length) for (const sub of subs) cli.set(`${cmd} ${sub}`, new Set(flagsOf(help(cmd, sub))));
-  else cli.set(cmd, new Set(flagsOf(text)));
+  if (subs.length) {
+    for (const sub of subs) cli.set(`${cmd} ${sub}`, new Set(flagsOf(help(cmd, sub))));
+    // A parent command can also have its own action (e.g. `tb contacts` lists,
+    // `tb contacts create` is a subcommand) — register it too when it has its own flags.
+    const ownFlags = flagsOf(text);
+    if (ownFlags.length) cli.set(cmd, new Set(ownFlags));
+  } else cli.set(cmd, new Set(flagsOf(text)));
 }
 
 console.log("\nCLI surface");

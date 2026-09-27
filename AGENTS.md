@@ -10,9 +10,9 @@ Four artifacts, one architecture. The npm names below are upstream's published p
 
 | Artifact | What | Where |
 |---|---|---|
-| `thunderbird-cli` | `tb` CLI (41 commands) | `cli/` → npm: `thunderbird-cli` |
+| `thunderbird-cli` | `tb` CLI (43 commands) | `cli/` → npm: `thunderbird-cli` |
 | `thunderbird-cli-bridge` | Stateless HTTP↔WS proxy daemon | `bridge/` → npm: `thunderbird-cli-bridge` |
-| `thunderbird-cli-mcp` | MCP server (13 tools for Claude Desktop) | `mcp/` → npm: `thunderbird-cli-mcp` |
+| `thunderbird-cli-mcp` | MCP server (16 tools for Claude Desktop) | `mcp/` → npm: `thunderbird-cli-mcp` |
 | Thunderbird WebExtension | WS client inside Thunderbird | `extension/` → Mozilla-signed (unlisted) XPI in `dist/releases/` |
 
 ```
@@ -139,7 +139,7 @@ npm publish is manual (`cd cli && npm publish`) — intentionally, so a release 
 | `SPEC.md` | Full technical specification — source of truth for tool surface |
 | `SECURITY.md` | Threat model, CLI defenses, agent patterns |
 | `docs/SETUP.md` | User install guide |
-| `docs/COMMANDS.md` | All 41 CLI commands reference |
+| `docs/COMMANDS.md` | All 43 CLI commands reference |
 | `docs/CLAUDE.md` | Claude Code–focused CLI quick-ref (end-user oriented) |
 | `docs/distribution-log.md` | Launch venue submission tracker |
 | `skills/thunderbird-cli/SKILL.md` | End-user Claude skill (separate from this file) |

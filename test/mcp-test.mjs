@@ -138,6 +138,9 @@ function handle({ method, path, body }) {
   if (path === "/stats")
     return { totalAccounts: 1, totalUnread: 5, totalMessages: 100, accounts: [] };
   if (path === "/sync") return { success: true, synced: body?.all ? "all" : body?.folderId };
+  if (path === "/contacts/search") return [{ id: "c1", name: "John", email: "j@e.com", emails: ["j@e.com"], book: "P", bookId: "ab1" }];
+  if (path === "/contacts/create") return { id: "c2", book: "P", bookId: "ab1", properties: body?.properties || {} };
+  if (path === "/contacts/update") return { id: body?.id, properties: body?.properties || {} };
   return { error: `Not found: ${method} ${path}` };
 }
 
@@ -319,12 +322,12 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 13 tools", toolList, (r) => Array.isArray(r) && r.length === 13);
+test("tools/list returns 16 tools", toolList, (r) => Array.isArray(r) && r.length === 16);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
 
-console.log("\n\x1b[1mTools (13)\x1b[0m");
+console.log("\n\x1b[1mTools (16)\x1b[0m");
 
 test("email_stats", await client.callTool("email_stats", {}), (r) => r.totalAccounts === 1);
 test(
@@ -537,6 +540,32 @@ test(
   (r) => r.success
 );
 
+test(
+  "contact_search",
+  await client.callTool("contact_search", { query: "john" }),
+  (r) => Array.isArray(r) && r[0].bookId === "ab1"
+);
+test(
+  "contact_create",
+  await client.callTool("contact_create", { book: "ab1", displayName: "Jane" }),
+  (r) => r.id === "c2" && r.properties.DisplayName === "Jane"
+);
+test(
+  "contact_create requires book",
+  await client.callTool("contact_create", { displayName: "Jane" }),
+  (r) => r.error === "book required"
+);
+test(
+  "contact_update",
+  await client.callTool("contact_update", { contactId: "c1", lastName: "Doe" }),
+  (r) => r.id === "c1" && r.properties.LastName === "Doe"
+);
+test(
+  "contact_update requires contactId",
+  await client.callTool("contact_update", { lastName: "Doe" }),
+  (r) => r.error === "contactId required"
+);
+
 console.log("\n\x1b[1mError handling\x1b[0m");
 const unknownTool = await client.callTool("nonexistent_tool", {});
 test("unknown tool returns error", unknownTool, (r) => r.error?.includes("Unknown tool"));
@@ -555,7 +584,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 13 && r.toolsBCount === 13
+  (r) => r.toolsACount === 16 && r.toolsBCount === 16
 );
 clientA.close();
 clientB.close();

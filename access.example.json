@@ -11,5 +11,6 @@
   "tagCreate": true,
   "folderCreate": true,
   "folderRename": true,
-  "folderDelete": false
+  "folderDelete": false,
+  "contactsWrite": false
 }
