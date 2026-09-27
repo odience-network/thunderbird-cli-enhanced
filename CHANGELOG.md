@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Extension 2.2.0 declares `strict_max_version: "155.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.
 
+## [1.2.1] — 2026-09-27
+
+### Changed
+- npm releases are published with trusted publishing (OIDC) and provenance; the release workflow no longer reads an `NPM_TOKEN` secret. No code changes: the CLI, bridge and MCP server are identical to 1.2.0, and the attached add-on is still the signed 2.1.0 XPI (ID `thunderbird-cli-enhanced@odience.net`).
+
 ## [1.2.0] — 2026-09-27
 
 First release of the fork on npm as `@odience-network/thunderbird-cli-enhanced`.
