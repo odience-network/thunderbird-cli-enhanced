@@ -55,7 +55,7 @@ const UNGATED_GET = /^\/(health|access|accounts(?:\/[^/]+(?:\/folders)?)?|identi
 const UNGATED_POST = new Set([
   "/folders/info", "/messages/search", "/messages/list", "/messages/read-batch",
   "/messages/fetch", "/stats", "/recent", "/contacts/search", "/sync", "/sync/status",
-  "/bulk/fetch",
+  "/bulk/fetch", "/extension/reload",
 ]);
 
 // POST routes with one fixed policy switch each.

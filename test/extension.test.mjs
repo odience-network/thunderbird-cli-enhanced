@@ -201,14 +201,16 @@ test("pending backoff timer is cancelled on wake", pendingTimers().length === 0)
 
 const current = lastSocket();
 current.open();
+test("reconnection sends an extension-ready beacon", current.sent.some((m) => m.type === "event" && m.name === "extension-ready"));
 const stale = new MockWebSocket("stale");
 stale.onclose = null;
 idleListeners.forEach((fn) => fn("active"));
 test("active while connected does not open a second socket", lastSocket() === stale);
 current.onmessage({ data: JSON.stringify({ id: "r1", method: "GET", path: "/health" }) });
 await new Promise((r) => setImmediate(r));
-test("requests are answered on the socket they arrived on", current.sent[0]?.id === "r1" && current.sent[0]?.result?.status === "ok");
-test("health reports the manifest version", current.sent[0]?.result?.version === manifest.version);
+const healthResponse = current.sent.find((m) => m.id === "r1");
+test("requests are answered on the socket they arrived on", healthResponse?.id === "r1" && healthResponse?.result?.status === "ok");
+test("health reports the manifest version", healthResponse?.result?.version === manifest.version);
 
 // ─── Thread ─────────────────────────────────────────────────────────
 

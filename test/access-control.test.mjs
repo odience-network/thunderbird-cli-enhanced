@@ -29,7 +29,7 @@ function load(config) {
     foldersRenamed: [], composeSent: [], composeSaved: [],
   };
   const messenger = {
-    runtime: { getManifest: () => manifest },
+    runtime: { getManifest: () => manifest, reload: () => {} },
     folders: {
       get: async (id) => ({ id, accountId: "acct1" }),
       delete: async (f) => { calls.foldersDelete.push(f.id); },
@@ -287,6 +287,8 @@ console.log("\n\x1b[1mDeny-by-default\x1b[0m");
     await rejects(handle("GET", "/debug/dump", {}), /^FORBIDDEN: unclassified operation GET/));
   test("read-only routes remain ungated",
     Array.isArray((await handle("POST", "/messages/list", { folderId: "f1" })).messages));
+  test("/extension/reload is ungated (dev-convenience, no mail-data access)",
+    (await handle("POST", "/extension/reload", {})).ok === true);
 }
 
 // ─── Validation and permissions ─────────────────────────────────────
