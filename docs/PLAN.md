@@ -249,16 +249,26 @@ not a metered SaaS.
 
 ## 5. Roadmap phases
 
+<a href="diagrams/roadmap.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/roadmap-dark.png">
+  <img src="diagrams/roadmap.png" alt="Roadmap lifecycle: upstream → fork merges → mail today → calendar and contacts write → notes and tasks → atbridge parity; held items await review" width="800">
+</picture></a>
+
 1. **Fork integration** (child issues per fork, section 3) — bring `main` up to the best
-   known-good state across all forks.
+   known-good state across all forks. **Status:** shipped as PRs #1–#15; still held:
+   `tb extension-reload` + `/bridge/events` (KaiSingL `0b3a5d7`) and the CLI output-format
+   overhaul (ODIAA-2324).
 2. **Calendar, Contacts, Notes, Tasks** — extend `extension`, `bridge`, `cli`, and `mcp`
    surfaces to cover the atbridge.ai-equivalent feature list in section 4, reusing the
    existing mailbox architecture and access-policy model from the `reinhardullrich` fork.
+   **Status:** not started (ODIAA-2306); contacts are read-only today.
 3. **Extension stability pass** — audit `extension/` against the hardening commits already
    identified (reconnect/backoff, IPC queue, lifecycle fixes) and add regression coverage.
+   **Status:** in progress — folder-info cache and MCP concurrency tests shipped in #8.
 4. **Signed extension build pipeline** — GitHub Actions workflow (and a local pre-push
    equivalent) that builds, lints, tests, and produces a signed Thunderbird XPI, committed
-   to `dist/releases/` per the existing `.gitignore` carve-out.
+   to `dist/releases/` per the existing `.gitignore` carve-out. **Status:** shipped
+   (`sign-xpi.yml`, #5 and #7; ODIAA-2308).
 
 ## 6. Open questions for the CEO / board
 
@@ -273,3 +283,4 @@ not a metered SaaS.
   integration.
 - Signing credentials for the Thunderbird extension (AMO/private signing key) — where are
   these stored/injected? Needed before the signed-build workflow can run in CI.
+  **Resolved (#5):** repository secrets `MOZILLA_HUB_JWT_ISSUER` / `MOZILLA_HUB_JWT_SECRET`.

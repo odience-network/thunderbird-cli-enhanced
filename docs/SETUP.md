@@ -16,7 +16,22 @@ Docker/Devcontainer:
 
 Pure WebExtension. No Experiment APIs. Requires Thunderbird 128+.
 
+## Quick path: setup script
+
+From a clone of [odience-network/thunderbird-cli-enhanced](https://github.com/odience-network/thunderbird-cli-enhanced):
+
+```bash
+./setup.sh       # macOS / Linux
+.\setup.ps1      # Windows (PowerShell)
+```
+
+The script checks that Node.js is installed, runs `npm install` at the repo root, links `tb` globally, and offers to link `tb-bridge` and `tb-mcp` too. Then install the extension (Step 2) and run `tb health`.
+
+The npm packages `thunderbird-cli`, `thunderbird-cli-bridge` and `thunderbird-cli-mcp` are published by upstream and don't include this fork's changes, so install from source.
+
 ## Step 1: Install & Start the Bridge
+
+The CLI and the MCP server start the bridge automatically when they can't reach it: they spawn `bridge/bridge.js` from the same checkout as a detached process, then wait up to about 15 s for it and about 10 s for the extension to connect. Start it yourself when you want it supervised or logged:
 
 ```bash
 cd bridge
@@ -48,9 +63,9 @@ nohup node bridge/bridge.js > ~/.tb-bridge.log 2>&1 &
 
 The extension is signed by Mozilla through addons.thunderbird.net for self-distribution. It installs permanently and survives Thunderbird restarts.
 
-1. Download the latest signed XPI from one of these locations:
-   - **GitHub Releases:** https://github.com/vitalio-sh/thunderbird-cli/releases/latest
-   - **Directly from `main`:** [`dist/releases/thunderbird_ai_bridge-2.1.0-tb.xpi`](../dist/releases/thunderbird_ai_bridge-2.1.0-tb.xpi)
+1. Download the latest signed XPI (`thunderbird_ai_bridge-<version>-tb.xpi`) from one of these locations:
+   - **Directly from `main`:** [`dist/releases/`](../dist/releases/)
+   - **GitHub Releases:** https://github.com/odience-network/thunderbird-cli-enhanced/releases, attached by `release.yml` when a `v*` tag is pushed
 2. Open Thunderbird → **Add-ons and Themes**
 3. Click the ⚙ gear icon → **Install Add-on From File…**
 4. Select the downloaded `.xpi`
@@ -71,6 +86,10 @@ Use this while editing `extension/src/background.js` during development. Tempora
 6. Check the bridge terminal: `[bridge] Extension connected`
 
 When you reload after editing, just click **Reload** next to the add-on in `about:debugging`.
+
+### Access policy
+
+The add-on carries one access policy, fixed at build time, that every caller goes through. Deleting messages and deleting folders are off by default; a disabled operation returns `FORBIDDEN`. Check the active policy with `tb access`. To change it, copy `access.example.json` to `access.local.json`, edit it, and install a build from `npm run build:xpi -- --access-config access.local.json`. See [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
 
 ## Step 3: Install the CLI
 

@@ -1,0 +1,279 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Signed XPI release workflow",
+    "subtitle": "sign-xpi.yml gets the add-on approved by addons.thunderbird.net; release.yml publishes it",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "sign",
+        "label": "Build and sign",
+        "focus": [
+          "bump",
+          "verify",
+          "upload",
+          "review",
+          "commit"
+        ],
+        "note": "A manifest version bump on main runs the full gate, then ATN signs the XPI."
+      },
+      {
+        "id": "publish",
+        "label": "Publish",
+        "focus": [
+          "commit",
+          "tag",
+          "release"
+        ],
+        "note": "A version tag attaches the committed signed XPI to a GitHub Release."
+      },
+      {
+        "id": "failures",
+        "label": "Stop conditions",
+        "focus": [
+          "verify",
+          "stop",
+          "review",
+          "resume",
+          "commit"
+        ],
+        "note": "A red gate stops the run; a slow ATN review is resumed by re-running."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "maintainer",
+      "label": "Maintainer"
+    },
+    {
+      "id": "release",
+      "label": "release.yml"
+    },
+    {
+      "id": "sign",
+      "label": "sign-xpi.yml"
+    },
+    {
+      "id": "atn",
+      "label": "addons.thunderbird.net"
+    },
+    {
+      "id": "exceptions",
+      "label": "Stop + resume",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "change",
+      "label": "Change",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "gate",
+      "label": "Gate + sign",
+      "fromCol": 1,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "ship",
+      "label": "Commit + publish",
+      "fromCol": 4,
+      "toCol": 5,
+      "variant": "dashed"
+    }
+  ],
+  "groups": [
+    {
+      "id": "ci_gate",
+      "label": "npm run verify",
+      "lane": "sign",
+      "fromCol": 1,
+      "toCol": 2,
+      "variant": "emphasis"
+    }
+  ],
+  "mainPath": [
+    "bump",
+    "verify",
+    "upload",
+    "review",
+    "commit",
+    "tag",
+    "release"
+  ],
+  "nodes": [
+    {
+      "id": "bump",
+      "lane": "maintainer",
+      "col": 0,
+      "type": "frontend",
+      "label": "Bump version",
+      "sublabel": "manifest.json on main",
+      "width": 140
+    },
+    {
+      "id": "verify",
+      "lane": "sign",
+      "col": 1,
+      "type": "backend",
+      "label": "Build + test",
+      "sublabel": "build:xpi, lint, test:all",
+      "tag": "blocking",
+      "width": 140
+    },
+    {
+      "id": "upload",
+      "lane": "sign",
+      "col": 2,
+      "type": "backend",
+      "label": "Upload",
+      "sublabel": "sign:xpi (unlisted)",
+      "width": 140
+    },
+    {
+      "id": "review",
+      "lane": "atn",
+      "col": 3,
+      "type": "security",
+      "label": "ATN review",
+      "sublabel": "validate + sign",
+      "tag": "polled",
+      "width": 140
+    },
+    {
+      "id": "commit",
+      "lane": "sign",
+      "col": 4,
+      "type": "backend",
+      "label": "Verify + commit",
+      "sublabel": "sha256, id, version",
+      "tag": "dist/releases/",
+      "width": 140
+    },
+    {
+      "id": "tag",
+      "lane": "maintainer",
+      "col": 4,
+      "type": "frontend",
+      "label": "Push tag",
+      "sublabel": "vX.Y.Z",
+      "width": 140
+    },
+    {
+      "id": "release",
+      "lane": "release",
+      "col": 5,
+      "type": "cloud",
+      "label": "GitHub Release",
+      "sublabel": "tests + signed XPI",
+      "width": 140
+    },
+    {
+      "id": "stop",
+      "lane": "exceptions",
+      "col": 1,
+      "type": "security",
+      "label": "Stop",
+      "sublabel": "gate failed",
+      "width": 140
+    },
+    {
+      "id": "resume",
+      "lane": "exceptions",
+      "col": 3,
+      "type": "messagebus",
+      "label": "Re-run later",
+      "sublabel": "resumes on 409",
+      "width": 140
+    }
+  ],
+  "edges": [
+    {
+      "id": "bump-verify",
+      "from": "bump",
+      "to": "verify",
+      "label": "push",
+      "variant": "emphasis"
+    },
+    {
+      "id": "verify-upload",
+      "from": "verify",
+      "to": "upload",
+      "label": "green"
+    },
+    {
+      "id": "upload-review",
+      "from": "upload",
+      "to": "review",
+      "label": "JWT API",
+      "variant": "security"
+    },
+    {
+      "id": "review-commit",
+      "from": "review",
+      "to": "commit",
+      "label": "approved file",
+      "variant": "emphasis"
+    },
+    {
+      "id": "commit-tag",
+      "from": "commit",
+      "to": "tag",
+      "variant": "dashed"
+    },
+    {
+      "id": "tag-release",
+      "from": "tag",
+      "to": "release",
+      "label": "tag push",
+      "variant": "emphasis"
+    },
+    {
+      "id": "verify-stop",
+      "from": "verify",
+      "to": "stop",
+      "label": "red",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "review-resume",
+      "from": "review",
+      "to": "resume",
+      "label": "timeout",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Gate",
+      "items": [
+        "Same gate as the pre-push hook: npm run verify",
+        "Signing needs MOZILLA_HUB_JWT_* repository secrets"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Integrity",
+      "items": [
+        "Downloaded XPI must match ATN's sha256",
+        "Manifest id and version must match the build"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Publish",
+      "items": [
+        "release.yml fails if no *-tb.xpi is committed",
+        "Unsigned build is attached alongside for reference"
+      ]
+    }
+  ]
+}

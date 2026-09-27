@@ -1,7 +1,7 @@
 {
   "name": "thunderbird-cli",
   "version": "1.1.0",
-  "description": "Low-level CLI to manage Mozilla Thunderbird email from the shell. 39 commands for search, read, compose, reply, edit drafts, attachments, folders, bulk ops. Designed for AI agents.",
+  "description": "Low-level CLI to manage Mozilla Thunderbird email from the shell. 40 commands for search, read, compose, reply, edit drafts, attachments, folders, bulk ops. Designed for AI agents.",
   "type": "module",
   "bin": {
     "tb": "./src/cli.js"
@@ -43,11 +43,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vitalio-sh/thunderbird-cli",
+    "url": "https://github.com/odience-network/thunderbird-cli-enhanced",
     "directory": "cli"
   },
   "bugs": {
-    "url": "https://github.com/vitalio-sh/thunderbird-cli/issues"
+    "url": "https://github.com/odience-network/thunderbird-cli-enhanced/issues"
   },
-  "homepage": "https://github.com/vitalio-sh/thunderbird-cli#readme"
+  "homepage": "https://github.com/odience-network/thunderbird-cli-enhanced#readme"
 }

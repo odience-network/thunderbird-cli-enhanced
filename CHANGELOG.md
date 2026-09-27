@@ -64,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Search latency** — reduced `autoPaginationTimeout` from 1000ms default to 200ms on all `messages.query()` calls, cutting ~800ms per low-result query
 - **`tb list` default sort** — now defaults to date-descending (was unsorted ascending)
 
+### Documentation
+- Docs now describe this fork (`odience-network/thunderbird-cli-enhanced`): repointed badges, links and clone URLs; install from source via `setup.sh` / `setup.ps1` (the upstream npm packages don't carry fork changes); README "Why this fork" table and Acknowledgements for upstream and each integrated fork.
+- Five [archify](https://github.com/tt-a1i/archify) diagrams in `docs/diagrams/` (architecture, search sequence, access control, release workflow, roadmap), each as JSON IR, interactive HTML and light/dark PNG; rebuilt with `npm run build:diagrams` (see CONTRIBUTING.md).
+- `npm run test:docs` (also in CI): every `tb` command and flag from `tb --help` must be in `docs/COMMANDS.md`, README/COMMANDS examples may only use real commands and flags, and every diagram must have its HTML and PNGs.
+- Counts corrected to 40 CLI commands and 13 MCP tools; missing flags added to `docs/COMMANDS.md` (`thread --headers`, `compose --header`, `reply --html`, `bulk` filters and `-l`, `contacts-search`).
+- SECURITY.md marks which defenses are enforced and which are design only; the companion skill no longer claims `email_read` returns junk scores, SPF/DKIM or contact status, or that hidden HTML is stripped.
+
 ## [1.1.0] — 2026-09-14
 
 npm packages `thunderbird-cli`, `thunderbird-cli-bridge`, `thunderbird-cli-mcp` 1.1.0; Thunderbird extension 2.1.0.

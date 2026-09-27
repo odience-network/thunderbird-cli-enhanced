@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # Diagram tooling (archify) must never phone home from CI.
+      ARCHIFY_UPDATE_CHECK_DISABLED: "1"
     strategy:
       matrix:
         node-version: [20, 22]
@@ -49,6 +52,9 @@ jobs:
 
       - name: Run XPI signing tests (mock ATN API)
         run: npm run test:sign
+
+      - name: Run docs consistency tests (tb --help vs docs, diagrams)
+        run: npm run test:docs
 
       - name: Run MCP server integration tests (mock)
         run: npm run test:mcp

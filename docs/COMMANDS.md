@@ -99,6 +99,7 @@ tb read <messageId> --check-download  # check download state
 
 tb read-batch <id1,id2,id3>           # read multiple messages at once
 tb thread <messageId>                 # full conversation thread
+tb thread <messageId> --headers       # thread with headers only (no bodies)
 ```
 
 Each thread entry carries `threadMatch`: `"references"` when it was found through the
@@ -163,6 +164,7 @@ tb compose [options]
   --html                   # treat body as HTML
   --from <identityId>      # send from specific identity (see: tb identities)
   --priority <level>       # highest | high | normal | low | lowest
+  --header <key:value>     # custom header
   --draft                  # save as draft (default)
   --open                   # open in Thunderbird compose window
   --send                   # send immediately
@@ -171,6 +173,7 @@ tb reply <messageId> [options]
   --body <text>            # reply text
   --body-file <path>       # read from file
   --all                    # reply to all
+  --html                   # treat body as HTML
   --from <identityId>      # override the identity inferred from the message account
   --no-history             # don't append the earlier thread as quoted conversation history
   --draft / --open / --send
@@ -233,18 +236,24 @@ tb sync-status <folderId>                 # check sync status
 ```bash
 tb contacts                               # list all contacts
 tb contacts --book <bookId> --limit <n>   # filter by address book
-tb contacts-search <query>                # search contacts
+tb contacts-search <query> [--book <bookId>] [-l <n>]  # search contacts
 tb contact <contactId>                    # contact details
 ```
 
 ## Bulk Operations
 
 ```bash
-tb bulk mark-read <folderId> [-l <n>]                             # mark all read
-tb bulk move <from> <to> [--older-than <days>] [--from <addr>] [--subject <pat>]
-tb bulk delete <folderId> --confirm [--older-than <days>] [--from <addr>]
-tb bulk tag <folderId> <tagKey> [--older-than <days>] [--from <addr>]
-tb bulk fetch <folderId> [-l <n>]                                 # force IMAP download
+tb bulk mark-read <folderId> [-l <n>]             # mark all read
+tb bulk move <from> <to> [filters] [-l <n>]
+tb bulk delete <folderId> --confirm [filters] [-l <n>]
+tb bulk tag <folderId> <tagKey> [filters] [-l <n>]
+tb bulk fetch <folderId> [-l <n>]                 # force IMAP download
+
+# filters (move / delete / tag):
+  --older-than <days>      # only messages older than N days
+  --from <address>         # filter by sender
+  --subject <pattern>      # filter by subject
+  -l, --limit <n>          # batch size (default: 100)
 ```
 
 ## Output Format

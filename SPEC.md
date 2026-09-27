@@ -38,10 +38,19 @@
 | Component | Runs on | Role |
 |-----------|---------|------|
 | **Thunderbird** | Host | Source of truth. Stores all emails, syncs IMAP, renders UI for human oversight |
-| **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Translates bridge requests into `messenger.*` API calls |
+| **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Checks every request against the build-time access policy (`access-control.js`, see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)), then translates it into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
 | **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 40 commands. Auto-starts bridge daemon if not running. Zero state |
 | **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 13 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
+
+### Request flow
+
+<a href="docs/diagrams/search-sequence.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/search-sequence-dark.png">
+  <img src="docs/diagrams/search-sequence.png" alt="Sequence of one search: the client probes and auto-starts the bridge, the bridge forwards over WebSocket, the extension checks the access policy and runs one server-side messages.query, results return sorted and limited; the bridge pings the extension every 30 s" width="900">
+</picture></a>
+
+More diagrams (architecture, access control, release, roadmap): [docs/diagrams/](docs/diagrams/).
 
 ### Key Design Principles
 
@@ -841,6 +850,15 @@ Note: Extension development cannot happen in Docker. Edit `extension/src/backgro
 - [ ] npm publish
 - [ ] GitHub release with setup instructions
 - [x] CLAUDE.md for agent integration
+
+### Phase 6: Fork integration (Thunderbird CLI Enhanced)
+- [x] Access policy for every write/send route, fail-closed on unknown routes (#4, #6)
+- [x] Signed-XPI CI (`sign-xpi.yml`) (#5, #7)
+- [x] Bridge auto-start from CLI and MCP (#13)
+- [x] Server-side sort, filters and full-text query (#14)
+- [x] `tb edit` / `email_edit` (#15)
+- [ ] `tb extension-reload` + `/bridge/events` — held for access classification
+- [ ] Calendar, contacts write, notes, tasks — roadmap, see [docs/PLAN.md](docs/PLAN.md)
 
 ---
 

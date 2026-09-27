@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "One search, end to end",
+    "subtitle": "tb search / email_search from the caller to Thunderbird and back",
+    "viewBox": [
+      1080,
+      660
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "connect",
+        "label": "Auto-start + dispatch",
+        "focus": [
+          "client",
+          "bridge",
+          "ext"
+        ],
+        "note": "The client makes sure the bridge is up, then the bridge forwards the request over the extension's WebSocket."
+      },
+      {
+        "id": "query",
+        "label": "Server-side query",
+        "focus": [
+          "ext",
+          "policy",
+          "mail"
+        ],
+        "note": "Search is ungated by the access policy and runs as one server-side messages.query call."
+      },
+      {
+        "id": "liveness",
+        "label": "Liveness",
+        "focus": [
+          "bridge",
+          "ext"
+        ],
+        "note": "Ping/pong drops dead sockets so requests fail fast instead of hanging."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "caller",
+      "type": "external",
+      "label": "Agent / shell",
+      "sublabel": "caller"
+    },
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "tb / tb-mcp",
+      "sublabel": "client.js"
+    },
+    {
+      "id": "bridge",
+      "type": "backend",
+      "label": "Bridge",
+      "sublabel": "127.0.0.1:7700"
+    },
+    {
+      "id": "ext",
+      "type": "backend",
+      "label": "WebExtension",
+      "sublabel": "background.js"
+    },
+    {
+      "id": "policy",
+      "type": "security",
+      "label": "Access policy",
+      "sublabel": "access-control.js"
+    },
+    {
+      "id": "mail",
+      "type": "database",
+      "label": "Thunderbird",
+      "sublabel": "messenger.messages"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 250,
+      "label": "Connect"
+    },
+    {
+      "from": 260,
+      "to": 400,
+      "label": "Query"
+    },
+    {
+      "from": 410,
+      "to": 560,
+      "label": "Return + liveness"
+    }
+  ],
+  "messages": [
+    {
+      "id": "invoke",
+      "from": "caller",
+      "to": "client",
+      "y": 160,
+      "label": "search \"invoice\" --unread",
+      "variant": "emphasis"
+    },
+    {
+      "id": "probe",
+      "from": "client",
+      "to": "bridge",
+      "y": 188,
+      "label": "probe; spawn bridge if down",
+      "variant": "dashed"
+    },
+    {
+      "id": "post",
+      "from": "client",
+      "to": "bridge",
+      "y": 216,
+      "label": "POST /messages/search",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ws-request",
+      "from": "bridge",
+      "to": "ext",
+      "y": 244,
+      "label": "WS request {id}",
+      "variant": "default"
+    },
+    {
+      "id": "classify",
+      "from": "ext",
+      "to": "policy",
+      "y": 276,
+      "label": "classify route",
+      "variant": "security"
+    },
+    {
+      "id": "allowed",
+      "from": "policy",
+      "to": "ext",
+      "y": 304,
+      "label": "read-only: allowed",
+      "variant": "return"
+    },
+    {
+      "id": "query",
+      "from": "ext",
+      "to": "mail",
+      "y": 336,
+      "label": "messages.query({fullText, unread})",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pages",
+      "from": "mail",
+      "to": "ext",
+      "y": 368,
+      "label": "pages (≤ 8 IPC in flight)",
+      "variant": "return"
+    },
+    {
+      "id": "ws-response",
+      "from": "ext",
+      "to": "bridge",
+      "y": 424,
+      "label": "sorted, limited, hasMore",
+      "variant": "return"
+    },
+    {
+      "id": "http-response",
+      "from": "bridge",
+      "to": "client",
+      "y": 452,
+      "label": "200 JSON",
+      "variant": "return"
+    },
+    {
+      "id": "result",
+      "from": "client",
+      "to": "caller",
+      "y": 480,
+      "label": "--fields / --format",
+      "variant": "return"
+    },
+    {
+      "id": "ping",
+      "from": "bridge",
+      "to": "ext",
+      "y": 516,
+      "label": "ping every 30 s",
+      "variant": "dashed"
+    },
+    {
+      "id": "pong",
+      "from": "ext",
+      "to": "bridge",
+      "y": 544,
+      "label": "pong (else EXTENSION_DISCONNECTED)",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "client",
+      "from": 160,
+      "to": 486,
+      "type": "frontend"
+    },
+    {
+      "participant": "bridge",
+      "from": 188,
+      "to": 458,
+      "type": "backend"
+    },
+    {
+      "participant": "ext",
+      "from": 244,
+      "to": 430,
+      "type": "backend"
+    },
+    {
+      "participant": "policy",
+      "from": 272,
+      "to": 310,
+      "type": "security"
+    },
+    {
+      "participant": "mail",
+      "from": 332,
+      "to": 374,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Server-side search (#14)",
+      "items": [
+        "One fullText query instead of three parallel ones",
+        "Filters (unread, flagged, dates, size, tag) run in Thunderbird",
+        "list uses native sortType on TB 148+, JS sort on older"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Auto-start (#13)",
+      "items": [
+        "Client probes /bridge/status first",
+        "Spawns bridge.js detached if unreachable",
+        "Waits for the extension to connect"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Resilience (#8 + upstream)",
+      "items": [
+        "30 s folder-info cache for list/stats (#8)",
+        "≤ 8 messenger IPC calls in flight",
+        "Ping/pong + 3–15 s reconnect backoff"
+      ]
+    }
+  ]
+}

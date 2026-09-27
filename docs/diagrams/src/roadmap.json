@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Roadmap: mail today, PIM next",
+    "subtitle": "Phases 01–03 are on main; 04–05 and the parity target are planned (docs/PLAN.md)",
+    "viewBox": [
+      980,
+      680
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "shipped",
+        "label": "Shipped",
+        "focus": [
+          "baseline",
+          "integration",
+          "mail",
+          "held"
+        ],
+        "note": "Upstream baseline plus integrated fork work, all merged on main."
+      },
+      {
+        "id": "planned",
+        "label": "Planned",
+        "focus": [
+          "mail",
+          "calendar",
+          "notes",
+          "parity"
+        ],
+        "note": "Calendar, contacts, notes and tasks (ODIAA-2306), then atbridge.ai feature parity."
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Roadmap phases"
+    },
+    {
+      "id": "review",
+      "label": "Awaiting review"
+    },
+    {
+      "id": "terminal",
+      "label": "Target"
+    }
+  ],
+  "states": [
+    {
+      "id": "baseline",
+      "type": "start",
+      "label": "Upstream",
+      "sublabel": "vitalio-sh 1.1.0",
+      "lane": "main",
+      "col": 0,
+      "step": "01",
+      "tag": "shipped"
+    },
+    {
+      "id": "integration",
+      "type": "active",
+      "label": "Fork merges",
+      "sublabel": "PRs #1–#15",
+      "lane": "main",
+      "col": 1,
+      "step": "02",
+      "tag": "shipped"
+    },
+    {
+      "id": "mail",
+      "type": "active",
+      "label": "Mail today",
+      "sublabel": "CLI + MCP",
+      "lane": "main",
+      "col": 2,
+      "step": "03",
+      "tag": "you are here"
+    },
+    {
+      "id": "calendar",
+      "type": "waiting",
+      "label": "Calendar",
+      "sublabel": "+ contacts write",
+      "lane": "main",
+      "col": 3,
+      "step": "04",
+      "tag": "planned"
+    },
+    {
+      "id": "notes",
+      "type": "waiting",
+      "label": "Notes, tasks",
+      "sublabel": "ODIAA-2306",
+      "lane": "main",
+      "col": 4,
+      "step": "05",
+      "tag": "planned"
+    },
+    {
+      "id": "held",
+      "type": "waiting",
+      "label": "Held items",
+      "sublabel": "extension-reload",
+      "lane": "review",
+      "col": 0,
+      "tag": "access review"
+    },
+    {
+      "id": "parity",
+      "type": "success",
+      "label": "atbridge parity",
+      "sublabel": "actions + skills",
+      "lane": "terminal",
+      "col": 2,
+      "tag": "goal"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "mail-held",
+      "from": "mail",
+      "to": "held",
+      "label": "needs policy entry",
+      "variant": "dashed",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 40
+    },
+    {
+      "id": "notes-parity",
+      "from": "notes",
+      "to": "parity",
+      "label": "feature parity",
+      "variant": "emphasis",
+      "route": "straight",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 40
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Shipped on main",
+      "items": [
+        "40 CLI commands, 13 MCP tools",
+        "Access policy, signed XPI CI, auto-start, server-side search",
+        "Read-only contact lookup (tb contacts)"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Planned (ODIAA-2306)",
+      "items": [
+        "Calendar events with clash detection",
+        "Contact create/update, notes, tasks"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Parity target",
+      "items": [
+        "Email to note/task/event/contact actions",
+        "Deterministic slash-command skills",
+        "Writes stay opt-in and local-first"
+      ]
+    }
+  ]
+}

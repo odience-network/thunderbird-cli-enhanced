@@ -73,16 +73,16 @@ jobs:
             ### Install the CLI and MCP server
 
             ```bash
-            git clone https://github.com/vitalio-sh/thunderbird-cli
-            cd thunderbird-cli
+            git clone https://github.com/odience-network/thunderbird-cli-enhanced
+            cd thunderbird-cli-enhanced
             npm install
             ```
 
-            See [docs/SETUP.md](https://github.com/vitalio-sh/thunderbird-cli/blob/v${{ steps.version.outputs.version }}/docs/SETUP.md) for the full setup guide.
+            See [docs/SETUP.md](https://github.com/odience-network/thunderbird-cli-enhanced/blob/v${{ steps.version.outputs.version }}/docs/SETUP.md) for the full setup guide.
 
             ### Changelog
 
-            See [CHANGELOG.md](https://github.com/vitalio-sh/thunderbird-cli/blob/v${{ steps.version.outputs.version }}/CHANGELOG.md) for details.
+            See [CHANGELOG.md](https://github.com/odience-network/thunderbird-cli-enhanced/blob/v${{ steps.version.outputs.version }}/CHANGELOG.md) for details.
           files: |
             ${{ steps.xpi.outputs.signed }}
             ${{ steps.xpi.outputs.unsigned }}

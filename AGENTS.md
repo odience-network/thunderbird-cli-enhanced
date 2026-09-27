@@ -1,4 +1,4 @@
-# AGENTS.md — thunderbird-cli
+# AGENTS.md — Thunderbird CLI Enhanced
 
 > Repo guide for AI coding agents working **in this codebase** (Cursor, Cline, Codex CLI, Claude Code, Windsurf, Aider, etc.).
 >
@@ -6,14 +6,14 @@
 
 ## What this repo ships
 
-Four published artifacts, one architecture:
+Four artifacts, one architecture. The npm names below are upstream's published packages; this fork doesn't publish to them, so users install from source (`setup.sh` / `setup.ps1`).
 
 | Artifact | What | Where |
 |---|---|---|
-| `thunderbird-cli` | `tb` CLI (38 commands) | `cli/` → npm: `thunderbird-cli` |
+| `thunderbird-cli` | `tb` CLI (40 commands) | `cli/` → npm: `thunderbird-cli` |
 | `thunderbird-cli-bridge` | Stateless HTTP↔WS proxy daemon | `bridge/` → npm: `thunderbird-cli-bridge` |
-| `thunderbird-cli-mcp` | MCP server (12 tools for Claude Desktop) | `mcp/` → npm: `thunderbird-cli-mcp` |
-| Thunderbird WebExtension | WS client inside Thunderbird | `extension/` → signed XPI on addons.thunderbird.net |
+| `thunderbird-cli-mcp` | MCP server (13 tools for Claude Desktop) | `mcp/` → npm: `thunderbird-cli-mcp` |
+| Thunderbird WebExtension | WS client inside Thunderbird | `extension/` → Mozilla-signed (unlisted) XPI in `dist/releases/` |
 
 ```
 AI Agent ─→ tb CLI      ─┐
@@ -95,7 +95,7 @@ All four `package.json` files (`package.json`, `cli/package.json`, `bridge/packa
 ## Tests before pushing
 
 ```bash
-npm test && npm run test:mcp
+npm run test:all
 ```
 
 `prepublishOnly` enforces this at publish time, but run it locally first — it'll save you a failed CI cycle. CI runs on Node 20 + 22.
@@ -109,13 +109,21 @@ npm test && npm run test:mcp
 - [ ] New MCP tool? → add a test in `test/mcp-test.mjs` and register it in `mcp/src/tools.js`
 - [ ] New error code? → document it in `SPEC.md`
 - [ ] New destructive op? → gate it behind `--confirm` / `confirm: true`
+- [ ] New extension route? → classify it in `extension/src/access-control.js` (unclassified routes fail closed with `FORBIDDEN`)
+- [ ] New or changed `tb` command/flag? → update `docs/COMMANDS.md` (`npm run test:docs` checks it against `tb --help`)
+- [ ] Changed architecture, request flow, access policy, release flow or roadmap? → update `docs/diagrams/src/*.json` and run `npm run build:diagrams` (see `CONTRIBUTING.md`)
 - [ ] Did you change the MCP tool surface? → update [`skills/thunderbird-cli/SKILL.md`](./skills/thunderbird-cli/SKILL.md) so the end-user skill stays accurate
 
 ## Release
 
+<a href="docs/diagrams/release-workflow.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/release-workflow-dark.png">
+  <img src="docs/diagrams/release-workflow.png" alt="Release workflow: bump the manifest version on main, sign-xpi.yml verifies, uploads to ATN, waits for review and commits the signed XPI; tagging vX.Y.Z runs release.yml, which attaches both XPIs to a GitHub Release" width="900">
+</picture></a>
+
 Tagging `vX.Y.Z` fires `.github/workflows/release.yml`:
 
-1. Runs all 80 tests
+1. Runs `npm run test:all`
 2. Builds the unsigned XPI
 3. Finds the signed XPI in `dist/releases/` (must be checked in)
 4. Creates the GitHub Release with both XPIs attached
@@ -131,7 +139,7 @@ npm publish is manual (`cd cli && npm publish`) — intentionally, so a release 
 | `SPEC.md` | Full technical specification — source of truth for tool surface |
 | `SECURITY.md` | Threat model, CLI defenses, agent patterns |
 | `docs/SETUP.md` | User install guide |
-| `docs/COMMANDS.md` | All 38 CLI commands reference |
+| `docs/COMMANDS.md` | All 40 CLI commands reference |
 | `docs/CLAUDE.md` | Claude Code–focused CLI quick-ref (end-user oriented) |
 | `docs/distribution-log.md` | Launch venue submission tracker |
 | `skills/thunderbird-cli/SKILL.md` | End-user Claude skill (separate from this file) |

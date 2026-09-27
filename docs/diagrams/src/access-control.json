@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Access policy: build time to request time",
+    "subtitle": "The policy is baked into the XPI; no client can change it at runtime",
+    "viewBox": [
+      1080,
+      520
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "build",
+        "label": "Build the policy",
+        "focus": [
+          "example",
+          "local",
+          "builder",
+          "xpi"
+        ],
+        "note": "Switches are edited in a local JSON file and validated into the XPI at build time."
+      },
+      {
+        "id": "gate",
+        "label": "Gate every request",
+        "focus": [
+          "caller",
+          "xpi",
+          "gate",
+          "handler",
+          "denied"
+        ],
+        "note": "Every route is classified before it touches the mailbox; unknown routes fail closed."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Config"
+    },
+    {
+      "label": "Build"
+    },
+    {
+      "label": "Install"
+    },
+    {
+      "label": "Gate"
+    },
+    {
+      "label": "Outcome"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "example",
+      "type": "database",
+      "label": "Example policy",
+      "sublabel": "access.example.json",
+      "stage": 0,
+      "row": 0,
+      "width": 136
+    },
+    {
+      "id": "local",
+      "type": "database",
+      "label": "Local policy",
+      "sublabel": "access.local.json",
+      "stage": 0,
+      "row": 2,
+      "tag": "your switches",
+      "width": 136
+    },
+    {
+      "id": "builder",
+      "type": "backend",
+      "label": "build:xpi",
+      "sublabel": "--access-config",
+      "stage": 1,
+      "row": 2,
+      "tag": "rejects bad keys",
+      "width": 136
+    },
+    {
+      "id": "xpi",
+      "type": "cloud",
+      "label": "Installed add-on",
+      "sublabel": "ACCESS_POLICY",
+      "stage": 2,
+      "row": 2,
+      "tag": "read-only",
+      "width": 136
+    },
+    {
+      "id": "caller",
+      "type": "frontend",
+      "label": "CLI / MCP",
+      "sublabel": "via the bridge",
+      "stage": 2,
+      "row": 0,
+      "width": 136
+    },
+    {
+      "id": "gate",
+      "type": "security",
+      "label": "Route classifier",
+      "sublabel": "access-control.js",
+      "stage": 3,
+      "row": 1,
+      "tag": "fail closed",
+      "width": 136
+    },
+    {
+      "id": "handler",
+      "type": "backend",
+      "label": "Handler",
+      "sublabel": "messenger.* call",
+      "stage": 4,
+      "row": 0,
+      "tag": "allowed",
+      "width": 136
+    },
+    {
+      "id": "denied",
+      "type": "security",
+      "label": "FORBIDDEN",
+      "sublabel": "off / unclassified",
+      "stage": 4,
+      "row": 2,
+      "tag": "no mail access",
+      "width": 136
+    }
+  ],
+  "flows": [
+    {
+      "id": "copy",
+      "from": "example",
+      "to": "local",
+      "label": "copy",
+      "classification": "one-time",
+      "variant": "dashed",
+      "labelAt": [
+        112,
+        271
+      ]
+    },
+    {
+      "id": "build",
+      "from": "local",
+      "to": "builder",
+      "label": "switches",
+      "classification": "booleans",
+      "variant": "emphasis"
+    },
+    {
+      "id": "embed",
+      "from": "builder",
+      "to": "xpi",
+      "label": "embed",
+      "classification": "build time",
+      "variant": "emphasis"
+    },
+    {
+      "id": "policy",
+      "from": "xpi",
+      "to": "gate",
+      "label": "loaded policy",
+      "classification": "immutable",
+      "variant": "security"
+    },
+    {
+      "id": "request",
+      "from": "caller",
+      "to": "gate",
+      "label": "method + route",
+      "classification": "every request",
+      "variant": "emphasis"
+    },
+    {
+      "id": "allow",
+      "from": "gate",
+      "to": "handler",
+      "label": "read or switch on",
+      "classification": "allowed",
+      "variant": "emphasis"
+    },
+    {
+      "id": "deny",
+      "from": "gate",
+      "to": "denied",
+      "label": "switch off",
+      "classification": "refused",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Always available",
+      "items": [
+        "Read routes (search, list, read, stats, sync) have no switch",
+        "tb access shows the loaded policy"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Switches",
+      "items": [
+        "compose, send, move, copy, archive, mark, tag, folder ops default on",
+        "delete and folderDelete default off (ODIAA-2304)"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Fail closed",
+      "items": [
+        "A route with no classification is refused",
+        "Older XPIs predate the policy and allow everything"
+      ]
+    }
+  ]
+}

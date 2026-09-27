@@ -35,6 +35,15 @@ gated rather than removed from the extension entirely. Every other switch defaul
 unmodified install behaves exactly as before this policy existed; operators who want a more
 restrictive posture set the switches they want to disable in their config file.
 
+## How a request is checked
+
+<a href="diagrams/access-control.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/access-control-dark.png">
+  <img src="diagrams/access-control.png" alt="Access-control data flow: access.example.json or access.local.json is validated by build:xpi into the installed add-on; each CLI/MCP request is classified by route and either reaches its handler or is refused with FORBIDDEN" width="900">
+</picture></a>
+
+Source: [`diagrams/src/access-control.json`](diagrams/src/access-control.json). Click the image for the interactive version.
+
 ## Enable/disable capabilities
 
 1. Copy `access.example.json` to `access.local.json` (ignored by Git).

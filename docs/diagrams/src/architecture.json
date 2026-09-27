@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "thunderbird-cli-enhanced — System Architecture",
+    "subtitle": "Every request stays on 127.0.0.1; credentials never leave Thunderbird",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Request path",
+        "focus": ["agent", "mcp", "cli", "bridge", "ext", "accounts"],
+        "note": "Follow a CLI command or MCP tool call from the caller to the mailbox."
+      },
+      {
+        "id": "policy-gate",
+        "label": "Access policy gate",
+        "focus": ["bridge", "ext", "policy", "accounts"],
+        "note": "Every route is classified by the add-on's build-time access policy before it touches mail."
+      }
+    ]
+  },
+  "components": [
+    { "id": "agent", "type": "external", "label": "AI agent", "sublabel": "Claude Desktop / Code", "pos": [40, 150], "size": [150, 64] },
+    { "id": "shell", "type": "external", "label": "Shell / scripts", "sublabel": "terminal, cron, CI", "pos": [40, 350], "size": [150, 64] },
+    { "id": "mcp", "type": "frontend", "label": "tb-mcp", "sublabel": "13 MCP tools (stdio)", "pos": [280, 150], "size": [160, 64] },
+    { "id": "cli", "type": "frontend", "label": "tb CLI", "sublabel": "40 commands, JSON out", "pos": [280, 350], "size": [160, 64] },
+    { "id": "bridge", "type": "backend", "label": "Bridge daemon", "sublabel": "HTTP :7700 / WS :7701", "pos": [530, 250], "size": [170, 64], "tag": "auto-start (#13)" },
+    { "id": "ext", "type": "backend", "label": "WebExtension", "sublabel": "route handlers", "pos": [790, 250], "size": [160, 64] },
+    { "id": "policy", "type": "security", "label": "Access policy", "sublabel": "build-time switches", "pos": [790, 80], "size": [160, 64], "tag": "fail closed" },
+    { "id": "accounts", "type": "database", "label": "Accounts + folders", "sublabel": "IMAP / POP / local", "pos": [790, 420], "size": [160, 64] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "localhost (127.0.0.1)", "wraps": ["mcp", "cli", "bridge", "ext", "policy", "accounts"] },
+    { "kind": "security-group", "label": "Thunderbird process", "wraps": ["ext", "policy", "accounts"] }
+  ],
+  "connections": [
+    { "id": "agent-mcp", "from": "agent", "to": "mcp", "label": "MCP stdio", "variant": "emphasis" },
+    { "id": "shell-cli", "from": "shell", "to": "cli", "label": "argv" },
+    { "id": "mcp-bridge", "from": "mcp", "to": "bridge", "label": "HTTP + bearer", "variant": "emphasis" },
+    { "id": "cli-bridge", "from": "cli", "to": "bridge", "label": "HTTP + bearer" },
+    { "id": "bridge-ext", "from": "bridge", "to": "ext", "label": "WebSocket", "variant": "emphasis" },
+    { "id": "ext-policy", "from": "ext", "to": "policy", "label": "classify route", "variant": "security" },
+    { "id": "ext-accounts", "from": "ext", "to": "accounts", "label": "messenger.* APIs", "variant": "emphasis", "labelDy": 24 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Entry points", "items": ["tb CLI for shells and scripts", "tb-mcp for MCP clients such as Claude Desktop", "Both spawn the bridge on first use if it is down"] },
+    { "dot": "emerald", "title": "Bridge", "items": ["Stateless HTTP to WebSocket proxy", "Bearer token checked with timingSafeEqual", "Ping/pong drops dead extension sockets"] },
+    { "dot": "rose", "title": "Thunderbird", "items": ["Owns all credentials and sync state", "Unclassified routes are refused", "delete and folderDelete are off by default"] }
+  ]
+}
