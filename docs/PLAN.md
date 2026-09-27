@@ -77,8 +77,52 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
    - Not yet assessed: `0b169db` (CLI-only install consolidation), `720ff9b` (bridge
      hardening/mail-status — check for overlap with already-merged browser-defense work
      from PR #25 first), `db5ca49`/`879d596` (docs-only).
-5. `le-dawg` MCP/bridge concurrency & reconnect hardening — ~15 commits outstanding
-   (tracked as its own child issue, ODIAA-2312).
+5. `le-dawg` MCP/bridge concurrency & reconnect hardening — **shipped** (ODIAA-2312).
+   16 outstanding commits reviewed against current `origin/main`; most were already
+   superseded by work done since PR #1/#2 and the ODIAA-2311 access-policy expansion:
+   - **Superseded, no PR needed**: exponential-backoff reconnect + sleep/wake awareness
+     (`659909a`) and the shared-IPC-queue refinement (`9058023`) — main's
+     `mapWithIpcLimit`/`drainIpcQueue` already implements the same global-concurrency-limit
+     design (and already applies it to bulk/tag, bulk/fetch, messages/fetch, and thread
+     reconstruction). Bridge CORS + WS heartbeat hardening (`ef298c8`) — main's `bridge.js`
+     already has a stricter allowlist-based CORS/DNS-rebinding defense plus ping/pong dead-
+     connection detection, predating this fork's version. MCP lifecycle/search hardening
+     (`fe2d697`, refined by `8d13a4b`/`444faf0`/`6ffb11e`) — its client-side bridge-status
+     preflight ping duplicates a problem `bridge.js` already solves server-side (immediate
+     `EXTENSION_DISCONNECTED` instead of hanging until timeout, see the comment above
+     `forwardToExtension`); porting it would add a redundant round-trip per request and the
+     non-standard `SEARCH_UNHEALTHY`/`LIST_UNHEALTHY` error codes for no behavior gain. The
+     `email_search` structured-filter validation from the same commit is already on main
+     (`mcp/src/tools.js`). The stdio singleton lock this same commit adds is removed again
+     three commits later (`18827c0`) — main never had it, so neither half applies.
+   - **Shipped, hand-adapted**: folder-info TTL cache from `260f99a` (refined with a
+     size-bound eviction from `9dea557`) — `getCachedFolderInfo()` now caches
+     `messenger.folders.getFolderInfo()` for 30s (capped at 500 entries) for the two
+     bulk-listing call sites (`flattenFolders`, `countFolder`); left the single-folder
+     `/folders/info` endpoint uncached since a caller asking for one folder's counts wants
+     current data. Dropped that commit's "conditional resume heartbeat" (silent-WebSocket-
+     gap detection while disconnected): it duplicates the wake coverage
+     `messenger.idle.onStateChanged` already provides on main and would introduce a second
+     concurrent timer, breaking the existing single-retry-timer invariant asserted in
+     `test/extension.test.mjs`, for marginal benefit.
+   - **Shipped, hand-adapted**: MCP concurrency regression tests. `mcp/test/test_concurrency.mjs`
+     (`18827c0`) ported as-is (spawns 3 concurrent stdio MCP server processes, verifies no
+     lock contention) and wired into `npm run test:mcp-concurrency` / `test:all`. The
+     `test/mcp-test.mjs` "Concurrency" test from `444faf0` (two concurrent `McpClient`
+     instances both list all 12 tools against the same mock bridge) ported too. Skipped
+     `mcp/test/test_tools_live.mjs` — it asserts on a hardcoded personal-mailbox search term
+     (`"Retshjælp"`), not portable.
+   - **Shipped, hand-adapted**: `docs/ENERGY_AUDIT_MACOS25.md` (`8241c7a`, docs-only, no
+     conflicts) and two opt-in manual smoke-test scripts against a real running Thunderbird —
+     `test/live-smoke.mjs` (read-only: bridge status, health, accounts, folders, stats,
+     recent) and `test/live-attachment-smoke.mjs` (attachment download/base64/chunking
+     integrity) from `b944a49`, wired as `npm run test:live-smoke` / `test:live-attachment`
+     (not part of `test:all` — they require a live Thunderbird connection, not CI-safe).
+     Dropped that commit's `/debug/compose-capabilities` background.js endpoint (`6ffb11e`):
+     a scratch introspection route the fork used while developing its live tests, not a
+     durable feature, and any new route needs an access-control classification per
+     ODIAA-2311's fail-closed design.
+   - All existing test suites (`test:all`, including the two new concurrency tests) green.
 6. `KaiSingL` search/UX features + setup scripts — ~25+ commits outstanding
    (tracked as its own child issue, ODIAA-2313).
 7. `inrainbws` reply/forward history — **shipped** (PR #3). Inspected the unlabeled `fix`
