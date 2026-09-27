@@ -123,8 +123,72 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      durable feature, and any new route needs an access-control classification per
      ODIAA-2311's fail-closed design.
    - All existing test suites (`test:all`, including the two new concurrency tests) green.
-6. `KaiSingL` search/UX features + setup scripts — ~25+ commits outstanding
-   (tracked as its own child issue, ODIAA-2313).
+6. `KaiSingL` search/UX features + setup scripts (ODIAA-2313) — 29 commits outstanding,
+   triaged into 12 reviewable groups (largest remaining fork; landing group-by-group,
+   not as one mega-merge):
+   - **No PR needed, superseded**: `217d622` (CORS-to-localhost + `TB_AUTH_TOKEN` bearer
+     check). `origin/main`'s `bridge.js` already does strictly more: per-request
+     `Authorization` check via `timingSafeEqual` (fork's fix does a plain `!==` string
+     compare), a `TB_BRIDGE_CORS_ORIGINS` allowlist plus `Vary: Origin` (fork hardcodes one
+     origin), a `TB_BRIDGE_ALLOWED_HOSTS`/DNS-rebinding Host check the fork's commit doesn't
+     add at all, and refuses to start on an *empty* `TB_AUTH_TOKEN` instead of the fork's
+     fail-open behavior. No CTO auth review needed since nothing merges.
+   - **Shipped** (PR #9, `9f80752`): one-command `setup.sh`/`setup.ps1`. No `background.js`
+     changes, no access-policy implications. Hand-adapted: fixed the fork's `setup.sh` missing
+     its executable bit (mode was `100644`, `./setup.sh` as documented would have failed with
+     "Permission denied"); kept the existing npm-install Quick Start in `README.md` (packages
+     are genuinely published, verified via `npm view`) and added the setup script as a
+     "from source" alternative rather than replacing it, since the fork's own README edit
+     hardcoded the stale `thunderbird_ai_bridge-2.0.0-tb.xpi` filename that `1ab7840` (below)
+     removes. `test:all` green.
+   - **Not yet landed, next up**: release/docs cleanup — `2ead539` (v1.0.1 bump, superseded:
+     `main` is already at `1.1.0`, drop) and `1ab7840` (remove outdated 2.0.0 XPI from
+     `dist/releases/`, still applicable — `main` still ships both the 2.0.0 and 2.1.0 XPI).
+   - **Not yet landed**: extension branding/status UI, apply in order — `3e7c145` (add
+     `extension/icons/`, register in manifest — genuinely missing on `main` today, no
+     `icons`/`browser_action` key exists), `dd2ff7e` (rename "Thunderbird AI Bridge" →
+     "Thunderbird CLI Bridge" throughout; flagging the rename itself for a product-naming
+     sanity check before merge, since `main`'s manifest/dist artifacts still say "AI Bridge"),
+     `a8d0001` (toolbar connection-status dot; its manifest diff depends on `3e7c145`'s icon
+     paths already existing). No `access-control.js` impact — UI/manifest only.
+   - **Not yet landed**: CLI output-format overhaul chain (`81396d6`, `c53c625`, `a7d35e2`,
+     `4d0d0e9`, `451815f`, `25ebcce`, `e21e72c`, `749c79d`, `09adc41`) — nine tightly sequential
+     commits rewriting the table renderer and date formatting (`451815f` is marked `!` /
+     breaking). Bundle as one PR in commit order; flag for a CLI-UX read given the breaking
+     output-format change before merge.
+   - **Not yet landed**: bridge auto-start resilience (`b5ff6eb`, `69ecf68`, `622fd68`,
+     `4994fc0`) — sequential fixes to one feature, bundle together.
+   - **Not yet landed**: independent bug fixes (`5bded06` attachment extension inference,
+     `e625adc` search across body/subject/sender, `bac88be` empty/omitted search query,
+     `12f27e2` comma-separated to/cc/bcc parsing) — no new routes, bundle as one PR.
+   - **Needs access-control classification + CTO permissions review before merge**:
+     `e510ec3` (`tb edit` / `email_edit`) adds a new `POST /compose/edit` route to
+     `background.js` with no `access-control.js` entry — under ODIAA-2311's fail-closed
+     design it would currently 403 as "unclassified". Proposed classification mirrors the
+     existing `/compose` handler: gate on `compose`, and additionally on `send` when
+     `body.send` is set. Holding for CTO sign-off since this is a new write-capable route on
+     the permission surface, not merging unilaterally. `d70236d` (docs) partially covers this
+     commit and partially the next one — will split across both PRs.
+   - **Not yet landed, no access-control change needed**: `f6c95d3` (`--keep-unread` /
+     `keepUnread` on archive+delete) only adds a body param to the already-classified
+     `/messages/archive` and `/messages/delete` routes; no new route. Note the behavior
+     change: default is now mark-read-before-archive/delete (old behavior needs the new flag).
+   - **Needs hand-adaptation, own PR**: `67e31b8` (server-side sort/filter/full-text via
+     `messages.list`/`messages.query`, TB 148+ with JS fallback). Touches the same
+     `background.js` list/search internals as the already-merged `dboeckenhoff`
+     pagination/`accountId` filtering and `le-dawg`'s `mapWithIpcLimit`/`drainIpcQueue`
+     concurrency wrapping — cannot be a blind cherry-pick, needs the same hand-adaptation
+     treatment those two got. Highest-risk item in this fork.
+   - **Needs access-control classification decision**: `0b3a5d7` (`tb extension-reload` +
+     `/bridge/events` long-poll). `POST /extension/reload` is routed through `background.js`
+     and is currently unclassified (would 403). `/bridge/events` is a bridge-local endpoint
+     (like `/bridge/status`) and isn't subject to `access-control.js` at all. Proposing
+     `/extension/reload` as ungated (dev-convenience, no mail-data access, comparable to the
+     already-ungated `/sync`) — flagging rather than self-approving since it's still a
+     permissions-surface classification decision.
+   - Setup-script review note: checked both `setup.sh` and `setup.ps1` for the assigning
+     comment's "must not enable delete by default" concern — neither writes any
+     access-policy/build-time config; not applicable.
 7. `inrainbws` reply/forward history — **shipped** (PR #3). Inspected the unlabeled `fix`
    commit `5b55c3e` first: it was a real bugfix (angle-bracket stripping so thread
    resolution wasn't always empty), already superseded by the equivalent fix in main's
