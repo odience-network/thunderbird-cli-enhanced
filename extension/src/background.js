@@ -15,6 +15,7 @@ const RECONNECT_MAX_MS = 15000;
 const IPC_CONCURRENCY = 8;
 const BASE64_CHUNK_SIZE = 0x8000;
 const FOLDER_INFO_CACHE_TTL_MS = 30000;
+const FOLDER_INFO_CACHE_MAX_SIZE = 500;
 
 let ws = null;
 let reconnectTimer = null;
@@ -910,12 +911,17 @@ async function buildConversationHistory(msgId) {
 }
 
 async function getCachedFolderInfo(folder) {
-  const now = Date.now();
   const cached = folderInfoCache.get(folder.id);
-  if (cached && cached.expiresAt > now) return cached.info;
+  if (cached && cached.expiresAt > Date.now()) return cached.info;
+  if (cached) folderInfoCache.delete(folder.id);
   let info = {};
   try { info = await messenger.folders.getFolderInfo(folder); } catch {}
-  folderInfoCache.set(folder.id, { info, expiresAt: now + FOLDER_INFO_CACHE_TTL_MS });
+  folderInfoCache.set(folder.id, { info, expiresAt: Date.now() + FOLDER_INFO_CACHE_TTL_MS });
+  // Bound cache growth for accounts with very large folder trees; evict oldest entry.
+  if (folderInfoCache.size > FOLDER_INFO_CACHE_MAX_SIZE) {
+    const oldestKey = folderInfoCache.keys().next().value;
+    if (oldestKey !== undefined) folderInfoCache.delete(oldestKey);
+  }
   return info;
 }
 
