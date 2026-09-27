@@ -24,7 +24,7 @@
     { "id": "agent", "type": "external", "label": "AI agent", "sublabel": "Claude Desktop / Code", "pos": [40, 150], "size": [150, 64] },
     { "id": "shell", "type": "external", "label": "Shell / scripts", "sublabel": "terminal, cron, CI", "pos": [40, 350], "size": [150, 64] },
     { "id": "mcp", "type": "frontend", "label": "tb-mcp", "sublabel": "13 MCP tools (stdio)", "pos": [280, 150], "size": [160, 64] },
-    { "id": "cli", "type": "frontend", "label": "tb CLI", "sublabel": "40 commands, JSON out", "pos": [280, 350], "size": [160, 64] },
+    { "id": "cli", "type": "frontend", "label": "tb CLI", "sublabel": "41 commands, JSON out", "pos": [280, 350], "size": [160, 64] },
     { "id": "bridge", "type": "backend", "label": "Bridge daemon", "sublabel": "HTTP :7700 / WS :7701", "pos": [530, 250], "size": [170, 64], "tag": "auto-start (#13)" },
     { "id": "ext", "type": "backend", "label": "WebExtension", "sublabel": "route handlers", "pos": [790, 250], "size": [160, 64] },
     { "id": "policy", "type": "security", "label": "Access policy", "sublabel": "build-time switches", "pos": [790, 80], "size": [160, 64], "tag": "fail closed" },

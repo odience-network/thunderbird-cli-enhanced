@@ -34,7 +34,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
 const DIAGRAM_DIR = join(REPO_ROOT, "docs/diagrams");
 const SRC_DIR = join(DIAGRAM_DIR, "src");
-const ARCHIFY_BIN = process.env.ARCHIFY_BIN || join(REPO_ROOT, ".claude/skills/archify/bin/archify.mjs");
+// `skills experimental_install` restores into .agents/skills, `skills add --agent claude-code`
+// into .claude/skills; accept either.
+const ARCHIFY_BIN =
+  process.env.ARCHIFY_BIN ||
+  [".claude/skills", ".agents/skills"]
+    .map((d) => join(REPO_ROOT, d, "archify/bin/archify.mjs"))
+    .find((p) => existsSync(p)) ||
+  join(REPO_ROOT, ".claude/skills/archify/bin/archify.mjs");
 // PNG width in CSS pixels × this factor. 2 keeps text crisp on HiDPI without multi-MB files.
 const PNG_SCALE = 2;
 

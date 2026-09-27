@@ -65,7 +65,7 @@ jobs:
 
             ### Install the Thunderbird extension
 
-            Download the attached **`thunderbird_ai_bridge-*-tb.xpi`** (signed by Mozilla via addons.thunderbird.net; the extension has its own version number) and install via:
+            Download the attached **`*-tb.xpi`** (signed by Mozilla via addons.thunderbird.net; the extension has its own version number) and install via:
             1. Thunderbird → **Add-ons and Themes**
             2. ⚙ gear icon → **Install Add-on From File…**
             3. Select the downloaded `.xpi`

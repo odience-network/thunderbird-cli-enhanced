@@ -4,6 +4,7 @@ cli/config.json
 
 # Local agent/editor tooling (not part of project source)
 .claude/
+.agents/
 .cursor/
 .cursor-plugin/
 .serena/

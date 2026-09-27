@@ -90,7 +90,7 @@ npx skills experimental_install          # restore the pinned version from skill
 npx skills add tt-a1i/archify --skill archify --agent claude-code -y
 ```
 
-This puts the CLI at `.claude/skills/archify/bin/archify.mjs`. Set `ARCHIFY_BIN` to use a checkout elsewhere.
+The first command puts the CLI at `.agents/skills/archify/bin/archify.mjs`, the second at `.claude/skills/archify/bin/archify.mjs`; the build script checks both. Set `ARCHIFY_BIN` to use a checkout elsewhere.
 
 **Rebuild:**
 

@@ -10,7 +10,7 @@ Four artifacts, one architecture. The npm names below are upstream's published p
 
 | Artifact | What | Where |
 |---|---|---|
-| `thunderbird-cli` | `tb` CLI (40 commands) | `cli/` → npm: `thunderbird-cli` |
+| `thunderbird-cli` | `tb` CLI (41 commands) | `cli/` → npm: `thunderbird-cli` |
 | `thunderbird-cli-bridge` | Stateless HTTP↔WS proxy daemon | `bridge/` → npm: `thunderbird-cli-bridge` |
 | `thunderbird-cli-mcp` | MCP server (13 tools for Claude Desktop) | `mcp/` → npm: `thunderbird-cli-mcp` |
 | Thunderbird WebExtension | WS client inside Thunderbird | `extension/` → Mozilla-signed (unlisted) XPI in `dist/releases/` |
@@ -46,14 +46,14 @@ Node 20+ required. All three packages are ES modules (`"type": "module"`).
 
 ### Output format
 
-Every command outputs atomic JSON:
+By default every command outputs atomic JSON (`--output-version 2` / `TB_OUTPUT_VERSION=2` opts into a leaner shape; see `SPEC.md` → Output Format — keep v1 the default):
 
 ```json
 { "ok": true,  "data": { ... } }
 { "ok": false, "error": "message", "code": "ERROR_CODE" }
 ```
 
-Error codes: `BRIDGE_UNREACHABLE`, `EXTENSION_DISCONNECTED`, `AUTH_REQUIRED`, `FORBIDDEN`, `TIMEOUT`, `NOT_FOUND`, `INVALID_ARGS`, `THUNDERBIRD_ERROR`. Don't invent new ones — pick an existing one or extend the union intentionally.
+Error codes: `BRIDGE_UNREACHABLE`, `EXTENSION_DISCONNECTED`, `AUTH_REQUIRED`, `FORBIDDEN`, `TIMEOUT`, `NOT_FOUND`, `INVALID_ARGS`, `THUNDERBIRD_ERROR`, `EVENT_TIMEOUT`, `RECONNECT_TIMEOUT`. Don't invent new ones — pick an existing one or extend the union intentionally.
 
 ### Safety defaults (NEVER weaken)
 
@@ -139,7 +139,7 @@ npm publish is manual (`cd cli && npm publish`) — intentionally, so a release 
 | `SPEC.md` | Full technical specification — source of truth for tool surface |
 | `SECURITY.md` | Threat model, CLI defenses, agent patterns |
 | `docs/SETUP.md` | User install guide |
-| `docs/COMMANDS.md` | All 40 CLI commands reference |
+| `docs/COMMANDS.md` | All 41 CLI commands reference |
 | `docs/CLAUDE.md` | Claude Code–focused CLI quick-ref (end-user oriented) |
 | `docs/distribution-log.md` | Launch venue submission tracker |
 | `skills/thunderbird-cli/SKILL.md` | End-user Claude skill (separate from this file) |

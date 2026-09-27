@@ -63,7 +63,7 @@ nohup node bridge/bridge.js > ~/.tb-bridge.log 2>&1 &
 
 The extension is signed by Mozilla through addons.thunderbird.net for self-distribution. It installs permanently and survives Thunderbird restarts.
 
-1. Download the latest signed XPI (`thunderbird_ai_bridge-<version>-tb.xpi`) from one of these locations:
+1. Download the latest signed XPI (`<name>-<version>-tb.xpi`; the current 2.1.0 build is `thunderbird_ai_bridge-2.1.0-tb.xpi` because it predates the rename to Thunderbird CLI Enhanced) from one of these locations:
    - **Directly from `main`:** [`dist/releases/`](../dist/releases/)
    - **GitHub Releases:** https://github.com/odience-network/thunderbird-cli-enhanced/releases, attached by `release.yml` when a `v*` tag is pushed
 2. Open Thunderbird → **Add-ons and Themes**
@@ -85,7 +85,7 @@ Use this while editing `extension/src/background.js` during development. Tempora
 5. Select `extension/manifest.json`
 6. Check the bridge terminal: `[bridge] Extension connected`
 
-When you reload after editing, just click **Reload** next to the add-on in `about:debugging`.
+When you reload after editing, click **Reload** next to the add-on in `about:debugging`, or run `tb extension-reload`, which waits for the extension to reconnect.
 
 ### Access policy
 

@@ -17,7 +17,7 @@
           "baseline",
           "integration",
           "mail",
-          "held"
+          "stability"
         ],
         "note": "Upstream baseline plus integrated fork work, all merged on main."
       },
@@ -40,8 +40,8 @@
       "label": "Roadmap phases"
     },
     {
-      "id": "review",
-      "label": "Awaiting review"
+      "id": "hardening",
+      "label": "Ongoing hardening"
     },
     {
       "id": "terminal",
@@ -63,7 +63,7 @@
       "id": "integration",
       "type": "active",
       "label": "Fork merges",
-      "sublabel": "PRs #1–#15",
+      "sublabel": "PRs #1–#19",
       "lane": "main",
       "col": 1,
       "step": "02",
@@ -100,13 +100,13 @@
       "tag": "planned"
     },
     {
-      "id": "held",
-      "type": "waiting",
-      "label": "Held items",
-      "sublabel": "extension-reload",
-      "lane": "review",
+      "id": "stability",
+      "type": "active",
+      "label": "Stability pass",
+      "sublabel": "extension audit",
+      "lane": "hardening",
       "col": 0,
-      "tag": "access review"
+      "tag": "in progress"
     },
     {
       "id": "parity",
@@ -120,10 +120,10 @@
   ],
   "transitions": [
     {
-      "id": "mail-held",
+      "id": "mail-stability",
       "from": "mail",
-      "to": "held",
-      "label": "needs policy entry",
+      "to": "stability",
+      "label": "regression tests",
       "variant": "dashed",
       "route": "straight",
       "fromSide": "bottom",
@@ -147,9 +147,9 @@
       "dot": "emerald",
       "title": "Shipped on main",
       "items": [
-        "40 CLI commands, 13 MCP tools",
+        "41 CLI commands, 13 MCP tools",
         "Access policy, signed XPI CI, auto-start, server-side search",
-        "Read-only contact lookup (tb contacts)"
+        "extension-reload, opt-in v2 output, read-only contacts"
       ]
     },
     {

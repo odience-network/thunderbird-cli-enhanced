@@ -27,8 +27,9 @@ closed instead of shipping unrestricted.
 
 With a switch off, the route returns `FORBIDDEN: '<key>' is disabled by the add-on access
 policy ...` before touching the mailbox. Routes with no switch at all (search, list, read,
-stats, sync, ...) are always available — the policy only gates operations that create,
-mutate, or send.
+stats, sync, `POST /extension/reload`, ...) are always available — the policy only gates
+operations that create, mutate, or send. Bridge-local endpoints (`/bridge/status`,
+`/bridge/events`) never reach the add-on, so the policy doesn't apply to them.
 
 `delete` and `folderDelete` default off: the board decided (ODIAA-2304) that deletion stays
 gated rather than removed from the extension entirely. Every other switch defaults on, so an

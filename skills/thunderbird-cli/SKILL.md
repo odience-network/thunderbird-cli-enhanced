@@ -247,7 +247,7 @@ Some IMAP servers don't preload attachments. Call `email_read id=<id> mode="chec
 
 ## CLI fallback (for power users)
 
-If the user says "from the terminal" or asks about scripting, the same capabilities are available via the `tb` CLI (40 commands, JSON output). Full reference: `tb <cmd> --help` or https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/COMMANDS.md.
+If the user says "from the terminal" or asks about scripting, the same capabilities are available via the `tb` CLI (41 commands, JSON output). Full reference: `tb <cmd> --help` or https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/COMMANDS.md.
 
 MCP tool → CLI command mapping:
 
