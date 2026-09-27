@@ -156,8 +156,13 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      commits rewriting the table renderer and date formatting (`451815f` is marked `!` /
      breaking). Bundle as one PR in commit order; flag for a CLI-UX read given the breaking
      output-format change before merge.
-   - **Not yet landed**: bridge auto-start resilience (`b5ff6eb`, `69ecf68`, `622fd68`,
-     `4994fc0`) — sequential fixes to one feature, bundle together.
+   - **Shipped (PR #13)**: bridge auto-start resilience (`b5ff6eb`, `69ecf68`, `622fd68`,
+     `4994fc0`) — CLI/MCP now spawn `bridge.js` detached on first use if unreachable.
+     `b5ff6eb`'s own diff predated ODIAA-2311's security hardening of `bridge.js`; hand-rewrote
+     the new `startBridge(opts)` wrapper to keep 100% of the existing timing-safe auth, CORS,
+     DNS-rebinding, and heartbeat logic instead of the incoming regressed version. Verified via
+     `test:bridge-auth` (15/15) and `test:bridge-security` (33/33), which spawn the real
+     `bridge.js` as a child process.
    - **Shipped (PR #11)**: independent bug fixes (`5bded06` attachment extension inference,
      `e625adc` search across body/subject/sender, `bac88be` empty/omitted search query,
      `12f27e2` comma-separated to/cc/bcc parsing) — no new routes, bundled as one PR with
