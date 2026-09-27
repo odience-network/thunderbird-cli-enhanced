@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   build → lint → test → sign → commit when the extension version changes on `main`.
   `npm run verify` (build, `node --check` + addons-linter, all test suites) is the local
   equivalent, wired as an opt-in pre-push hook via `git config core.hooksPath .githooks`.
+  ATN approves files rather than embedding a `META-INF/` signature, so `sign:xpi` waits for
+  ATN approval and checks the download against ATN's published sha256.
 
 ### Fixed
 - Search tag and size filters are applied by Thunderbird before the result limit, so

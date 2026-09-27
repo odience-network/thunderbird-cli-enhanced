@@ -6,8 +6,8 @@ This directory contains **ATN-signed** Thunderbird extension builds. These are t
 
 | File | Version | Signed by | Date |
 |---|---|---|---|
-| `thunderbird_ai_bridge-2.1.0-tb.xpi` | 2.1.0 | addons.thunderbird.net | 2026-09-14 |
-| `thunderbird_ai_bridge-2.0.0-tb.xpi` | 2.0.0 | addons.thunderbird.net | 2026-04-08 |
+| `thunderbird_ai_bridge-2.1.0-tb.xpi` | 2.1.0 (`thunderbird-cli-enhanced@odience.net`) | addons.thunderbird.net, unlisted | 2026-09-27 |
+| `thunderbird_ai_bridge-2.0.0-tb.xpi` | 2.0.0 (upstream `thunderbird-ai@extension`) | addons.thunderbird.net | 2026-04-08 |
 
 ## Why these are in git
 
@@ -45,4 +45,6 @@ npm run verify
 MOZILLA_HUB_JWT_ISSUER=… MOZILLA_HUB_JWT_SECRET=… npm run sign:xpi
 ```
 
-A genuinely signed XPI contains `META-INF/mozilla.rsa`; `sign:xpi` refuses to save one that doesn't.
+ATN does not embed a `META-INF/` signature (Thunderbird doesn't require one): "signed" means
+ATN validated and approved the version. `sign:xpi` only saves a file once ATN reports it
+approved, and only if its sha256 matches the hash ATN publishes for that version.
