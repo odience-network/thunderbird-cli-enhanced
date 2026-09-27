@@ -4,7 +4,10 @@
 
 import { readFileSync, existsSync } from "fs";
 import { homedir } from "os";
-import { join } from "path";
+import { join, resolve, dirname } from "path";
+import { fileURLToPath } from "node:url";
+import http from "node:http";
+import { spawn } from "node:child_process";
 
 // Config file paths — check both locations
 const CONFIG_PATHS = [
@@ -45,10 +48,117 @@ function loadConfig() {
 const config = loadConfig();
 const BASE_URL = `http://${config.host}:${config.port}`;
 
+// ─── Bridge Auto-Start ─────────────────────────────────────────────
+
+let bridgeEnsured = false;
+
+/**
+ * Probe the bridge daemon with a short GET /bridge/status request.
+ * Returns true if the bridge responded, false otherwise.
+ */
+function probeBridge() {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { hostname: config.host, port: config.port, path: "/bridge/status", timeout: 2000 },
+      (res) => {
+        res.resume(); // drain the response
+        resolve(res.statusCode < 500);
+      },
+    );
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => { req.destroy(); resolve(false); });
+  });
+}
+
+/**
+ * Probe the bridge and return the full status object.
+ * Returns null if the bridge is unreachable.
+ */
+function probeBridgeStatus() {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { hostname: config.host, port: config.port, path: "/bridge/status", timeout: 2000 },
+      (res) => {
+        let body = "";
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => {
+          if (res.statusCode >= 500) return resolve(null);
+          try {
+            resolve(JSON.parse(body));
+          } catch {
+            resolve(null);
+          }
+        });
+      },
+    );
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
+  });
+}
+
+/**
+ * Auto-start the bridge daemon if it's not already running.
+ * - Probes GET /bridge/status first; returns immediately if reachable.
+ * - If unreachable, spawns bridge.js as a detached child and retries
+ *   the probe with increasing delays (~15 s total).
+ * - After the bridge HTTP is up, waits for the Thunderbird extension
+ *   to connect via WebSocket (~10 s timeout).
+ */
+export async function ensureBridge() {
+  if (bridgeEnsured) return;
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Quick probe — bridge is already running
+  if (await probeBridge()) {
+    bridgeEnsured = true;
+    return;
+  }
+
+  // Resolve bridge script path relative to this file's location
+  const cliDir = dirname(fileURLToPath(import.meta.url));
+  const bridgePath = resolve(cliDir, "../../bridge/bridge.js");
+
+  // Spawn as detached so the child survives parent exit
+  const child = spawn("node", [bridgePath], {
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+  });
+  child.unref();
+
+  // Wait for bridge HTTP to be ready (~15s total)
+  const httpDelays = [300, 500, 800, 1000, 1200, 1500, 2000, 2500, 3000, 3000];
+  let httpReady = false;
+  for (const delay of httpDelays) {
+    await sleep(delay);
+    if (await probeBridge()) {
+      httpReady = true;
+      break;
+    }
+  }
+
+  if (!httpReady) {
+    throw new Error("Bridge auto-start failed: could not connect within the retry window");
+  }
+
+  // Wait for Thunderbird extension to connect (~10s total)
+  const extDelays = [500, 500, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
+  for (const delay of extDelays) {
+    const status = await probeBridgeStatus();
+    if (status?.extension === "connected") break;
+    await sleep(delay);
+  }
+
+  bridgeEnsured = true;
+}
+
 /**
  * Make API call to bridge
  */
 export async function api(method, path, body = null, timeout = 30000) {
+  if (!bridgeEnsured) await ensureBridge();
+
   const url = `${BASE_URL}${path}`;
   const headers = { "Content-Type": "application/json" };
   if (config.authToken) headers["Authorization"] = `Bearer ${config.authToken}`;

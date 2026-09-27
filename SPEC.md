@@ -40,8 +40,8 @@
 | **Thunderbird** | Host | Source of truth. Stores all emails, syncs IMAP, renders UI for human oversight |
 | **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Translates bridge requests into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
-| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 38 commands. Zero state |
-| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 12 curated tools to Claude Desktop and other MCP clients. Reuses CLI's HTTP client to call bridge |
+| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 38 commands. Auto-starts bridge daemon if not running. Zero state |
+| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 12 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
 
 ### Key Design Principles
 
@@ -603,6 +603,17 @@ Bridge → CLI (HTTP):  200 OK  {...}
 ```
 
 Timeout: 30 seconds. Configurable via `--timeout <ms>` flag on CLI.
+
+### Bridge Auto-Start
+
+Both the CLI and MCP server automatically start the bridge daemon if it's not already running (`ensureBridge()`):
+
+1. **Probe** — `GET /bridge/status` with 2s timeout. If reachable, return immediately.
+2. **Spawn** — Launch `bridge/bridge.js` as a detached child process.
+3. **HTTP readiness** — Retry `/bridge/status` with increasing delays `[300, 500, 800, 1000, 1200, 1500, 2000, 2500, 3000, 3000]` (~15s total). Throw on failure.
+4. **Extension readiness** — Poll `/bridge/status` response body for `"extension": "connected"` with delays `[500, 500, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]` (~10s total). Returns even if extension never connects (the API call itself will surface a 503).
+
+The bridge is spawned as a detached process (`child.unref()`) so it outlives the CLI/MCP parent process.
 
 ### Extension Implementation Notes
 
