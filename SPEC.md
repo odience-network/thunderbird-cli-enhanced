@@ -593,9 +593,9 @@ reaches a compose draft.
 
 Read-only, experimental — requires the `calendar` Experiment API vendored into
 the extension (see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md)
-for the tech-decision doc, including why the signed-XPI release track doesn't
-currently build with this API present). Lists local Thunderbird calendars only;
-no event or task read/write yet.
+for the tech-decision doc, including the ATN manual-review requirement this adds
+to signed releases). Lists local Thunderbird calendars only; no event or task
+read/write yet.
 
 ```bash
 # List calendars

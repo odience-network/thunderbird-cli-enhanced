@@ -6,23 +6,22 @@ Related: ODIAA-2327 (this spike), ODIAA-2306 (parent), ODIAA-2306c/d (implementa
 
 ## Summary
 
-**Recommendation: Option A (vendor a trimmed `calendar` Experiment API), with the caveat that it currently cannot ship through this repo's signing pipeline unmodified.** The unsigned/self-distributed path works today; the ATN-signed path (`sign-xpi.yml`) fails until we either get Mozilla to grant privileged-extension status for this add-on or find another route (see "Signing" below). This is a real cost, not a theoretical one — it's reproduced locally in this spike. Option B avoids that cost entirely but gives up local-calendar support and duplicates auth, which conflicts with this project's local-first, single-bridge architecture. Given the parent issue's parity goals (`docs/PLAN.md` §4) explicitly want local Thunderbird calendars, not just remote CalDAV, Option A is the right target — but C/D work should start with the signing question, not with API surface.
+**Recommendation: Option A (vendor a trimmed `calendar` Experiment API).** ATN does sign versions containing Experiment APIs — the failure this spike first hit (`MANIFEST_FIELD_PRIVILEGED` from `addons-linter`) is a Firefox-only lint rule that doesn't apply to Thunderbird add-ons, and this PR fixes the lint gate accordingly (see "Signing" below). The real, ongoing cost of Option A is that ATN requires a **human reviewer** for any version bundling Experiment APIs, on every channel including our self-distributed `unlisted` one — this can take days per release, not the minutes normal automated signing takes. Option B avoids that cost entirely but gives up local-calendar support and duplicates auth, which conflicts with this project's local-first, single-bridge architecture. Given the parent issue's parity goals (`docs/PLAN.md` §4) explicitly want local Thunderbird calendars, not just remote CalDAV, Option A is the right target, and this PR includes a live-verified proof (see below) plus the lint/signing fixes needed to actually ship it.
 
 ## Option A — Vendor the `calendar` Experiment API
 
-Thunderbird's WebExtension permission model has no calendar API. The only way to read/write local calendars (including ones backed by local storage, not just CalDAV/ICS) from an extension is a chrome-privileged **Experiment API**: a `schema.json` + parent-context implementation script registered under the `experiment_apis` manifest key, given full `ChromeUtils` access to Thunebird's calendar manager (`cal.getCalendarManager()`, `calICalendarManagerObserver`, etc.).
+Thunderbird's WebExtension permission model has no calendar API. The only way to read/write local calendars (including ones backed by local storage, not just CalDAV/ICS) from an extension is a chrome-privileged **Experiment API**: a `schema.json` + parent-context implementation script registered under the `experiment_apis` manifest key, given full `ChromeUtils` access to Thunderbird's calendar manager (`cal.manager`, `calICalendarManagerObserver`, etc.).
 
-`thunderbird/webext-experiments` on GitHub has a draft calendar Experiment API. It is **not usable as-is**:
+`thunderbird/webext-experiments` on GitHub has a draft calendar Experiment API, at `calendar/experiments/calendar/`. Checked against upstream `main` at commit `b7f7cb3e76807903a785a03784d6e7df7b213f21` (this spike's first pass had read the stale `master` branch, which no longer exists — corrected here): it already uses `ChromeUtils.importESModule(".../calUtils.sys.mjs")` and the `cal.manager` accessor, matching our Thunderbird 128+ floor. It's not usable as-is for a minimal read-only spike for one reason:
 
-- It imports `resource://calendar/modules/calUtils.jsm` and friends via `ChromeUtils.import(...)`. Mozilla/comm-central migrated all such modules from legacy `.jsm` to ES modules (`.sys.mjs`, loaded via `ChromeUtils.importESModule`) on 2023-08-15. A search of `mozilla/releases-comm-central` today finds zero references to the old `.jsm` calendar module paths and 228 to the `.sys.mjs` equivalents. The draft has not been updated since, and will not load on any Thunderbird released after that migration — including this repo's own 128.0 floor.
-- It exposes the full calendar CRUD surface (create/delete calendars, full item CRUD, batch mode, observers). That's a large, unaudited privileged surface for a single-issue spike.
+- It exposes the full calendar CRUD surface (create/delete calendars, full item CRUD, batch mode, observers, a `calendar.items` namespace) across six source files. That's a large, unaudited privileged surface for a single-issue spike, and most of it (event/task CRUD) is explicitly ODIAA-2306c/d's job, not this one's.
 
-**What this spike actually did**: ported the *shape* of the draft (schema + parent script structure) to `.sys.mjs`/`ChromeUtils.importESModule`, but reimplemented only `calendar.calendars.query` (list calendars) against the current calendar-manager API, dropping everything else. This is `extension/experiments/calendar/`, wired to a new ungated `GET /calendars` route. It is a **rewrite informed by the draft**, not a vendor-and-patch — the draft's implementation code doesn't survive contact with a current Thunderbird.
+**What this spike actually did**: vendored just `experiments/calendar/parent/ext-calendar-calendars.js` + its schema from the pinned commit above, trimmed to the `query` function only (list calendars), and added an `onShutdown` that invalidates Thunderbird's startup cache (required for any Experiment API per [Thunderbird's Experiments docs](https://developer.thunderbird.net/add-ons/mailextensions/experiments) — this is currently the only `experiment_apis` entry in the manifest, so it's the one that has to carry it). This lives in `extension/experiments/calendar/`, wired to a new ungated `GET /calendars` route. ODIAA-2306c/d should vendor the remaining functions (`get`/`create`/`update`/`remove`/`calendar.items`) the same way — pin the commit, trim to what's needed — rather than rewrite them.
 
 ### Cost
 
 - New privileged surface: any experiment API script gets unrestricted chrome access, unlike the sandboxed `browser.*` WebExtension APIs the rest of this codebase uses exclusively. Every capability added under `experiment_apis` needs its own review; there's no permission-manifest declaration Thunderbird enforces for it — the single manifest-install consent covers everything.
-- Signing pipeline break (see below) — needs a resolution before this can ship through the same automated path as the rest of the extension.
+- Signing: every release touching the calendar Experiment needs a human ATN reviewer (see below) — this PR fixes the lint gate that was blocking that, but the manual-review wait is still a real, ongoing cost, not a one-time fix.
 - Ongoing maintenance cost tied to comm-central's internal (non-public-API) calendar module surface, which has already broken once (the 2023 ESM migration) and can again without notice, since experiment APIs are explicitly exempt from Mozilla's WebExtension API stability guarantees.
 
 ### Risk
@@ -46,32 +45,28 @@ Skip the extension entirely; have the bridge or CLI speak CalDAV (or parse `.ics
 
 ## Signing pipeline: does `sign-xpi.yml`/ATN sign an XPI with `experiment_apis`?
 
-**Empirically tested in this spike, not just researched.** `npm run build:xpi` succeeds — the build script doesn't know or care about `experiment_apis`, so the XPI builds cleanly (12 files, valid manifest round-trip).
+**Yes — with a manual-review cost, not a hard rejection.** This spike's first pass got this wrong; corrected below with the actual fix now included in this PR.
 
-`npm run lint` (which `npm run verify` — and therefore `sign-xpi.yml` — runs before signing) does **not** succeed:
+`npm run build:xpi` succeeds — the build script doesn't know or care about `experiment_apis`, so the XPI builds cleanly (12 files, valid manifest round-trip). `npm run lint` initially failed:
 
 ```
 ERRORS:
-MANIFEST_FIELD_PRIVILEGED  /experiment_apis: Please refer to
-  https://github.com/mozilla-extensions/xpi-manifest/... to learn more
-  about privileged extensions.  manifest.json is only allowed in
-  privileged extensions.
+MANIFEST_FIELD_PRIVILEGED  /experiment_apis: privileged manifest fields
+  are only allowed in privileged extensions.
 ```
 
-`addons-linter` treats `MANIFEST_FIELD_PRIVILEGED` as an **error**, not a warning (Thunderbird-only permission warnings like `messagesRead` are tolerated by design per `scripts/lint.mjs`'s own comment — only errors fail the build). `scripts/lint.mjs` exits non-zero on any addons-linter error, so `npm run verify` fails, so `sign-xpi.yml`'s `npm run verify` step (before it ever reaches `npm run sign:xpi`) fails on any push to `main` that touches `extension/manifest.json` with `experiment_apis` present.
+That error comes from `addons-linter`, and `scripts/lint.mjs`'s own header comment already notes why it can be misleading here: **addons-linter targets Firefox.** The "privileged extension" tier it's pointing at (`mozilla-extensions/xpi-manifest`) is Mozilla's internal Firefox signing program — it has nothing to do with Thunderbird or ATN, and `MOZILLA_HUB_JWT_ISSUER`/`_SECRET` were never going to need it.
 
-This is not a signing-server rejection — it never gets that far. It's a local/CI lint gate, and the underlying reason is real: Mozilla/comm-central restrict `experiment_apis` to **privileged extensions**, a separate trust tier from the self-distributed/AMO-signed tier this repo currently targets (see `xpi-manifest` docs linked in the lint error). Getting privileged status requires a different Mozilla-side process (typically reserved for Mozilla-recognized partners/internal add-ons) — it is not something `MOZILLA_HUB_JWT_ISSUER`/`_SECRET` (ATN self-distribution credentials) grant access to.
+What ATN actually requires is documented in its [review policy](https://thunderbird.github.io/atn-review-policy/): an add-on "will require manual review, if it … includes one or more Experiments," rejected only when a built-in WebExtension API already covers the same ground (none exists for calendars), and this applies "regardless of how they are distributed" — including our self-distributed `unlisted` channel. So ATN signs Experiment-bearing versions; it just can't do it automatically. The real cost is a **human ATN reviewer on every release that touches the calendar Experiment**, which can take days, far longer than `sign-xpi.mjs`'s `ATN_SIGN_TIMEOUT` (900s default) waits.
 
-Three ways forward, none exercised in this spike:
-1. Pursue privileged-extension status with Mozilla for this add-on (unknown timeline/eligibility — needs its own investigation, likely a CEO-level relationship question, not an engineering one).
-2. Ship the calendar-enabled build unsigned/self-distributed only (Thunderbird allows installing unsigned XPIs via `xpinstall.signatures.required=false` or a temporary-add-on load), splitting the release pipeline into signed (no calendar) and unsigned (with calendar) tracks — adds real release-process complexity.
-3. Relax `scripts/lint.mjs` to tolerate this specific error code — technically trivial, but it would be masking a real distribution constraint, not fixing it; not recommended.
-
-This spike's proof-of-concept branch has **not** been merged to `main`, specifically because `extension/manifest.json` changes on `main` trigger `sign-xpi.yml`, which would fail CI with the above error right now.
+**Fix (this PR):**
+- `scripts/lint.mjs` now parses `addons-linter`'s JSON output and tolerates exactly one error: `MANIFEST_FIELD_PRIVILEGED` at `instancePath: "/experiment_apis"`. Any other error still fails the build.
+- `scripts/sign-xpi.mjs` distinguishes "still queued for manual review" (`processed && valid && !reviewed` at timeout) from a real failure. The former now exits `0` with a message pointing at the ATN validation URL, instead of failing the job — `sign-xpi.yml` documents re-running (`workflow_dispatch`) once ATN has a decision; the existing HTTP-409 "already uploaded" handling resumes polling from there.
+- A genuine validation failure or review rejection still fails the script (`fail()`), as before — only the benign "awaiting a human" state changes.
 
 ## Minimum Thunderbird version impact
 
-None beyond the current floor (128.0) for the calendar-manager APIs used here (`.sys.mjs` calendar modules have been present since the 2023-08-15 migration, well before 128.0). The real version-compatibility risk isn't a floor bump — it's that Experiment APIs reach into internal, non-public-API surface, so any future comm-central-internal refactor of the calendar manager can break `ext-calendar-calendars.js` at any Thunderbird version, without the deprecation warning a public `browser.*` API change would get.
+None beyond the current floor (128.0) for the calendar-manager APIs used here (`cal.manager` and the `.sys.mjs` module it lives in have been present since the 2023 ESM migration, well before 128.0; this spike's live check ran on Thunderbird 155.0.1 without changes). The real version-compatibility risk isn't a floor bump — it's that Experiment APIs reach into internal, non-public-API surface, so any future comm-central-internal refactor of the calendar manager can break `ext-calendar-calendars.js` at any Thunderbird version, without the deprecation warning a public `browser.*` API change would get.
 
 ## How the access policy gates privileged calls
 
@@ -79,15 +74,23 @@ Unchanged mechanism, same as every other route: `extension/src/access-control.js
 
 ## What was actually built and verified in this spike
 
-- `extension/experiments/calendar/schema/calendar-calendars.json` + `extension/experiments/calendar/parent/ext-calendar-calendars.js` — ported/trimmed `calendar.calendars.query` only.
+- `extension/experiments/calendar/schema/calendar-calendars.json` + `extension/experiments/calendar/parent/ext-calendar-calendars.js` — vendored/trimmed `calendar.calendars.query` only, from upstream `main` at `b7f7cb3e76807903a785a03784d6e7df7b213f21`, plus the required `onShutdown` cache invalidation.
 - `extension/manifest.json` — `experiment_apis.calendar_calendars` entry.
-- `GET /calendars` — new ungated route: `extension/src/background.js` (dispatch) → `extension/src/access-control.js` (`UNGATED_GET`) → `cli/src/cli.js` (`tb calendars`) → `mcp/src/tools.js` (`calendar_list` tool).
-- Tests: `test/extension.test.mjs`, `test/access-control.test.mjs` — new "Calendars" blocks, all passing (mocked `messenger.calendar.calendars.query`, no live Thunderbird).
-- Verified: `npm run build:xpi` succeeds; `npm run lint` fails with `MANIFEST_FIELD_PRIVILEGED` as shown above.
-- Not verified: a live Thunderbird returning real calendars over `GET /calendars` end-to-end. This environment's running Thunderbird+bridge instance belongs to a different, unrelated project and could not be reused without risking that project's in-progress state; standing up an isolated profile/display/bridge-port for this spike was judged out of scope for this heartbeat given the signing-pipeline finding already answers the load-bearing question (whether Option A is viable *at all* on this stack) more decisively than a single successful live query would. A live check is straightforward for a reviewer with a spare Thunderbird profile: install `dist/thunderbird-cli-enhanced-2.1.0.xpi` unsigned (temporary add-on), start the bridge, `tb calendars`.
+- `GET /calendars` — new ungated route: `extension/src/background.js` (dispatch) → `extension/src/access-control.js` (`UNGATED_GET`) → `cli/src/cli.js` (`tb calendars`) → `mcp/src/tools.js` (`calendar_list` tool). Returns `{ error: "calendar experiment not loaded" }` instead of throwing if the experiment failed to load.
+- `scripts/lint.mjs` / `scripts/sign-xpi.mjs` / `.github/workflows/sign-xpi.yml` — the signing-pipeline fix described above.
+- Tests: `test/extension.test.mjs`, `test/access-control.test.mjs`, `test/sign-xpi.test.mjs` — all passing (mocked `messenger.calendar.calendars.query` for the WebExtension-facing surface; the signing-path fix has real subprocess/HTTP-mock coverage).
+- Verified: `npm run build:xpi` succeeds; `npm run lint` passes (tolerating only the one expected, scoped error).
+- **Verified live**, end-to-end, in an isolated Thunderbird 155.0.1 instance (throwaway profile, `--no-remote`, bridge on ports 17700/17701 to avoid this environment's other running Thunderbird+bridge, which belongs to an unrelated project and was left untouched):
+  ```
+  $ tb calendars
+  {"ok":true,"data":[{"id":"d5836c5a-9458-4844-91fe-7e80d872d752","type":"storage",
+    "name":"Home","url":"moz-storage-calendar://","readOnly":false,"enabled":false,
+    "color":null}]}
+  ```
+  This is the profile's default local "Home" calendar, returned through the real `cal.manager.getCalendars()` call — not a mock. (`enabled: false` reflects this calendar's actual `disabled` property in a freshly created profile that's never had its calendar pane opened; the field is passed through as reported, not a bug in the route.)
 
 ## Next steps (for ODIAA-2306c/d, pending this decision's approval)
 
-1. Resolve the signing-path question above (Mozilla privileged status vs. unsigned-track vs. lint exception) before any calendar route beyond this read-only spike ships to `main`.
+1. Vendor `get`/`create`/`update`/`remove` and `calendar.items` (event/task CRUD) from the same pinned upstream commit, trimmed the same way `query` was.
 2. Classify calendar item read/write and task CRUD routes explicitly in `access-control.js`; default all writes to disabled per the non-negotiables.
-3. Do a live-Thunderbird verification pass once a signing path is chosen (unsigned installs are sufficient for this).
+3. Budget ATN's manual-review turnaround (days, not minutes) into the release process for any change that touches `extension/experiments/calendar/` or adds to `experiment_apis`.

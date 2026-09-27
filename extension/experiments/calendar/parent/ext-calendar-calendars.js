@@ -4,17 +4,18 @@
 
 /**
  * ODIAA-2327 proof: read-only slice of the `calendar_calendars` Experiment API drafted at
- * https://github.com/thunderbird/webext-experiments/tree/master/calendar
- * (experiments/calendar/parent/ext-calendar-calendars.js, calendar_calendars.query).
+ * https://github.com/thunderbird/webext-experiments/tree/main/calendar
+ * (experiments/calendar/parent/ext-calendar-calendars.js, calendar_calendars.query),
+ * pinned at commit b7f7cb3e76807903a785a03784d6e7df7b213f21.
  *
- * Adapted, not copied verbatim — two changes from upstream:
- *   1. Ported ChromeUtils.import(".../calUtils.jsm") to ChromeUtils.importESModule(".../calUtils.sys.mjs").
- *      comm-central renamed every calendar module from .jsm to .sys.mjs in 2023 (pre-dating our
- *      Thunderbird 128 floor); upstream's manifest still references the old .jsm paths, which no
- *      longer resolve, so the file as published does not load. See docs/decisions/calendar-backend.md.
- *   2. Trimmed to `query` only (list calendars). Upstream also drafts get/create/update/remove/
+ * Adapted, not copied verbatim:
+ *   1. Trimmed to `query` only (list calendars). Upstream also drafts get/create/update/remove/
  *      clear/synchronize and calendar.items (event/task CRUD); those vendor in ODIAA-2306c/d once
  *      the CTO/CEO decision in docs/decisions/calendar-backend.md is approved.
+ *   Everything else — the `.sys.mjs`/`ChromeUtils.importESModule` imports and `cal.manager`
+ *   accessor below — matches upstream `main` as of the pinned commit; comm-central migrated
+ *   off `.jsm`/`cal.getCalendarManager()` in 2023, before our Thunderbird 128 floor, so no
+ *   porting was needed there.
  */
 
 var { ExtensionCommon } = ChromeUtils.importESModule("resource://gre/modules/ExtensionCommon.sys.mjs");
@@ -28,8 +29,7 @@ this.calendar_calendars = class extends ExtensionAPI {
       calendar: {
         calendars: {
           query: async function ({ type, readOnly, enabled } = {}) {
-            const calmgr = cal.getCalendarManager();
-            return calmgr
+            return cal.manager
               .getCalendars()
               .filter((calendar) => {
                 if (type && calendar.type !== type) return false;
@@ -50,5 +50,14 @@ this.calendar_calendars = class extends ExtensionAPI {
         },
       },
     };
+  }
+
+  // This is currently the only experiment_apis entry in the manifest, so it owns the
+  // startup-cache invalidation Thunderbird's Experiments docs require on non-shutdown
+  // unload (disable/update/reload) — see
+  // https://developer.thunderbird.net/add-ons/mailextensions/experiments.
+  onShutdown(isAppShutdown) {
+    if (isAppShutdown) return;
+    Services.obs.notifyObservers(null, "startupcache-invalidate");
   }
 };

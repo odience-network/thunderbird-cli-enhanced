@@ -21,6 +21,12 @@
  * The add-on ID in manifest.json must be new or owned by the API key's ATN account.
  * A version that was already uploaded (HTTP 409) resumes polling instead of failing,
  * and a file in dist/releases/ that already matches ATN's hash is left untouched.
+ *
+ * Versions bundling Experiment APIs (experiment_apis in manifest.json) require a human
+ * ATN reviewer regardless of channel — see https://thunderbird.github.io/atn-review-policy/.
+ * If ATN_SIGN_TIMEOUT elapses while a version is still awaiting that review (as opposed to
+ * having failed it), this exits 0 rather than failing, so CI isn't red for a normal pending
+ * state; re-run once ATN has a decision.
  */
 
 import AdmZip from "adm-zip";
@@ -121,7 +127,16 @@ while (!approvedFile) {
   if (json.passed_review) approvedFile = json.files?.find((f) => f.download_url && f.hash);
   if (approvedFile) break;
   if (Date.now() > deadline) {
-    fail(`not approved after ${TIMEOUT_MS / 1000}s (listed versions may need manual review) — re-run later to resume`);
+    if (json.processed && json.valid && !json.reviewed) {
+      // ATN requires a human review for any version bundling Experiment APIs (this add-on's
+      // calendar_calendars), which routinely takes longer than a CI job should block on. This
+      // isn't a failure — exit clean so sign-xpi.yml doesn't go red, and re-run (or
+      // workflow_dispatch) once review completes; the 409 branch above resumes polling.
+      console.log(`  v${version} passed automated validation and is queued for ATN's manual review (required for Experiment APIs) — not yet approved after ${TIMEOUT_MS / 1000}s.`);
+      console.log(`  Re-run this workflow once ${json.validation_url} shows a decision.`);
+      process.exit(0);
+    }
+    fail(`not approved after ${TIMEOUT_MS / 1000}s — re-run later to resume`);
   }
   await new Promise((r) => setTimeout(r, POLL_MS));
 }

@@ -962,12 +962,12 @@ async function handleRequest({ method, path, body }) {
 
   // ─── Calendars (ODIAA-2327 proof, read-only) ────────────────────
   // Requires the calendar_calendars Experiment API (manifest experiment_apis, see
-  // extension/experiments/calendar/) — absent from this route's UNGATED_GET entry doing
-  // anything real if that experiment fails to load; browser.calendar is undefined in that
-  // case and the call below throws, which is expected until docs/decisions/calendar-backend.md
-  // is approved and the full feature (ODIAA-2306c/d) lands.
+  // extension/experiments/calendar/) to have loaded successfully.
 
   if (path === "/calendars" && method === "GET") {
+    if (!messenger.calendar?.calendars?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
     const calendars = await messenger.calendar.calendars.query({});
     return calendars;
   }
