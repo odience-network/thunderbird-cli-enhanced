@@ -141,9 +141,9 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      "from source" alternative rather than replacing it, since the fork's own README edit
      hardcoded the stale `thunderbird_ai_bridge-2.0.0-tb.xpi` filename that `1ab7840` (below)
      removes. `test:all` green.
-   - **Not yet landed, next up**: release/docs cleanup — `2ead539` (v1.0.1 bump, superseded:
-     `main` is already at `1.1.0`, drop) and `1ab7840` (remove outdated 2.0.0 XPI from
-     `dist/releases/`, still applicable — `main` still ships both the 2.0.0 and 2.1.0 XPI).
+   - **Shipped (PR #10)**: release/docs cleanup — `2ead539` (v1.0.1 bump, superseded:
+     `main` was already at `1.1.0`, dropped) and `1ab7840` (removed outdated 2.0.0 XPI from
+     `dist/releases/`, hand-adapted to keep the current 2.1.0 XPI intact).
    - **Not yet landed**: extension branding/status UI, apply in order — `3e7c145` (add
      `extension/icons/`, register in manifest — genuinely missing on `main` today, no
      `icons`/`browser_action` key exists), `dd2ff7e` (rename "Thunderbird AI Bridge" →
@@ -158,9 +158,10 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      output-format change before merge.
    - **Not yet landed**: bridge auto-start resilience (`b5ff6eb`, `69ecf68`, `622fd68`,
      `4994fc0`) — sequential fixes to one feature, bundle together.
-   - **Not yet landed**: independent bug fixes (`5bded06` attachment extension inference,
+   - **Shipped (PR #11)**: independent bug fixes (`5bded06` attachment extension inference,
      `e625adc` search across body/subject/sender, `bac88be` empty/omitted search query,
-     `12f27e2` comma-separated to/cc/bcc parsing) — no new routes, bundle as one PR.
+     `12f27e2` comma-separated to/cc/bcc parsing) — no new routes, bundled as one PR with
+     5 new tests covering the general-query OR-search behavior.
    - **Needs access-control classification + CTO permissions review before merge**:
      `e510ec3` (`tb edit` / `email_edit`) adds a new `POST /compose/edit` route to
      `background.js` with no `access-control.js` entry — under ODIAA-2311's fail-closed
