@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with explicit override via `tb reply --from <identityId>` / MCP `email_reply.from`.
 - Reply results expose `identityId`, `type`, `relatedMessageId`, and `quotedOriginal` for
   verification.
+- `tb attachment-download` infers a file extension from the attachment's content type when
+  saving without an explicit output filename, instead of writing an extensionless file.
+- `tb search` / `email_search` with a plain query (no `subject`/`from` filter) now searches
+  across message body, subject, and author with OR semantics, instead of body only.
+- `tb search` / `email_search` with an empty or omitted query and at least one other filter
+  no longer errors.
+- `tb compose` / `tb reply` / `tb forward` `--to`/`--cc`/`--bcc` now split comma-separated
+  addresses into separate recipients instead of putting them all in one recipient field.
 
 ## [1.1.0] — 2026-09-14
 

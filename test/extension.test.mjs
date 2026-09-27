@@ -369,6 +369,33 @@ test("zero maximum size is not ignored", zeroSize.total === 0);
 test("tag is passed to native query", calls.query.some((q) => q.tags?.mode === "all" && q.tags.tags.$label1 === true));
 test("size range is passed to native query", calls.query.some((q) => q.size?.min === 100 && q.size?.max === 100));
 
+// A general query with no field filter searches body, subject, and author with OR
+// semantics: three parallel native queries, merged and deduplicated by message id.
+queryHandlers.length = 0;
+queryHandlers.push((q) => {
+  if (q.body === "widget") return { messages: [header(30), header(31)] };
+  if (q.subject === "widget") return { messages: [header(31), header(32)] };
+  if (q.author === "widget") return { messages: [header(33)] };
+  return { messages: [] };
+});
+calls.query.length = 0;
+const orSearch = await handle("POST", "/messages/search", { query: "widget", limit: 10 });
+const orIds = orSearch.messages.map((m) => m.id).sort();
+test("general query searches body, subject, and author", JSON.stringify(orIds) === JSON.stringify([30, 31, 32, 33]));
+test("general query results deduplicated by message id", orSearch.messages.length === orIds.length);
+test("general query issues one native query per field", calls.query.length === 3);
+
+// An explicit subject/from filter is an AND constraint, so it must not also be
+// treated as one of the OR branches for the general query.
+queryHandlers.length = 0;
+queryHandlers.push((q) => (q.subject === "widget" && q.author === "known@example.org")
+  ? { messages: [header(34)] } : { messages: [] });
+calls.query.length = 0;
+const orSearchNarrowed = await handle("POST", "/messages/search", { query: "widget", fromAddress: "known@example.org", limit: 10 });
+test("explicit fromAddress filter narrows the author OR-branch instead of adding a bare one",
+  calls.query.length === 2 && calls.query.every((q) => q.author === "known@example.org"));
+test("general query results still returned with a narrowing filter", orSearchNarrowed.messages.some((m) => m.id === 34));
+
 // Test the shared collector with Thunderbird-sized pages, not one record per page.
 const previousContinue = messenger.messages.continueList;
 const previousAbort = messenger.messages.abortList;
