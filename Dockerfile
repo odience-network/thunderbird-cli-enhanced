@@ -12,10 +12,12 @@
 #         "command": "docker",
 #         "args": ["run", "--rm", "-i",
 #                  "-e", "TB_BRIDGE_HOST=host.docker.internal",
-#                  "ghcr.io/vitalio-sh/thunderbird-cli-mcp:latest"]
+#                  "thunderbird-cli-enhanced-mcp"]
 #       }
 #     }
 #   }
+#
+# Build locally: docker build -t thunderbird-cli-enhanced-mcp .
 
 FROM node:22-alpine
 
@@ -23,7 +25,7 @@ WORKDIR /app
 
 # Install the published MCP server from npm. Pinned at image-build time;
 # users can re-pull for updates.
-RUN npm install -g thunderbird-cli-mcp@latest
+RUN npm install -g @odience-network/thunderbird-cli-enhanced@latest
 
 # Defaults — overridable at runtime.
 ENV TB_BRIDGE_HOST=host.docker.internal
