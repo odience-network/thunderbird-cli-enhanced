@@ -34,6 +34,7 @@ import { createServer } from "http";
 import { isIP } from "net";
 import { WebSocketServer } from "ws";
 import { randomUUID, timingSafeEqual } from "crypto";
+import { EventEmitter } from "events";
 import { pathToFileURL } from "url";
 
 // ─── Helper: resolve CLI arg value ────────────────────────────────
@@ -137,6 +138,13 @@ export async function startBridge(opts = {}) {
   let extensionSocket = null;
   const pending = new Map(); // id → { resolve, reject, timer }
 
+  // Unsolicited push messages from the extension (e.g. "extension-ready" after a reload).
+  // Ring-buffered so a long-poller that arrives just after an event can still see it.
+  const eventEmitter = new EventEmitter();
+  eventEmitter.setMaxListeners(50);
+  const recentEvents = [];
+  const MAX_RECENT_EVENTS = 100;
+
   // ─── WebSocket Server (for extension) ───────────────────────────────
 
   const wss = new WebSocketServer({
@@ -162,15 +170,28 @@ export async function startBridge(opts = {}) {
     ws.on("message", (data) => {
       try {
         const msg = JSON.parse(data.toString());
-        const p = pending.get(msg.id);
-        if (p) {
-          pending.delete(msg.id);
-          clearTimeout(p.timer);
-          if (msg.error) {
-            p.reject(msg.error);
-          } else {
-            p.resolve(msg.result);
+
+        // Response to a pending request (has a matching id).
+        if (msg.id !== undefined) {
+          const p = pending.get(msg.id);
+          if (p) {
+            pending.delete(msg.id);
+            clearTimeout(p.timer);
+            if (msg.error) {
+              p.reject(msg.error);
+            } else {
+              p.resolve(msg.result);
+            }
           }
+          return;
+        }
+
+        // Unsolicited event from the extension.
+        if (msg.type === "event") {
+          const event = { name: msg.name, data: msg.data || {}, receivedAt: Date.now() };
+          recentEvents.push(event);
+          if (recentEvents.length > MAX_RECENT_EVENTS) recentEvents.shift();
+          eventEmitter.emit("event", event);
         }
       } catch (e) {
         console.error("[bridge] Bad message from extension:", e.message);
@@ -281,6 +302,53 @@ export async function startBridge(opts = {}) {
       };
       res.writeHead(200);
       res.end(JSON.stringify(status));
+      return;
+    }
+
+    // Bridge-local event feed (extension-pushed events, e.g. "extension-ready" after a
+    // reload). Not routed through the extension or access-control.js — bridge-local like
+    // /bridge/status.
+    if (req.url.startsWith("/bridge/events")) {
+      const url = new URL(req.url, `http://${HOST}:${HTTP_PORT}`);
+      const waitName = url.searchParams.get("wait");
+      const since = parseInt(url.searchParams.get("since") || "0");
+      const eventTimeoutMs = Math.min(parseInt(url.searchParams.get("timeout") || "30000"), 120000);
+
+      if (!waitName) {
+        res.writeHead(200);
+        res.end(JSON.stringify({ events: recentEvents.filter((e) => e.receivedAt >= since) }));
+        return;
+      }
+
+      // The event may have already arrived before this long-poll started.
+      const found = recentEvents.find((e) => e.name === waitName && e.receivedAt >= since);
+      if (found) {
+        res.writeHead(200);
+        res.end(JSON.stringify({ event: found }));
+        return;
+      }
+
+      let resolved = false;
+      const cleanup = () => {
+        clearTimeout(timer);
+        eventEmitter.off("event", onEvent);
+      };
+      const onEvent = (event) => {
+        if (resolved || event.name !== waitName || event.receivedAt < since) return;
+        resolved = true;
+        cleanup();
+        res.writeHead(200);
+        res.end(JSON.stringify({ event }));
+      };
+      const timer = setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        res.writeHead(408);
+        res.end(JSON.stringify({ error: "Event timeout", code: "EVENT_TIMEOUT" }));
+      }, eventTimeoutMs);
+      eventEmitter.on("event", onEvent);
+      req.on("close", cleanup);
       return;
     }
 
