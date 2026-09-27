@@ -66,6 +66,8 @@ What ATN actually requires is documented in its [review policy](https://thunderb
 
 ## Minimum Thunderbird version impact
 
+**Update after merge (2026-09-27):** the first `sign-xpi` run on `main` got this from ATN: `400 — A "strict_max_version" is required for Thunderbird Mail Experiments`. So Experiments also add a **maximum** version. Extension 2.2.0 declares `strict_max_version: "155.*"`, the newest version checked live. Thunderbird will refuse to load the add-on on a later major until we test there, bump the max, and re-sign, which means another manual ATN review. That's an ongoing per-major-release cost of Option A on top of the per-release review.
+
 None beyond the current floor (128.0) for the calendar-manager APIs used here (`cal.manager` and the `.sys.mjs` module it lives in have been present since the 2023 ESM migration, well before 128.0; this spike's live check ran on Thunderbird 155.0.1 without changes). The real version-compatibility risk isn't a floor bump — it's that Experiment APIs reach into internal, non-public-API surface, so any future comm-central-internal refactor of the calendar manager can break `ext-calendar-calendars.js` at any Thunderbird version, without the deprecation warning a public `browser.*` API change would get.
 
 ## How the access policy gates privileged calls
