@@ -1,13 +1,14 @@
 {
   "manifest_version": 2,
   "name": "Thunderbird CLI Enhanced",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Connects Thunderbird to CLI agents via WebSocket bridge",
   "author": "thunderbird-cli-enhanced",
   "browser_specific_settings": {
     "gecko": {
       "id": "thunderbird-cli-enhanced@odience.net",
-      "strict_min_version": "128.0"
+      "strict_min_version": "128.0",
+      "strict_max_version": "155.*"
     }
   },
   "icons": {

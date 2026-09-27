@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Read-only `tb calendars` / `calendar_list` / `GET /calendars`, backed by a vendored `calendar_calendars` Experiment API. See [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md).
+
+### Changed
+- Extension 2.2.0 declares `strict_max_version: "155.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.
+
 ## [1.2.0] — 2026-09-27
 
 First release of the fork on npm as `@odience-network/thunderbird-cli-enhanced`.
