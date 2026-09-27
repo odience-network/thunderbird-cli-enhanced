@@ -57,6 +57,15 @@ Use these; don't reach for the 40-command CLI unless the user explicitly asks fo
 | `email_archive` | `operation: archive / move / delete`. `delete` requires `permanent` + `confirm` | ⚠️ confirm for permanent |
 | `email_attachments` | List attachments, or download one (single or `--all`) | ✅ read-only |
 | `email_folders` | List folders, get folder info, trigger sync | ✅ read-only |
+| `note_list` | List local Markdown notes (title, created, source, size) | ✅ read-only |
+| `note_read` | Read a note's Markdown body — "Use as Context" | ✅ read-only |
+| `note_save` | Save/overwrite a note — "Save to Notes" | ✅ local file only |
+| `note_append` | Append to a note, creating it if missing | ✅ local file only |
+| `note_to_draft` | Render a note's Markdown to sanitized HTML and open it as an email draft. `mode: draft` / `open`. Never sends | ✅ draft by default |
+
+Notes live entirely on disk (`~/.config/thunderbird-cli/notes` by default) —
+no Thunderbird round-trip except `note_to_draft`, which reuses the same
+compose route as `email_compose` and never exposes a `send` mode.
 
 ## Core patterns — always apply these
 
@@ -178,6 +187,17 @@ email_folders                     # lists all across all accounts
 
 For account names use the exact label as configured in Thunderbird (user-visible name). If unsure, call `email_stats` first — it lists accounts.
 
+### I. "Save a summary of this thread to notes" / "Turn my meeting notes into an email"
+
+```
+note_save name="q3-planning" body="<markdown summary>" title="Q3 Planning" source="<messageId>"
+```
+
+To pull a previously saved note back into context, use `note_read name="q3-planning"`.
+To turn a note into an email, use `note_to_draft name="q3-planning" to="team@co.com"` —
+it renders the Markdown to sanitized HTML and saves a draft (never sends).
+Notes are local files; nothing is uploaded anywhere.
+
 ## Safety
 
 ### Destructive operations
@@ -239,7 +259,7 @@ Some IMAP servers don't preload attachments. Call `email_read id=<id> mode="chec
 
 ## When NOT to use this skill
 
-- **Calendar events, contacts, or address book** — not exposed via `tb-mcp`. Use Thunderbird directly or a dedicated skill.
+- **Calendar events or tasks, contacts write, or address book editing** — not exposed via `tb-mcp`. `calendar_list`/`tb calendars` can list calendar names only (read-only, experimental — see `docs/decisions/calendar-backend.md`); for anything beyond that, use Thunderbird directly or a dedicated calendar skill.
 - **Accounts not configured in Thunderbird** — ask the user to add the account first.
 - **Sending to many recipients** — use a mailing tool (Mailchimp, etc.) via its MCP server. `tb-mcp` is for 1:1 or small-group mail.
 - **Server-side rules / filters** — not exposed. Thunderbird sees the client-side view only.
@@ -262,6 +282,11 @@ MCP tool → CLI command mapping:
 | `email_forward` | `tb forward <id> --to X` |
 | `email_edit` | `tb edit <id> --body "..."` |
 | `email_archive` | `tb archive <id>` / `tb move <id> <folder>` / `tb delete <id>` |
+| `note_list` | `tb notes list` |
+| `note_read` | `tb notes read <name>` |
+| `note_save` | `tb notes save <name> --body "..."` |
+| `note_append` | `tb notes append <name> --body "..."` |
+| `note_to_draft` | `tb notes to-draft <name> --to X` |
 
 ## Version
 

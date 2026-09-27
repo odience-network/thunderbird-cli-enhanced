@@ -13,6 +13,8 @@ import { randomUUID, randomUUID as uuid } from "crypto";
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MCP_SERVER = join(__dirname, "../mcp/src/server.js");
@@ -138,6 +140,12 @@ function handle({ method, path, body }) {
   if (path === "/stats")
     return { totalAccounts: 1, totalUnread: 5, totalMessages: 100, accounts: [] };
   if (path === "/sync") return { success: true, synced: body?.all ? "all" : body?.folderId };
+  if (path === "/contacts/search")
+    return [{ id: "c1", name: "John", email: "j@e.com", emails: ["j@e.com"], book: "Personal", bookId: "ab1" }];
+  if (path === "/contacts/create")
+    return { id: "c2", book: "Personal", bookId: "ab1", properties: body?.properties || {} };
+  if (path === "/contacts/update")
+    return { id: body?.id, properties: body?.properties || {} };
   return { error: `Not found: ${method} ${path}` };
 }
 
@@ -274,6 +282,16 @@ class McpClient {
     return r.result?.tools || [];
   }
 
+  async listResources() {
+    const r = await this.send("resources/list", {});
+    return r.result?.resources || [];
+  }
+
+  async readResource(uri) {
+    const r = await this.send("resources/read", { uri });
+    return r.result?.contents || [];
+  }
+
   async callTool(name, args) {
     const r = await this.send("tools/call", { name, arguments: args });
     if (r.result?.content?.[0]?.text) {
@@ -308,9 +326,12 @@ function test(name, result, check) {
 const servers = await startBridge();
 await new Promise((r) => setTimeout(r, 300));
 
+const notesDir = mkdtempSync(join(tmpdir(), "tb-mcp-notes-test-"));
+
 const client = new McpClient(MCP_SERVER, {
   TB_BRIDGE_HOST: "127.0.0.1",
   TB_BRIDGE_PORT: String(PORT),
+  TB_NOTES_DIR: notesDir,
 });
 
 console.log("\n\x1b[1m=== thunderbird-cli MCP Server Tests ===\x1b[0m\n");
@@ -319,12 +340,12 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 13 tools", toolList, (r) => Array.isArray(r) && r.length === 13);
+test("tools/list returns 18 tools", toolList, (r) => Array.isArray(r) && r.length === 18);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
 
-console.log("\n\x1b[1mTools (13)\x1b[0m");
+console.log("\n\x1b[1mTools\x1b[0m");
 
 test("email_stats", await client.callTool("email_stats", {}), (r) => r.totalAccounts === 1);
 test(
@@ -537,6 +558,66 @@ test(
   (r) => r.success
 );
 
+console.log("\n\x1b[1mNotes\x1b[0m");
+test(
+  "note_list starts empty",
+  await client.callTool("note_list", {}),
+  (r) => Array.isArray(r) && r.length === 0
+);
+test(
+  "note_save creates a note",
+  await client.callTool("note_save", { name: "meeting-notes", body: "Hello **world**", title: "Meeting Notes" }),
+  (r) => r.name === "meeting-notes" && r.title === "Meeting Notes"
+);
+test(
+  "note_read returns saved body",
+  await client.callTool("note_read", { name: "meeting-notes" }),
+  (r) => r.body === "Hello **world**" && r.title === "Meeting Notes"
+);
+test(
+  "note_read on missing note errors NOT_FOUND",
+  await client.callTool("note_read", { name: "does-not-exist" }),
+  (r) => r.code === "NOT_FOUND"
+);
+test(
+  "note_list now has one entry",
+  await client.callTool("note_list", {}),
+  (r) => Array.isArray(r) && r.length === 1
+);
+test(
+  "note_append adds to an existing note",
+  await client.callTool("note_append", { name: "meeting-notes", body: "More text" }),
+  (r) => r.created === false
+);
+test(
+  "note_append-created note is readable",
+  await client.callTool("note_read", { name: "meeting-notes" }),
+  (r) => r.body === "Hello **world**\n\nMore text"
+);
+test(
+  "note_to_draft renders Markdown to a sanitized HTML draft",
+  await client.callTool("note_to_draft", { name: "meeting-notes", to: "a@b.com" }),
+  (r) => r.success === true && r.action === "draft_saved"
+);
+test(
+  "note_to_draft mode=open opens the compose window",
+  await client.callTool("note_to_draft", { name: "meeting-notes", to: "a@b.com", mode: "open" }),
+  (r) => r.success === true && r.action === "draft_opened"
+);
+
+const resourceList = await client.listResources();
+test(
+  "resources/list includes the notes workspace",
+  resourceList,
+  (r) => Array.isArray(r) && r.some((res) => res.uri === `note://${encodeURIComponent("meeting-notes")}`)
+);
+const resourceRead = await client.readResource(`note://${encodeURIComponent("meeting-notes")}`);
+test(
+  "resources/read returns the note's Markdown body",
+  resourceRead,
+  (r) => Array.isArray(r) && r[0]?.mimeType === "text/markdown" && r[0]?.text === "Hello **world**\n\nMore text"
+);
+
 console.log("\n\x1b[1mError handling\x1b[0m");
 const unknownTool = await client.callTool("nonexistent_tool", {});
 test("unknown tool returns error", unknownTool, (r) => r.error?.includes("Unknown tool"));
@@ -555,7 +636,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 13 && r.toolsBCount === 13
+  (r) => r.toolsACount === 18 && r.toolsBCount === 18
 );
 clientA.close();
 clientB.close();
@@ -576,4 +657,5 @@ client.close();
 servers.mock.close();
 servers.wss.close();
 servers.httpServer.close();
+rmSync(notesDir, { recursive: true, force: true });
 process.exit(failed > 0 ? 1 : 0);

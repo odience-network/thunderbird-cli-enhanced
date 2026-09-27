@@ -11,6 +11,15 @@ import { createRequire } from "module";
 import { Command } from "commander";
 import { api, output, outputError, getConfig, parseRelativeDate } from "./client.js";
 import { extname } from "path";
+import {
+  listNotes,
+  readNote,
+  saveNote,
+  appendNote,
+  deleteNote,
+  searchNotes,
+  renderNoteHtml,
+} from "./notes.js";
 
 const MIME_TO_EXT = {
   "application/pdf": ".pdf",
@@ -1149,6 +1158,110 @@ bulk
     const body = { folderId };
     if (opts.limit) body.limit = parseInt(opts.limit);
     const data = await api("POST", "/bulk/fetch", body, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+// ─── Notes ──────────────────────────────────────────────────────────────
+
+const notes = program.command("notes").description("Local Markdown notes workspace");
+
+notes
+  .command("list")
+  .description("List notes")
+  .action(run(async () => {
+    const g = program.opts();
+    output(listNotes(), getFormat(g), getOutputOpts(g));
+  }));
+
+notes
+  .command("read <name>")
+  .description("Read a note")
+  .action(run(async (name) => {
+    const g = program.opts();
+    output(readNote(name), getFormat(g), getOutputOpts(g));
+  }));
+
+notes
+  .command("save <name>")
+  .description("Save a note (overwrites if it already exists)")
+  .option("--body <text>", "note body (Markdown)")
+  .option("--body-file <path>", "read body from file")
+  .option("--title <text>", "note title (defaults to name)")
+  .option("--source <messageId>", "source email message ID this note came from")
+  .action(run(async (name, opts) => {
+    let body = opts.body || "";
+    if (opts.bodyFile) {
+      const { readFileSync } = await import("fs");
+      body = readFileSync(opts.bodyFile, "utf-8");
+    }
+    const g = program.opts();
+    output(saveNote(name, body, { title: opts.title, source: opts.source }), getFormat(g), getOutputOpts(g));
+  }));
+
+notes
+  .command("append <name>")
+  .description("Append to a note (creates it if it doesn't exist)")
+  .option("--body <text>", "text to append (Markdown)")
+  .option("--body-file <path>", "read text from file")
+  .option("--title <text>", "note title (only applied when creating)")
+  .option("--source <messageId>", "source email message ID this note came from")
+  .action(run(async (name, opts) => {
+    let body = opts.body || "";
+    if (opts.bodyFile) {
+      const { readFileSync } = await import("fs");
+      body = readFileSync(opts.bodyFile, "utf-8");
+    }
+    const g = program.opts();
+    output(appendNote(name, body, { title: opts.title, source: opts.source }), getFormat(g), getOutputOpts(g));
+  }));
+
+notes
+  .command("delete <name>")
+  .description("Delete a note")
+  .option("--confirm", "required to confirm deletion")
+  .action(run(async (name, opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    if (!opts.confirm) {
+      outputError({ message: "Use --confirm to delete a note", code: "INVALID_ARGS" }, fmt, { outputVersion: isV2(g) ? 2 : 1 });
+      return;
+    }
+    output(deleteNote(name), fmt, getOutputOpts(g));
+  }));
+
+notes
+  .command("search <query>")
+  .description("Search note titles and bodies")
+  .action(run(async (query) => {
+    const g = program.opts();
+    output(searchNotes(query), getFormat(g), getOutputOpts(g));
+  }));
+
+notes
+  .command("to-draft <name>")
+  .description("Render a note to an HTML email draft (never sends)")
+  .requiredOption("--to <address>", "recipient(s), comma-separated")
+  .option("--cc <address>", "CC recipient(s)")
+  .option("--bcc <address>", "BCC recipient(s)")
+  .option("--subject <text>", "subject line (defaults to the note's title)")
+  .option("--from <identityId>", "send from specific identity")
+  .option("--open", "open compose window instead of saving silently")
+  .action(run(async (name, opts) => {
+    const g = program.opts();
+    const note = readNote(name);
+    const payload = {
+      to: opts.to,
+      subject: opts.subject || note.title,
+      body: renderNoteHtml(note.body),
+      isHTML: true,
+    };
+    if (opts.cc) payload.cc = opts.cc;
+    if (opts.bcc) payload.bcc = opts.bcc;
+    if (opts.from) payload.identityId = opts.from;
+    if (opts.open) payload.open = true;
+    else payload.draft = true;
+
+    const data = await api("POST", "/compose", payload, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 

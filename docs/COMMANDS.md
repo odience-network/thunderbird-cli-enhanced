@@ -240,6 +240,25 @@ tb contacts-search <query> [--book <bookId>] [-l <n>]  # search contacts
 tb contact <contactId>                    # contact details
 ```
 
+## Notes
+
+Local Markdown workspace (`~/.config/thunderbird-cli/notes` by default, override with
+`notesDir` in config or `TB_NOTES_DIR`). Storage only — no Thunderbird round-trip
+except `to-draft`.
+
+```bash
+tb notes list                                        # list all notes
+tb notes read <name>                                 # read a note's body + metadata
+tb notes save <name> --body "text" [--title <t>] [--source <messageId>]     # create/overwrite
+tb notes save <name> --body-file <path>                                    # from a file
+tb notes append <name> --body "more text" [--body-file <path>] [--title <t>] [--source <messageId>]
+                                                       # append, creates if missing
+tb notes delete <name> --confirm                      # delete a note
+tb notes search <query>                               # search titles and bodies
+tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [--from <identityId>] [--open]
+                                                       # render Markdown to sanitized HTML, open as draft (never sends)
+```
+
 ## Bulk Operations
 
 ```bash

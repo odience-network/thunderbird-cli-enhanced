@@ -22,6 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `email_archive`) to preserve the old behavior.
 
 ### Added
+- **Notes** — a local Markdown workspace, independent of any Thunderbird account or mailbox. Plain
+  `.md` files (optional `---` front matter for title/created/source) live in `notesDir`
+  (config key or `TB_NOTES_DIR`, default `~/.config/thunderbird-cli/notes`); filenames are
+  checked against a charset allowlist and re-verified for path-traversal containment. `tb notes
+  list|read|save|append|delete|search|to-draft`, matching MCP tools `note_list`/`note_read`
+  ("Use as Context")/`note_save`/`note_append` ("Save to Notes")/`note_to_draft`, and notes are
+  also exposed as MCP resources (`note://<name>`, `text/markdown`). `note_to_draft`/`tb notes
+  to-draft` renders a note's Markdown to sanitized HTML and opens it via the same `/compose`
+  route as `email_compose` — gated by the same `compose` access-policy switch, never a `send`
+  mode. Rendering uses [`marked`](https://www.npmjs.com/package/marked) (small, zero-dependency,
+  actively maintained) and sanitizes with
+  [`sanitize-html`](https://www.npmjs.com/package/sanitize-html) (parser-driven, not regex-based)
+  before the HTML ever reaches an email draft.
 - **`tb edit <messageId>`** — edit an existing draft in place (to/cc/bcc/subject/body/from/priority) with `--draft`/`--open`/`--send` modes
 - **`email_edit` MCP tool** — same capability for agents; returns `messageId` + `previousMessageId` (IMAP may reassign draft IDs on save)
 - Extension route `POST /compose/edit` using `compose.beginNew` + `setComposeDetails` + `saveMessage`, gated by the same `compose`/`send` access policy switches as `POST /compose` (see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
