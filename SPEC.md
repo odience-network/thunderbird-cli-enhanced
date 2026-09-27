@@ -21,7 +21,7 @@
 │       ┌────────────────────┬──────────────────────┐         │
 │       ↕                    ↕                      ↕         │
 │  tb CLI (Node)      tb-mcp Server          Direct HTTP      │
-│  (43 commands)      (16 MCP tools)         (curl, scripts)  │
+│  (43 commands)      (27 MCP tools)         (curl, scripts)  │
 │       ↕                    ↕                                │
 │  AI Agent           Claude Desktop                          │
 │  (Claude Code)      (stdio MCP transport)                   │
@@ -589,18 +589,31 @@ Markdown → HTML uses `marked` (rendering) and `sanitize-html` (stripping
 scripts, event handlers, and unsafe URL schemes) before the HTML ever
 reaches a compose draft.
 
-### 19. Calendars
+### 19. Calendars and calendar events
 
-Read-only, experimental — requires the `calendar` Experiment API vendored into
-the extension (see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md)
-for the tech-decision doc, including the ATN manual-review requirement this adds
-to signed releases). Lists local Thunderbird calendars only; no event or task
-read/write yet.
+Experimental — requires the `calendar` Experiment API vendored into the extension
+(see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) for
+the tech-decision doc, including the ATN manual-review requirement this adds to
+signed releases). Calendar listing and event reads are ungated; event
+create/update/delete require the `calendarWrite` access switch (default `false`
+— see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)). Task CRUD is not yet
+implemented.
 
 ```bash
 # List calendars
-tb calendars
+tb calendar list
 # Returns: [{id, name, type, url, readOnly, enabled, color}]
+
+# List events in a range, optionally scoped to one calendar
+tb calendar events --start <date> --end <date> [--calendar <calendarId>]
+
+# Create/update/delete an event (requires calendarWrite)
+tb calendar create --calendar <calendarId> --title <title> --start <date> --end <date> [--all-day] [--location <l>] [--description <d>]
+tb calendar update <eventId> --calendar <calendarId> [--title ...] [--start ...] [--end ...]
+tb calendar delete <eventId> --calendar <calendarId>
+
+# Detect overlapping events across all calendars in a range
+tb calendar clashes --start <date> --end <date>
 ```
 
 ---
@@ -930,8 +943,9 @@ Note: Extension development cannot happen in Docker. Edit `extension/src/backgro
 - [x] Extension branding and toolbar status indicator (#16)
 - [x] `tb extension-reload` + `/bridge/events` (#17)
 - [x] Opt-in v2 output format, `--output-version 2` (#19)
-- [x] Calendar read-only spike (`tb calendars`, Experiment API) — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) (ODIAA-2327)
-- [ ] Calendar events/tasks CRUD, contacts write, notes, tasks — roadmap, see [docs/PLAN.md](docs/PLAN.md)
+- [x] Calendar read-only spike (`tb calendar list`, Experiment API) — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) (ODIAA-2327)
+- [x] Calendar event CRUD + cross-calendar clash detection (`tb calendar events`/`create`/`update`/`delete`/`clashes`), gated by `calendarWrite` (ODIAA-2328)
+- [ ] Calendar task CRUD, contacts write, notes, tasks — roadmap, see [docs/PLAN.md](docs/PLAN.md)
 
 ---
 
@@ -1199,7 +1213,7 @@ The MCP server:
 
 ### Tool Catalog
 
-The 16 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
+The 27 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
 
 | MCP Tool | Maps to CLI commands |
 |----------|---------------------|
@@ -1224,6 +1238,12 @@ The 16 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 | `contact_search` | `tb contacts`, `tb contacts-search` |
 | `contact_create` | `tb contacts create` (requires `contactsWrite`) |
 | `contact_update` | `tb contacts update` (requires `contactsWrite`) |
+| `calendar_list` | `tb calendar list` |
+| `calendar_events` | `tb calendar events` |
+| `calendar_event_create` | `tb calendar create` (requires `calendarWrite`) |
+| `calendar_event_update` | `tb calendar update` (requires `calendarWrite`) |
+| `calendar_event_delete` | `tb calendar delete` (requires `calendarWrite`) |
+| `calendar_clashes` | `tb calendar clashes` |
 
 Notes are also exposed as MCP **resources** (`note://<name>`, `text/markdown`) so
 clients that browse resources rather than call tools can list and read the
@@ -1231,7 +1251,7 @@ local notes workspace directly.
 
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (43 commands) | MCP (21 tools) |
+| | CLI (43 commands) | MCP (27 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |

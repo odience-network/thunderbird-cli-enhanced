@@ -38,7 +38,7 @@ Equivalent to `tb health` — returns account count and bridge status. If it err
 - **EXTENSION_DISCONNECTED** — open Thunderbird. The WebExtension auto-connects within 3s of Thunderbird being open.
 - **NOT_FOUND** on account/folder — the user hasn't added that account to Thunderbird yet.
 
-## The 16 MCP tools
+## The 27 MCP tools
 
 Use these; don't reach for the 43-command CLI unless the user explicitly asks for a bulk operation not covered here.
 
@@ -65,6 +65,12 @@ Use these; don't reach for the 43-command CLI unless the user explicitly asks fo
 | `contact_search` | Search/list address book contacts across all books, matching name or any email | ✅ read-only |
 | `contact_create` | Create a contact in an address book | ⚠️ requires `contactsWrite` access switch (default off) |
 | `contact_update` | Update a contact's properties by id | ⚠️ requires `contactsWrite` access switch (default off) |
+| `calendar_list` | List calendars registered in Thunderbird | ✅ read-only |
+| `calendar_events` | List events in a date range, optionally scoped to one calendar | ✅ read-only |
+| `calendar_event_create` | Create a calendar event | ⚠️ requires `calendarWrite` access switch (default off) |
+| `calendar_event_update` | Update a calendar event's properties by id | ⚠️ requires `calendarWrite` access switch (default off) |
+| `calendar_event_delete` | Delete a calendar event by id | ⚠️ requires `calendarWrite` access switch (default off) |
+| `calendar_clashes` | Detect overlapping events across all calendars in a date range | ✅ read-only |
 
 Notes live entirely on disk (`~/.config/thunderbird-cli/notes` by default) —
 no Thunderbird round-trip except `note_to_draft`, which reuses the same
@@ -262,7 +268,7 @@ Some IMAP servers don't preload attachments. Call `email_read id=<id> mode="chec
 
 ## When NOT to use this skill
 
-- **Calendar events or tasks, contacts write, or address book editing** — not exposed via `tb-mcp`. `calendar_list`/`tb calendars` can list calendar names only (read-only, experimental — see `docs/decisions/calendar-backend.md`); for anything beyond that, use Thunderbird directly or a dedicated calendar skill.
+- **Calendar tasks, contacts write, or address book editing** — not exposed via `tb-mcp`. Calendar events are: `calendar_list`/`tb calendar list` lists calendars, `calendar_events`/`tb calendar events` and `calendar_clashes`/`tb calendar clashes` read events and detect overlaps (ungated), `calendar_event_create`/`_update`/`_delete` (`tb calendar create`/`update`/`delete`) write events but require the `calendarWrite` access switch (default off — see `docs/ACCESS-CONTROL.md`). Experimental, see `docs/decisions/calendar-backend.md`. Task CRUD and contacts write are not exposed; for those, use Thunderbird directly or a dedicated calendar skill.
 - **Accounts not configured in Thunderbird** — ask the user to add the account first.
 - **Sending to many recipients** — use a mailing tool (Mailchimp, etc.) via its MCP server. `tb-mcp` is for 1:1 or small-group mail.
 - **Server-side rules / filters** — not exposed. Thunderbird sees the client-side view only.

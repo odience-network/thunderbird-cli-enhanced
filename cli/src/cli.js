@@ -177,14 +177,104 @@ program
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
-// ─── Calendars (ODIAA-2327 proof, read-only) ───────────────────────────
+// ─── Calendar (ODIAA-2327 listing spike + ODIAA-2328 events/clashes) ───
 
-program
-  .command("calendars")
-  .description("List calendars registered in Thunderbird (requires the calendar Experiment API — see docs/decisions/calendar-backend.md)")
+function eventPropertiesFromOpts(opts) {
+  const properties = {};
+  if (opts.title) properties.title = opts.title;
+  if (opts.start) properties.start = opts.start;
+  if (opts.end) properties.end = opts.end;
+  if (opts.allDay) properties.allDay = true;
+  if (opts.location) properties.location = opts.location;
+  if (opts.description) properties.description = opts.description;
+  return properties;
+}
+
+const calendar = program.command("calendar").description("Calendars and calendar events");
+
+calendar
+  .command("list")
+  .description("List calendars registered in Thunderbird")
   .action(run(async () => {
     const g = program.opts();
     const data = await api("GET", "/calendars", null, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+calendar
+  .command("events")
+  .description("List events in a date range")
+  .requiredOption("--start <date>", "range start (ISO date/time)")
+  .requiredOption("--end <date>", "range end (ISO date/time)")
+  .option("--calendar <calendarId>", "limit to one calendar")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const body = { start: opts.start, end: opts.end };
+    if (opts.calendar) body.calendarId = opts.calendar;
+    const data = await api("POST", "/calendar/events/list", body, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+calendar
+  .command("create")
+  .description("Create a calendar event (needs calendarWrite)")
+  .requiredOption("--calendar <calendarId>", "target calendar")
+  .requiredOption("--title <title>", "event title")
+  .requiredOption("--start <date>", "start (ISO date/time, or YYYY-MM-DD with --all-day)")
+  .requiredOption("--end <date>", "end (ISO date/time, or YYYY-MM-DD with --all-day)")
+  .option("--all-day", "all-day event")
+  .option("--location <location>", "location")
+  .option("--description <description>", "description")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    const outOpts = getOutputOpts(g);
+    const properties = eventPropertiesFromOpts(opts);
+    const data = await api("POST", "/calendar/events/create", { calendarId: opts.calendar, ...properties }, getTimeout(g));
+    output(data, fmt, outOpts);
+  }));
+
+calendar
+  .command("update <eventId>")
+  .description("Update a calendar event (needs calendarWrite)")
+  .requiredOption("--calendar <calendarId>", "calendar the event belongs to")
+  .option("--title <title>", "event title")
+  .option("--start <date>", "start (ISO date/time, or YYYY-MM-DD with --all-day)")
+  .option("--end <date>", "end (ISO date/time, or YYYY-MM-DD with --all-day)")
+  .option("--all-day", "all-day event")
+  .option("--location <location>", "location")
+  .option("--description <description>", "description")
+  .action(run(async (eventId, opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    const outOpts = getOutputOpts(g);
+    const properties = eventPropertiesFromOpts(opts);
+    if (Object.keys(properties).length === 0) {
+      outputError({ message: "Provide at least one event property to update", code: "INVALID_ARGS" }, fmt, outOpts);
+      return;
+    }
+    const data = await api("POST", "/calendar/events/update", { calendarId: opts.calendar, id: eventId, ...properties }, getTimeout(g));
+    output(data, fmt, outOpts);
+  }));
+
+calendar
+  .command("delete <eventId>")
+  .description("Delete a calendar event (needs calendarWrite)")
+  .requiredOption("--calendar <calendarId>", "calendar the event belongs to")
+  .action(run(async (eventId, opts) => {
+    const g = program.opts();
+    const data = await api("POST", "/calendar/events/delete", { calendarId: opts.calendar, id: eventId }, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+calendar
+  .command("clashes")
+  .description("Detect overlapping events across calendars")
+  .requiredOption("--start <date>", "range start (ISO date/time)")
+  .requiredOption("--end <date>", "range end (ISO date/time)")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const data = await api("POST", "/calendar/clashes", { start: opts.start, end: opts.end }, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 

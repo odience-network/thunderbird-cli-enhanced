@@ -972,6 +972,62 @@ async function handleRequest({ method, path, body }) {
     return calendars;
   }
 
+  // ─── Calendar events (ODIAA-2328) ────────────────────────────────
+  // Requires the calendar_items Experiment API (manifest experiment_apis, see
+  // extension/experiments/calendar/) to have loaded successfully.
+
+  if (path === "/calendar/events/list" && method === "POST") {
+    if (!messenger.calendar?.items?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { start, end, calendarId } = body || {};
+    if (!start || !end) return { error: "start and end are required" };
+    return await messenger.calendar.items.query({ calendarId, start, end, expand: true });
+  }
+
+  if (path === "/calendar/events/create" && method === "POST") {
+    if (!messenger.calendar?.items?.create) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, ...properties } = body || {};
+    if (!calendarId) return { error: "calendarId is required" };
+    if (!properties.title || !properties.start || !properties.end) {
+      return { error: "title, start, and end are required" };
+    }
+    return await messenger.calendar.items.create(calendarId, properties);
+  }
+
+  if (path === "/calendar/events/update" && method === "POST") {
+    if (!messenger.calendar?.items?.update) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, id, ...properties } = body || {};
+    if (!calendarId || !id) return { error: "calendarId and id are required" };
+    return await messenger.calendar.items.update(calendarId, id, properties);
+  }
+
+  if (path === "/calendar/events/delete" && method === "POST") {
+    if (!messenger.calendar?.items?.remove) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, id } = body || {};
+    if (!calendarId || !id) return { error: "calendarId and id are required" };
+    return await messenger.calendar.items.remove(calendarId, id);
+  }
+
+  // Cross-calendar overlap detection. Ignores cancelled/transparent events, handles all-day
+  // events and DST correctly — see extension/src/calendar-clash.js (pure function, unit
+  // tested independently of this bridge).
+  if (path === "/calendar/clashes" && method === "POST") {
+    if (!messenger.calendar?.items?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { start, end } = body || {};
+    if (!start || !end) return { error: "start and end are required" };
+    const events = await messenger.calendar.items.query({ start, end, expand: true });
+    return { clashes: detectCalendarClashes(events) };
+  }
+
   // ─── Contacts search (must be before /contacts/:id) ─────────────
 
   if (path === "/contacts/search" && method === "POST") {

@@ -277,11 +277,24 @@ tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [
 
 ## Calendars
 
-Read-only, experimental (see `docs/decisions/calendar-backend.md`). Lists local Thunderbird
-calendars only; no event/task read or write yet.
+Experimental (see `docs/decisions/calendar-backend.md`). Calendar listing and event reads are
+ungated; `create`/`update`/`delete` require the `calendarWrite` access switch (default `false`,
+see `docs/ACCESS-CONTROL.md`). Task CRUD is not yet implemented.
 
 ```bash
-tb calendars                              # list calendars
+tb calendar list                          # list calendars
+tb calendar events --start <date> --end <date> [--calendar <calendarId>]
+                                           # list events in a range
+tb calendar create --calendar <calendarId> --title <title> --start <date> --end <date>
+                    [--all-day] [--location <l>] [--description <d>]
+                                           # create an event (requires calendarWrite)
+tb calendar update <eventId> --calendar <calendarId> [--title <t>] [--start <d>] [--end <d>]
+                    [--all-day] [--location <l>] [--description <d>]
+                                           # update an event (requires calendarWrite)
+tb calendar delete <eventId> --calendar <calendarId>
+                                           # delete an event (requires calendarWrite)
+tb calendar clashes --start <date> --end <date>
+                                           # find overlapping events across all calendars
 ```
 
 ## Bulk Operations
