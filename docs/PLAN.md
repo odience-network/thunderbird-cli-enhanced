@@ -144,13 +144,11 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
    - **Shipped (PR #10)**: release/docs cleanup — `2ead539` (v1.0.1 bump, superseded:
      `main` was already at `1.1.0`, dropped) and `1ab7840` (removed outdated 2.0.0 XPI from
      `dist/releases/`, hand-adapted to keep the current 2.1.0 XPI intact).
-   - **Not yet landed**: extension branding/status UI, apply in order — `3e7c145` (add
-     `extension/icons/`, register in manifest — genuinely missing on `main` today, no
-     `icons`/`browser_action` key exists), `dd2ff7e` (rename "Thunderbird AI Bridge" →
-     "Thunderbird CLI Bridge" throughout; flagging the rename itself for a product-naming
-     sanity check before merge, since `main`'s manifest/dist artifacts still say "AI Bridge"),
-     `a8d0001` (toolbar connection-status dot; its manifest diff depends on `3e7c145`'s icon
-     paths already existing). No `access-control.js` impact — UI/manifest only.
+   - **Shipped (PR #16, ODIAA-2323)**: extension branding/status UI — `3e7c145` (extension
+     icons, registered in manifest), `4af2811` (rename extension display name to
+     "Thunderbird CLI Enhanced" — landed as a plain rename rather than `dd2ff7e`'s original
+     "Thunderbird CLI Bridge", after a product-naming review), `a8d0001` (toolbar
+     connection-status dot). No `access-control.js` impact — UI/manifest only.
    - **Shipped (ODIAA-2324)**: CLI output-format overhaul chain (`81396d6`, `c53c625`,
      `a7d35e2`, `451815f`, `25ebcce`, `e21e72c`, `749c79d`, `09adc41`) — hand-adapted as
      **`--output-version 2` / `TB_OUTPUT_VERSION=2`, opt-in**, not the hard default-flip
@@ -205,13 +203,11 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      single-`fullText`-query behavior; also fixed a `CHANGELOG.md` merge artifact where the
      new entries had auto-merged into the historical `[1.0.2]` section instead of
      `[Unreleased]`.
-   - **Needs access-control classification decision**: `0b3a5d7` (`tb extension-reload` +
-     `/bridge/events` long-poll). `POST /extension/reload` is routed through `background.js`
-     and is currently unclassified (would 403). `/bridge/events` is a bridge-local endpoint
-     (like `/bridge/status`) and isn't subject to `access-control.js` at all. Proposing
-     `/extension/reload` as ungated (dev-convenience, no mail-data access, comparable to the
-     already-ungated `/sync`) — flagging rather than self-approving since it's still a
-     permissions-surface classification decision.
+   - **Shipped (PR #17, ODIAA-2322)**: `0b3a5d7` (`tb extension-reload` + `/bridge/events`
+     long-poll). `POST /extension/reload` classified `UNGATED_POST` in `access-control.js`
+     (dev-convenience, no mail-data access, comparable to `/sync`), per the reviewer-approved
+     classification decision. `/bridge/events` is a bridge-local endpoint, not subject to
+     `access-control.js`.
    - Setup-script review note: checked both `setup.sh` and `setup.ps1` for the assigning
      comment's "must not enable delete by default" concern — neither writes any
      access-policy/build-time config; not applicable.
