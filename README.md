@@ -201,7 +201,7 @@ Upstream baseline is [vitalio-sh/thunderbird-cli@`465613d`](https://github.com/v
 
 Planned, **not on `main`**:
 
-- Calendar events/tasks CRUD, contacts write, notes and tasks, toward feature parity with [atbridge.ai](https://atbridge.ai). A read-only calendar-listing spike (`tb calendars`) landed first, using a chrome-privileged Experiment API since Thunderbird's WebExtension model has no calendar access — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) for the tradeoffs, including the ATN manual-review requirement this adds to every signed release that touches it.
+- Calendar task CRUD, notes and tasks, toward feature parity with [atbridge.ai](https://atbridge.ai). A read-only calendar-listing spike (`tb calendar list`) landed first, using a chrome-privileged Experiment API since Thunderbird's WebExtension model has no calendar access; event CRUD and cross-calendar clash detection (`tb calendar events`/`create`/`update`/`delete`/`clashes`) landed next, gated behind the `calendarWrite` access switch for writes — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) for the tradeoffs, including the ATN manual-review requirement this adds to every signed release that touches it.
 - Extension stability pass: audit against the known reconnect/backoff and lifecycle fixes, with regression tests.
 
 <a href="docs/diagrams/roadmap.html"><picture>

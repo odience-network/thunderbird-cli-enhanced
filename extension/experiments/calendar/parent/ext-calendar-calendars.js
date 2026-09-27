@@ -52,10 +52,11 @@ this.calendar_calendars = class extends ExtensionAPI {
     };
   }
 
-  // This is currently the only experiment_apis entry in the manifest, so it owns the
-  // startup-cache invalidation Thunderbird's Experiments docs require on non-shutdown
+  // Thunderbird's Experiments docs require a startup-cache invalidation on non-shutdown
   // unload (disable/update/reload) — see
-  // https://developer.thunderbird.net/add-ons/mailextensions/experiments.
+  // https://developer.thunderbird.net/add-ons/mailextensions/experiments. This add-on has
+  // two experiment_apis entries (calendar_calendars, calendar_items) but only needs one
+  // invalidation for the whole add-on; this one (the first one registered) owns it.
   onShutdown(isAppShutdown) {
     if (isAppShutdown) return;
     Services.obs.notifyObservers(null, "startupcache-invalidate");
