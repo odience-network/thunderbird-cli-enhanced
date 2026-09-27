@@ -369,32 +369,27 @@ test("zero maximum size is not ignored", zeroSize.total === 0);
 test("tag is passed to native query", calls.query.some((q) => q.tags?.mode === "all" && q.tags.tags.$label1 === true));
 test("size range is passed to native query", calls.query.some((q) => q.size?.min === 100 && q.size?.max === 100));
 
-// A general query with no field filter searches body, subject, and author with OR
-// semantics: three parallel native queries, merged and deduplicated by message id.
+// A general query with no field filter searches body, subject, and author via a single
+// server-side fullText query (not three parallel per-field queries).
 queryHandlers.length = 0;
-queryHandlers.push((q) => {
-  if (q.body === "widget") return { messages: [header(30), header(31)] };
-  if (q.subject === "widget") return { messages: [header(31), header(32)] };
-  if (q.author === "widget") return { messages: [header(33)] };
-  return { messages: [] };
-});
+queryHandlers.push((q) => q.fullText === "widget" ? { messages: [header(30), header(31), header(32)] } : { messages: [] });
 calls.query.length = 0;
-const orSearch = await handle("POST", "/messages/search", { query: "widget", limit: 10 });
-const orIds = orSearch.messages.map((m) => m.id).sort();
-test("general query searches body, subject, and author", JSON.stringify(orIds) === JSON.stringify([30, 31, 32, 33]));
-test("general query results deduplicated by message id", orSearch.messages.length === orIds.length);
-test("general query issues one native query per field", calls.query.length === 3);
+const fullTextSearch = await handle("POST", "/messages/search", { query: "widget", limit: 10 });
+const fullTextIds = fullTextSearch.messages.map((m) => m.id).sort();
+test("general query searches via fullText", JSON.stringify(fullTextIds) === JSON.stringify([30, 31, 32]));
+test("general query issues exactly one native query", calls.query.length === 1);
+test("general query passes fullText, not per-field OR params", calls.query[0]?.fullText === "widget" && calls.query[0]?.body === undefined && calls.query[0]?.subject === undefined);
 
-// An explicit subject/from filter is an AND constraint, so it must not also be
-// treated as one of the OR branches for the general query.
+// An explicit fromAddress filter is an AND constraint alongside fullText, not a
+// separate OR branch.
 queryHandlers.length = 0;
-queryHandlers.push((q) => (q.subject === "widget" && q.author === "known@example.org")
+queryHandlers.push((q) => (q.fullText === "widget" && q.author === "known@example.org")
   ? { messages: [header(34)] } : { messages: [] });
 calls.query.length = 0;
-const orSearchNarrowed = await handle("POST", "/messages/search", { query: "widget", fromAddress: "known@example.org", limit: 10 });
-test("explicit fromAddress filter narrows the author OR-branch instead of adding a bare one",
-  calls.query.length === 2 && calls.query.every((q) => q.author === "known@example.org"));
-test("general query results still returned with a narrowing filter", orSearchNarrowed.messages.some((m) => m.id === 34));
+const fullTextNarrowed = await handle("POST", "/messages/search", { query: "widget", fromAddress: "known@example.org", limit: 10 });
+test("explicit fromAddress filter is ANDed with fullText in a single query",
+  calls.query.length === 1 && calls.query[0]?.author === "known@example.org" && calls.query[0]?.fullText === "widget");
+test("general query results still returned with a narrowing filter", fullTextNarrowed.messages.some((m) => m.id === 34));
 
 // Test the shared collector with Thunderbird-sized pages, not one record per page.
 const previousContinue = messenger.messages.continueList;
