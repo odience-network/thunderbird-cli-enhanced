@@ -1,5 +1,5 @@
 /**
- * Thunderbird AI Bridge — Background Script (v2)
+ * Thunderbird CLI Enhanced — Background Script (v2)
  *
  * Pure WebExtension — no Experiment APIs.
  * Connects to local Node.js bridge via WebSocket.

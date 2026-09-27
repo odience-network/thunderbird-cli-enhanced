@@ -126,7 +126,7 @@ All other paths get forwarded to the Thunderbird extension via WebSocket and the
 
 The bridge alone does nothing useful — you need:
 
-1. **Mozilla Thunderbird 128+** with the [thunderbird-ai-bridge extension](https://github.com/vitalio-sh/thunderbird-cli/releases) installed
+1. **Mozilla Thunderbird 128+** with the [thunderbird-cli-enhanced extension](https://github.com/vitalio-sh/thunderbird-cli/releases) installed
 2. **Optional:** [`thunderbird-cli`](https://www.npmjs.com/package/thunderbird-cli) or [`thunderbird-cli-mcp`](https://www.npmjs.com/package/thunderbird-cli-mcp) as the HTTP client
 
 See the [main repo setup guide](https://github.com/vitalio-sh/thunderbird-cli/blob/main/docs/SETUP.md).
