@@ -177,6 +177,17 @@ program
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
+// ─── Calendars (ODIAA-2327 proof, read-only) ───────────────────────────
+
+program
+  .command("calendars")
+  .description("List calendars registered in Thunderbird (requires the calendar Experiment API — see docs/decisions/calendar-backend.md)")
+  .action(run(async () => {
+    const g = program.opts();
+    const data = await api("GET", "/calendars", null, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
 // ─── Bridge Status ────────────────────────────────────────────────────
 
 program

@@ -14,6 +14,20 @@ import { parseRelativeDate } from "./client.js";
 import { listNotes, readNote, saveNote, appendNote, renderNoteHtml } from "./notes.js";
 
 export const tools = [
+  // ─── 0. Calendar list (ODIAA-2327 proof, read-only) ─────────────
+  {
+    name: "calendar_list",
+    description:
+      "List calendars registered in Thunderbird (id, name, type, url, read-only/enabled state, color). Requires the calendar Experiment API to be built into the add-on — see docs/decisions/calendar-backend.md. Read-only; there is no calendar write support yet.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+    handler: async (args, api) => {
+      return await api("GET", "/calendars");
+    },
+  },
+
   // ─── 1. Stats ──────────────────────────────────────────────────
   {
     name: "email_stats",

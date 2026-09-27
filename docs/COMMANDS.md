@@ -275,6 +275,15 @@ tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [
                                                        # render Markdown to sanitized HTML, open as draft (never sends)
 ```
 
+## Calendars
+
+Read-only, experimental (see `docs/decisions/calendar-backend.md`). Lists local Thunderbird
+calendars only; no event/task read or write yet.
+
+```bash
+tb calendars                              # list calendars
+```
+
 ## Bulk Operations
 
 ```bash
