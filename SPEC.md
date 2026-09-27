@@ -580,6 +580,12 @@ tb notes delete <name> --confirm
 tb notes search <query>
 # Returns: [{name, title, snippet}]
 
+# Transcribe a local audio file to text with a local speech-to-text engine
+# and save the transcript as a note. Local-first: no audio or text ever
+# leaves this machine.
+tb notes transcribe <audioFile> [--engine whisper-cpp|faster-whisper] [--model <path>]
+  [--language <code>] [--save-as <name>] [--title <t>] [--append]
+
 # Render a note's Markdown to sanitized HTML and open it as an email draft.
 # Uses the same /compose route as `tb compose` — never sends.
 tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [--from <identityId>] [--open]
@@ -588,6 +594,18 @@ tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [
 Markdown → HTML uses `marked` (rendering) and `sanitize-html` (stripping
 scripts, event handlers, and unsafe URL schemes) before the HTML ever
 reaches a compose draft.
+
+`tb notes transcribe` detects a locally-installed speech-to-text engine at
+runtime — [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli`
+on PATH, or `TB_WHISPER_CPP_BIN`; requires a model file via `--model` or
+`TB_WHISPER_CPP_MODEL`) or [faster-whisper](https://github.com/SYSTRAN/faster-whisper)'s
+`whisper-ctranslate2` CLI wrapper (on PATH, or `TB_FASTER_WHISPER_BIN`) — and
+shells out to it. If neither is found it fails with a clean error and install
+hints rather than a stack trace. No cloud STT provider is implemented: that's
+a separate vendor/stack decision (see the ODIAA-2331 PR for the option A vs B
+trade-off) and would need its own sign-off before any network path ships.
+The engine used and the source audio filename are recorded in the saved
+note's front matter (`engine`, `source`).
 
 ### 19. Calendars
 
@@ -1220,6 +1238,7 @@ The 16 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 | `note_read` | `tb notes read` ("Use as Context") |
 | `note_save` | `tb notes save` ("Save to Notes") |
 | `note_append` | `tb notes append` |
+| `note_transcribe` | `tb notes transcribe` (local speech-to-text engine, auto-detected) |
 | `note_to_draft` | `tb notes to-draft` (draft/open modes, never sends) |
 | `contact_search` | `tb contacts`, `tb contacts-search` |
 | `contact_create` | `tb contacts create` (requires `contactsWrite`) |
@@ -1231,7 +1250,7 @@ local notes workspace directly.
 
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (43 commands) | MCP (21 tools) |
+| | CLI (44 commands) | MCP (22 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |

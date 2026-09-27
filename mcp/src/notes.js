@@ -140,6 +140,7 @@ export function listNotes(opts = {}) {
         title: meta.title || name,
         created: meta.created || stat.birthtime.toISOString(),
         source: meta.source ?? null,
+        engine: meta.engine ?? null,
         size: stat.size,
         modified: stat.mtime.toISOString(),
       };
@@ -161,6 +162,7 @@ export function readNote(name, opts = {}) {
     title: meta.title || safeName,
     created: meta.created || stat.birthtime.toISOString(),
     source: meta.source ?? null,
+    engine: meta.engine ?? null,
     modified: stat.mtime.toISOString(),
     body: body.trimEnd(),
   };
@@ -174,6 +176,7 @@ export function saveNote(name, body, opts = {}) {
     title: opts.title || safeName,
     created: new Date().toISOString(),
     source: opts.source ?? undefined,
+    engine: opts.engine ?? undefined,
   };
   writeFileSync(filePath, serializeFrontMatter(meta) + String(body ?? "").trimEnd() + "\n", "utf-8");
   return { name: safeName, title: meta.title, path: filePath };
@@ -189,12 +192,18 @@ export function appendNote(name, body, opts = {}) {
     const nextMeta = { ...meta };
     if (opts.title) nextMeta.title = opts.title;
     if (opts.source !== undefined) nextMeta.source = opts.source;
+    if (opts.engine !== undefined) nextMeta.engine = opts.engine;
     const combined = `${existingBody.trimEnd()}\n\n${String(body ?? "").trimEnd()}\n`;
     writeFileSync(filePath, serializeFrontMatter(nextMeta) + combined, "utf-8");
     return { name: safeName, title: nextMeta.title || safeName, path: filePath, created: false };
   }
 
-  const meta = { title: opts.title || safeName, created: new Date().toISOString(), source: opts.source ?? undefined };
+  const meta = {
+    title: opts.title || safeName,
+    created: new Date().toISOString(),
+    source: opts.source ?? undefined,
+    engine: opts.engine ?? undefined,
+  };
   writeFileSync(filePath, serializeFrontMatter(meta) + String(body ?? "").trimEnd() + "\n", "utf-8");
   return { name: safeName, title: meta.title, path: filePath, created: true };
 }

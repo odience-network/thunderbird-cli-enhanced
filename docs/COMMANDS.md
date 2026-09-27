@@ -271,6 +271,9 @@ tb notes append <name> --body "more text" [--body-file <path>] [--title <t>] [--
                                                        # append, creates if missing
 tb notes delete <name> --confirm                      # delete a note
 tb notes search <query>                               # search titles and bodies
+tb notes transcribe <audioFile> [--engine whisper-cpp|faster-whisper] [--model <path>]
+  [--language <code>] [--save-as <name>] [--title <t>] [--append]
+                                                       # local speech-to-text, save transcript as a note
 tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [--from <identityId>] [--open]
                                                        # render Markdown to sanitized HTML, open as draft (never sends)
 ```
