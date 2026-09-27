@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-09-27
+
+First release of the fork on npm as `@odience-network/thunderbird-cli-enhanced`.
+
 ### Security
 - Message and folder deletion are now **disabled by default** by a build-time add-on access policy (`delete`, `folderDelete`, both `false`). Delete routes return `FORBIDDEN` before any side effect, and the `messagesDelete` permission is only requested when `delete` is enabled. Re-enable with `npm run build:xpi -- --access-config access.local.json` — see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md). `GET /access` reports the loaded policy. Moving to Trash is unaffected.
 - The build-time access policy now covers every write/send route, not just deletion: `downloadAttachments`, `compose`, `send`, `move`, `copy`, `archive`, `mark`, `tag`, `tagCreate`, `folderCreate`, `folderRename` (all default `true`, unchanged behavior for existing installs), alongside the existing `delete`/`folderDelete` (default `false`). A route with no policy classification is refused (deny-by-default) instead of silently allowed. New `tb access` command and bridge `FORBIDDEN` → HTTP 403 mapping. See [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md).
