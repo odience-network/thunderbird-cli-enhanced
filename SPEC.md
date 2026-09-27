@@ -21,7 +21,7 @@
 │       ┌────────────────────┬──────────────────────┐         │
 │       ↕                    ↕                      ↕         │
 │  tb CLI (Node)      tb-mcp Server          Direct HTTP      │
-│  (41 commands)      (13 MCP tools)         (curl, scripts)  │
+│  (43 commands)      (16 MCP tools)         (curl, scripts)  │
 │       ↕                    ↕                                │
 │  AI Agent           Claude Desktop                          │
 │  (Claude Code)      (stdio MCP transport)                   │
@@ -40,8 +40,8 @@
 | **Thunderbird** | Host | Source of truth. Stores all emails, syncs IMAP, renders UI for human oversight |
 | **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Checks every request against the build-time access policy (`access-control.js`, see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)), then translates it into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
-| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 41 commands. Auto-starts bridge daemon if not running. Zero state |
-| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 13 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
+| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 43 commands. Auto-starts bridge daemon if not running. Zero state |
+| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 16 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
 
 ### Request flow
 
@@ -502,6 +502,20 @@ tb contacts-search <query>
 
 # Get contact detail
 tb contact <contactId>
+
+# Create a contact (requires the contactsWrite access switch, default off)
+tb contacts create --book <bookId> [options]
+  --display-name <name>
+  --email <email>          # primary email
+  --second-email <email>
+  --first-name <name>
+  --last-name <name>
+  --phone <phone>
+  --org <org>
+
+# Update a contact (requires the contactsWrite access switch, default off)
+tb contacts update <contactId> [options]
+  # same property flags as create
 ```
 
 ### 17. Bulk Operations
@@ -767,6 +781,8 @@ The bridge is spawned as a detached process (`child.unref()`) so it outlives the
 | Save draft | `messenger.compose.saveMessage()` | ✅ Implemented |
 | Contacts | `messenger.contacts.list()` | ✅ Implemented |
 | Contact search | `messenger.contacts.list()` + filter | ✅ Implemented |
+| Create contact | `messenger.contacts.create()` | ✅ Implemented |
+| Update contact | `messenger.contacts.update()` | ✅ Implemented |
 | Archive | `messenger.messages.archive()` | ✅ Implemented |
 | Attachments | `messenger.messages.getAttachmentFile()` | ✅ Implemented |
 | Download state | `messenger.messages.getFull()` check | ✅ Implemented |
@@ -1178,12 +1194,12 @@ Claude Desktop ──stdio JSON-RPC──> tb-mcp ──HTTP──> Bridge ─�
 The MCP server:
 - Has **no state** — every tool call is independent
 - **Reuses** `cli/src/client.js` for HTTP calls (no code duplication)
-- Exposes **13 high-level tools** rather than all 41 CLI commands
+- Exposes **16 high-level tools** rather than all 43 CLI commands
 - Defaults to **safe behavior** (compose/reply/forward/edit → draft, not send)
 
 ### Tool Catalog
 
-The 13 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
+The 16 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
 
 | MCP Tool | Maps to CLI commands |
 |----------|---------------------|
@@ -1205,6 +1221,9 @@ The 13 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 | `note_save` | `tb notes save` ("Save to Notes") |
 | `note_append` | `tb notes append` |
 | `note_to_draft` | `tb notes to-draft` (draft/open modes, never sends) |
+| `contact_search` | `tb contacts`, `tb contacts-search` |
+| `contact_create` | `tb contacts create` (requires `contactsWrite`) |
+| `contact_update` | `tb contacts update` (requires `contactsWrite`) |
 
 Notes are also exposed as MCP **resources** (`note://<name>`, `text/markdown`) so
 clients that browse resources rather than call tools can list and read the
@@ -1212,7 +1231,7 @@ local notes workspace directly.
 
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (41 commands) | MCP (13 tools) |
+| | CLI (43 commands) | MCP (21 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |

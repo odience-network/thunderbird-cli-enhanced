@@ -24,6 +24,7 @@ closed instead of shipping unrestricted.
 | `folderCreate` | `true` | `tb folder-create` |
 | `folderRename` | `true` | Renaming a folder |
 | `folderDelete` | `false` | `tb folder-delete` (removes the folder and potentially its contents) |
+| `contactsWrite` | `false` | `tb contacts create`/`tb contacts update`, MCP `contact_create`/`contact_update` |
 
 With a switch off, the route returns `FORBIDDEN: '<key>' is disabled by the add-on access
 policy ...` before touching the mailbox. Routes with no switch at all (search, list, read,
@@ -32,9 +33,13 @@ operations that create, mutate, or send. Bridge-local endpoints (`/bridge/status
 `/bridge/events`) never reach the add-on, so the policy doesn't apply to them.
 
 `delete` and `folderDelete` default off: the board decided (ODIAA-2304) that deletion stays
-gated rather than removed from the extension entirely. Every other switch defaults on, so an
-unmodified install behaves exactly as before this policy existed; operators who want a more
-restrictive posture set the switches they want to disable in their config file.
+gated rather than removed from the extension entirely. Every write switch that predates
+ODIAA-2306 defaults on, so an unmodified install behaves exactly as before this policy
+existed; operators who want a more restrictive posture set the switches they want to disable
+in their config file. `contactsWrite` is the exception: like `delete`/`folderDelete`, new
+*write* switches default off (opt-in), matching atbridge's off-by-default write posture —
+enable it explicitly to let `tb contacts create`/`tb contacts update` (or the equivalent MCP
+tools) mutate an address book.
 
 ## How a request is checked
 

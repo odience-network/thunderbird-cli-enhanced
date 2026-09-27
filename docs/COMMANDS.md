@@ -1,6 +1,6 @@
 # CLI Command Reference
 
-All 41 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
+All 43 commands in the `tb` CLI. For the quick tour, see the [main README](../README.md). For AI-agent-focused usage, see [CLAUDE.md](CLAUDE.md).
 
 ## Global Options
 
@@ -248,6 +248,12 @@ tb contacts                               # list all contacts
 tb contacts --book <bookId> --limit <n>   # filter by address book
 tb contacts-search <query> [--book <bookId>] [-l <n>]  # search contacts
 tb contact <contactId>                    # contact details
+
+# Requires the contactsWrite access switch (default off, see docs/ACCESS-CONTROL.md)
+tb contacts create --book <bookId> [--display-name <name>] [--email <email>] \
+  [--second-email <email>] [--first-name <name>] [--last-name <name>] [--phone <phone>] [--org <org>]
+tb contacts update <contactId> [--display-name <name>] [--email <email>] \
+  [--second-email <email>] [--first-name <name>] [--last-name <name>] [--phone <phone>] [--org <org>]
 ```
 
 ## Notes

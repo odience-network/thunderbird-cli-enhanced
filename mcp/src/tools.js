@@ -595,6 +595,106 @@ export const tools = [
     },
   },
 
+  {
+    name: "contact_search",
+    description:
+      "Search or list address book contacts across all address books, matching name and any email property (primary, secondary, etc). Omit query to list all.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "Optional search term matched against display name and email addresses",
+        },
+        book: {
+          type: "string",
+          description: "Optional: limit to one address book, by id or name",
+        },
+        limit: {
+          type: "number",
+          description: "Optional: max results",
+        },
+      },
+    },
+    handler: async (args, api) => {
+      const body = {};
+      if (args.query) body.query = args.query;
+      if (args.book) body.book = args.book;
+      if (args.limit) body.limit = args.limit;
+      return await api("POST", "/contacts/search", body);
+    },
+  },
+
+  // ─── 15. Contact create ────────────────────────────────────────
+  {
+    name: "contact_create",
+    description:
+      "Create a new contact in an address book. Requires the target address book (by id or name) and at least one property.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        book: {
+          type: "string",
+          description: "Target address book, by id or name",
+        },
+        displayName: { type: "string", description: "Display name" },
+        email: { type: "string", description: "Primary email" },
+        secondEmail: { type: "string", description: "Secondary email" },
+        firstName: { type: "string", description: "First name" },
+        lastName: { type: "string", description: "Last name" },
+        phone: { type: "string", description: "Work phone" },
+        org: { type: "string", description: "Organization/company" },
+      },
+      required: ["book"],
+    },
+    handler: async (args, api) => {
+      if (!args.book) return { error: "book required" };
+      const properties = {};
+      if (args.displayName) properties.DisplayName = args.displayName;
+      if (args.email) properties.PrimaryEmail = args.email;
+      if (args.secondEmail) properties.SecondEmail = args.secondEmail;
+      if (args.firstName) properties.FirstName = args.firstName;
+      if (args.lastName) properties.LastName = args.lastName;
+      if (args.phone) properties.WorkPhone = args.phone;
+      if (args.org) properties.Company = args.org;
+      if (Object.keys(properties).length === 0) return { error: "at least one contact property required" };
+      return await api("POST", "/contacts/create", { book: args.book, properties });
+    },
+  },
+
+  // ─── 16. Contact update ────────────────────────────────────────
+  {
+    name: "contact_update",
+    description:
+      "Update properties on an existing contact by id. Only the properties you provide are changed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        contactId: { type: "string", description: "Contact id to update" },
+        displayName: { type: "string", description: "Display name" },
+        email: { type: "string", description: "Primary email" },
+        secondEmail: { type: "string", description: "Secondary email" },
+        firstName: { type: "string", description: "First name" },
+        lastName: { type: "string", description: "Last name" },
+        phone: { type: "string", description: "Work phone" },
+        org: { type: "string", description: "Organization/company" },
+      },
+      required: ["contactId"],
+    },
+    handler: async (args, api) => {
+      if (!args.contactId) return { error: "contactId required" };
+      const properties = {};
+      if (args.displayName) properties.DisplayName = args.displayName;
+      if (args.email) properties.PrimaryEmail = args.email;
+      if (args.secondEmail) properties.SecondEmail = args.secondEmail;
+      if (args.firstName) properties.FirstName = args.firstName;
+      if (args.lastName) properties.LastName = args.lastName;
+      if (args.phone) properties.WorkPhone = args.phone;
+      if (args.org) properties.Company = args.org;
+      if (Object.keys(properties).length === 0) return { error: "at least one contact property required" };
+      return await api("POST", "/contacts/update", { id: args.contactId, properties });
+    },
+  },
   // ─── 17. Notes: list ─────────────────────────────────────────────
   {
     name: "note_list",

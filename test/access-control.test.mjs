@@ -27,6 +27,7 @@ function load(config) {
     messagesDelete: [], foldersDelete: [], messagesUpdate: [], messagesMove: [],
     messagesCopy: [], messagesArchive: [], tagsCreated: [], foldersCreated: [],
     foldersRenamed: [], composeSent: [], composeSaved: [],
+    contactsCreated: [], contactsUpdated: [],
   };
   const messenger = {
     runtime: { getManifest: () => manifest, reload: () => {} },
@@ -72,6 +73,18 @@ function load(config) {
     },
     tabs: {
       remove: async () => {},
+    },
+    addressBooks: {
+      list: async () => [{ id: "ab1", name: "Personal" }],
+    },
+    contacts: {
+      list: async () => [{ id: "c1", properties: { DisplayName: "Jane", PrimaryEmail: "jane@x.com" } }],
+      get: async (id) => ({ id, properties: { DisplayName: "Jane", PrimaryEmail: "jane@x.com" } }),
+      create: async (parentId, id, properties) => {
+        calls.contactsCreated.push({ parentId, id, properties });
+        return "c2";
+      },
+      update: async (id, properties) => { calls.contactsUpdated.push({ id, properties }); },
     },
   };
   class NoSocket { constructor() { throw new Error("offline"); } }
@@ -143,6 +156,31 @@ console.log("\n\x1b[1mEnabled policy\x1b[0m");
   test("folder delete allowed with folderDelete=true", calls.foldersDelete[0] === "f9");
   test("message delete still refused",
     await rejects(handle("POST", "/messages/delete", { messageIds: [1] }), /^FORBIDDEN: 'delete'/));
+}
+
+// ─── Contacts write: new switch, default closed like delete/folderDelete ───
+
+console.log("\n\x1b[1mContacts write policy\x1b[0m");
+{
+  const { calls, handle } = load();
+  const access = await handle("GET", "/access");
+  test("GET /access reports contactsWrite off", access.policy.contactsWrite === false);
+  test("contact create refused by default",
+    await rejects(handle("POST", "/contacts/create", { book: "ab1", properties: { DisplayName: "New" } }), /^FORBIDDEN: 'contactsWrite'/));
+  test("contact update refused by default",
+    await rejects(handle("POST", "/contacts/update", { id: "c1", properties: { LastName: "Doe" } }), /^FORBIDDEN: 'contactsWrite'/));
+  test("no contacts side effect was made", calls.contactsCreated.length === 0 && calls.contactsUpdated.length === 0);
+  test("contacts search still works (ungated)",
+    Array.isArray(await handle("POST", "/contacts/search", { query: "jane" })));
+}
+{
+  const { calls, handle } = load({ contactsWrite: true });
+  const created = await handle("POST", "/contacts/create", { book: "ab1", properties: { DisplayName: "New" } });
+  test("contact create allowed with contactsWrite=true",
+    created.bookId === "ab1" && created.properties.DisplayName === "New" && calls.contactsCreated.length === 1);
+  const updated = await handle("POST", "/contacts/update", { id: "c1", properties: { LastName: "Doe" } });
+  test("contact update allowed with contactsWrite=true",
+    updated.id === "c1" && updated.properties.LastName === "Doe" && calls.contactsUpdated.length === 1);
 }
 
 // ─── New switches: default open (unmodified install behaves as before this policy) ──

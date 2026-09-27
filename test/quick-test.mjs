@@ -59,7 +59,9 @@ function handle({ method, path, body }) {
   if (path === "/forward") return { success: true, action: body?.send ? "sent" : "draft_saved" };
   if (path === "/stats") return { totalAccounts: 1, totalUnread: 5, totalMessages: 100, accounts: [] };
   if (path === "/recent") return { messages: [], total: 0, since: new Date().toISOString() };
-  if (path === "/contacts/search") return [{ id: "c1", name: "John", email: "j@e.com" }];
+  if (path === "/contacts/search") return [{ id: "c1", name: "John", email: "j@e.com", emails: ["j@e.com"], book: "P", bookId: "ab1" }];
+  if (path === "/contacts/create") return { id: "c2", book: "P", bookId: "ab1", properties: body?.properties || {} };
+  if (path === "/contacts/update") return { id: body?.id, properties: body?.properties || {} };
   if (path === "/contacts" && method === "GET") return [{ id: "c1", name: "John", email: "j@e.com", book: "P" }];
   if (path?.match(/^\/contacts\/[^/]+$/)) return { id: "c1", properties: { DisplayName: "John" } };
   if (path === "/sync") return { success: true, synced: body?.all ? "all" : body?.folderId };
@@ -249,8 +251,14 @@ test("POST /recent", await httpCall("POST", "/recent", { hours: 24, limit: 50 })
 
 console.log("\n\x1b[1mContacts\x1b[0m");
 test("GET /contacts", await httpCall("GET", "/contacts"), r => Array.isArray(r));
-test("POST /contacts/search", await httpCall("POST", "/contacts/search", { query: "john" }), r => Array.isArray(r));
+test("POST /contacts/search", await httpCall("POST", "/contacts/search", { query: "john" }), r => Array.isArray(r) && r[0].bookId === "ab1");
 test("GET /contacts/c1", await httpCall("GET", "/contacts/c1"), r => r.id === "c1");
+test("POST /contacts/create",
+  await httpCall("POST", "/contacts/create", { book: "ab1", properties: { DisplayName: "Jane" } }),
+  r => r.id === "c2" && r.properties.DisplayName === "Jane");
+test("POST /contacts/update",
+  await httpCall("POST", "/contacts/update", { id: "c1", properties: { LastName: "Doe" } }),
+  r => r.id === "c1" && r.properties.LastName === "Doe");
 
 console.log("\n\x1b[1mSync\x1b[0m");
 test("POST /sync", await httpCall("POST", "/sync", { all: true }), r => r.success);

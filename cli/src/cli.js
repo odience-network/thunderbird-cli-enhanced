@@ -914,7 +914,19 @@ program
 
 // ─── Contacts ─────────────────────────────────────────────────────────
 
-program
+function contactPropertiesFromOpts(opts) {
+  const properties = {};
+  if (opts.displayName) properties.DisplayName = opts.displayName;
+  if (opts.email) properties.PrimaryEmail = opts.email;
+  if (opts.secondEmail) properties.SecondEmail = opts.secondEmail;
+  if (opts.firstName) properties.FirstName = opts.firstName;
+  if (opts.lastName) properties.LastName = opts.lastName;
+  if (opts.phone) properties.WorkPhone = opts.phone;
+  if (opts.org) properties.Company = opts.org;
+  return properties;
+}
+
+const contacts = program
   .command("contacts")
   .description("List address book contacts")
   .option("--book <bookId>", "limit to specific address book")
@@ -931,6 +943,53 @@ program
       const data = await api("GET", "/contacts", null, getTimeout(g));
       output(data, getFormat(g), getOutputOpts(g));
     }
+  }));
+
+contacts
+  .command("create")
+  .description("Create a contact in an address book")
+  .requiredOption("--book <bookId>", "target address book, by id or name")
+  .option("--display-name <name>", "display name")
+  .option("--email <email>", "primary email")
+  .option("--second-email <email>", "secondary email")
+  .option("--first-name <name>", "first name")
+  .option("--last-name <name>", "last name")
+  .option("--phone <phone>", "work phone")
+  .option("--org <org>", "organization/company")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    const outOpts = getOutputOpts(g);
+    const properties = contactPropertiesFromOpts(opts);
+    if (Object.keys(properties).length === 0) {
+      outputError({ message: "Provide at least one contact property", code: "INVALID_ARGS" }, fmt, outOpts);
+      return;
+    }
+    const data = await api("POST", "/contacts/create", { book: opts.book, properties }, getTimeout(g));
+    output(data, fmt, outOpts);
+  }));
+
+contacts
+  .command("update <contactId>")
+  .description("Update a contact's properties")
+  .option("--display-name <name>", "display name")
+  .option("--email <email>", "primary email")
+  .option("--second-email <email>", "secondary email")
+  .option("--first-name <name>", "first name")
+  .option("--last-name <name>", "last name")
+  .option("--phone <phone>", "work phone")
+  .option("--org <org>", "organization/company")
+  .action(run(async (contactId, opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    const outOpts = getOutputOpts(g);
+    const properties = contactPropertiesFromOpts(opts);
+    if (Object.keys(properties).length === 0) {
+      outputError({ message: "Provide at least one contact property", code: "INVALID_ARGS" }, fmt, outOpts);
+      return;
+    }
+    const data = await api("POST", "/contacts/update", { id: contactId, properties }, getTimeout(g));
+    output(data, fmt, outOpts);
   }));
 
 // ─── Contacts Search ─────────────────────────────────────────────────
