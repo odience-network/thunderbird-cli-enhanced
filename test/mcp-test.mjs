@@ -119,6 +119,16 @@ function handle({ method, path, body }) {
   if (path === "/messages/update") return { success: true };
   if (path === "/compose")
     return { success: true, action: body?.send ? "sent" : body?.open ? "draft_opened" : "draft_saved" };
+  if (path === "/compose/edit") {
+    if (!body?.messageId) return { error: "messageId is required" };
+    const action = body?.send ? "sent" : body?.open ? "draft_opened" : "draft_saved";
+    return {
+      success: true,
+      action,
+      messageId: body?.send ? undefined : body.messageId + 1000,
+      previousMessageId: body.messageId,
+    };
+  }
   if (path === "/reply") return {
     success: true,
     action: body?.send ? "sent" : "draft_saved",
@@ -309,12 +319,12 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 12 tools", toolList, (r) => Array.isArray(r) && r.length === 12);
+test("tools/list returns 13 tools", toolList, (r) => Array.isArray(r) && r.length === 13);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
 
-console.log("\n\x1b[1mTools (12)\x1b[0m");
+console.log("\n\x1b[1mTools (13)\x1b[0m");
 
 test("email_stats", await client.callTool("email_stats", {}), (r) => r.totalAccounts === 1);
 test(
@@ -441,6 +451,17 @@ test(
 );
 
 test(
+  "email_edit draft",
+  await client.callTool("email_edit", { messageId: 10, body: "Revised" }),
+  (r) => r.success && r.action === "draft_saved" && r.messageId === 1010 && r.previousMessageId === 10
+);
+test(
+  "email_edit send",
+  await client.callTool("email_edit", { messageId: 10, subject: "Go", mode: "send" }),
+  (r) => r.action === "sent" && r.previousMessageId === 10
+);
+
+test(
   "email_mark read",
   await client.callTool("email_mark", { messageIds: [1], read: true }),
   (r) => r.success
@@ -534,7 +555,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 12 && r.toolsBCount === 12
+  (r) => r.toolsACount === 13 && r.toolsBCount === 13
 );
 clientA.close();
 clientB.close();

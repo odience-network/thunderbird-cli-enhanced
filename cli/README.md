@@ -1,6 +1,6 @@
 # thunderbird-cli
 
-> Low-level CLI to manage Mozilla Thunderbird email from the shell. 38 commands designed for AI agents.
+> Low-level CLI to manage Mozilla Thunderbird email from the shell. 39 commands designed for AI agents.
 
 [![tests](https://github.com/vitalio-sh/thunderbird-cli/actions/workflows/test.yml/badge.svg)](https://github.com/vitalio-sh/thunderbird-cli/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,7 +9,7 @@ Part of the [thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli) pro
 
 ## What it does
 
-`tb` is a thin HTTP client that talks to a local Thunderbird WebExtension via a bridge daemon. It exposes 38 commands across all `messenger.*` APIs:
+`tb` is a thin HTTP client that talks to a local Thunderbird WebExtension via a bridge daemon. It exposes 39 commands across all `messenger.*` APIs:
 
 - **Search & read** — full-text search across accounts, batch reads, threads
 - **Compose** — draft, open, or send (defaults to draft for safety)

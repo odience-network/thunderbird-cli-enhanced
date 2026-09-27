@@ -174,6 +174,24 @@ tb forward <messageId> [options]
   --body <text>            # additional text
   --no-history             # don't append the earlier thread as quoted conversation history
   --draft / --open / --send
+
+tb edit <messageId> [options]
+  --to <address>           # replace To (comma-separated)
+  --cc <address>           # replace CC
+  --bcc <address>          # replace BCC
+  --subject <text>         # replace subject
+  --body <text>            # replace body
+  --body-file <path>       # read body from file
+  --html                   # treat body as HTML
+  --from <identityId>      # change sending identity
+  --priority <level>       # highest | high | normal | low | lowest
+  --draft                  # save as draft (default)
+  --open                   # open in Thunderbird compose window
+  --send                   # send immediately
+
+# Only drafts (folder type drafts). Pass only fields to change.
+# After save, messageId may change (IMAP) — use returned messageId.
+# At least one field required unless --open.
 ```
 
 Replies preserve Thunderbird's native reply relationship, generated signature,

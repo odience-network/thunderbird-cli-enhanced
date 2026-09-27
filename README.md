@@ -21,8 +21,8 @@ Tested at scale: **22 accounts, 249,000+ messages, 86,000+ unread** — all mana
 ## Features
 
 - 🔐 **Zero credential exposure** — all IMAP/SMTP stays in Thunderbird
-- 🤖 **Claude Desktop ready** — 12 MCP tools, one-line config
-- 📨 **38 CLI commands** — read, search, compose, reply, bulk ops, folder CRUD, attachments
+- 🤖 **Claude Desktop ready** — 13 MCP tools, one-line config
+- 📨 **39 CLI commands** — read, search, compose, reply, edit drafts, bulk ops, folder CRUD, attachments
 - 🛡️ **Safe by default** — compose/reply/forward save as drafts; permanent delete requires `--confirm`
 - 🎯 **Token-optimized** — `--fields` selection, `--compact` mode, `--max-body` truncation
 - ⚡ **Fast on large folders** — server-side sort (TB 148+), indexed `--unread`/`--flagged` filtering, `--subject`/`--from` search; 50k-message folders respond in <2s
@@ -76,6 +76,9 @@ tb read 89900 --max-body 500
 # Reply as draft (never auto-sends)
 tb reply 89900 --body "Thanks, I'll review tomorrow"
 
+# Edit an existing draft (messageId may change after save)
+tb edit 12001 --body "Revised body — please review"
+
 # Download a PDF attachment
 tb attachment-download 11 1.2 --output invoice.pdf
 
@@ -112,7 +115,7 @@ Full MCP guide: **[mcp/README.md](mcp/README.md)**
 
 ### Companion skill for Claude
 
-A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 12 email tools well — token-efficient field selection, draft-by-default safety, trust-metadata checking before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
+A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 13 email tools well — token-efficient field selection, draft-by-default safety, trust-metadata checking before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
 
 ```bash
 # Claude Code
@@ -132,10 +135,10 @@ Without the skill, the MCP still works. With it, Claude automatically uses the s
 
 | Component | Role |
 |---|---|
-| **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs. 43 route handlers. |
+| **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs. 44 route handlers. |
 | **Bridge** (`bridge/`) | Stateless HTTP↔WebSocket proxy daemon. No business logic. |
 | **CLI** (`cli/`) | `tb` command — 39 commands. Thin HTTP client. JSON output. |
-| **MCP** (`mcp/`) | `tb-mcp` server — 12 curated tools for Claude Desktop. |
+| **MCP** (`mcp/`) | `tb-mcp` server — 13 curated tools for Claude Desktop. |
 
 Thunderbird is the source of truth. The CLI never caches or stores email data.
 
@@ -157,7 +160,7 @@ The niche: **you already trust Thunderbird with your credentials and account sta
 | Doc | What's inside |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | Installation, background service, Docker, troubleshooting |
-| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 38 CLI commands |
+| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 39 CLI commands |
 | [docs/CLAUDE.md](docs/CLAUDE.md) | AI-agent-focused quick reference + security rules |
 | [skills/thunderbird-cli/SKILL.md](skills/thunderbird-cli/SKILL.md) | **Companion Claude Skill** — recipes, safety defaults, token patterns |
 | [mcp/README.md](mcp/README.md) | Claude Desktop integration guide |

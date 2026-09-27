@@ -343,7 +343,71 @@ export const tools = [
     },
   },
 
-  // ─── 9. Mark ───────────────────────────────────────────────────
+  // ─── 9. Edit draft ─────────────────────────────────────────────
+  {
+    name: "email_edit",
+    description:
+      "Edit an existing draft message in place. Only works on messages in a Drafts folder. Pass only the fields you want to change (to, cc, bcc, subject, body, from, priority). Default mode is 'draft' (save silently). The saved draft messageId may change after save (IMAP) — always use the returned messageId. Use mode='open' to open in Thunderbird for human review, mode='send' to send immediately.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        messageId: {
+          type: "number",
+          description: "Draft message ID to edit",
+        },
+        to: {
+          type: "string",
+          description: "Replace To recipients (comma-separated)",
+        },
+        cc: { type: "string", description: "Replace CC recipients" },
+        bcc: { type: "string", description: "Replace BCC recipients" },
+        subject: { type: "string", description: "New subject line" },
+        body: { type: "string", description: "Replace message body" },
+        html: {
+          type: "boolean",
+          description: "Treat body as HTML (only applies when the draft is HTML)",
+          default: false,
+        },
+        from: {
+          type: "string",
+          description: "Identity ID to send from",
+        },
+        priority: {
+          type: "string",
+          enum: ["highest", "high", "normal", "low", "lowest"],
+        },
+        mode: {
+          type: "string",
+          enum: ["draft", "open", "send"],
+          description: "draft (default, saves silently), open (compose window), send (immediate)",
+          default: "draft",
+        },
+      },
+      required: ["messageId"],
+    },
+    handler: async (args, api) => {
+      const payload = { messageId: args.messageId };
+      if (args.to !== undefined) payload.to = args.to;
+      if (args.cc !== undefined) payload.cc = args.cc;
+      if (args.bcc !== undefined) payload.bcc = args.bcc;
+      if (args.subject !== undefined) payload.subject = args.subject;
+      if (args.body !== undefined) {
+        payload.body = args.body;
+        payload.isHTML = args.html || false;
+      }
+      if (args.from) payload.identityId = args.from;
+      if (args.priority) payload.priority = args.priority;
+
+      const mode = args.mode || "draft";
+      if (mode === "send") payload.send = true;
+      else if (mode === "open") payload.open = true;
+      else payload.draft = true;
+
+      return await api("POST", "/compose/edit", payload);
+    },
+  },
+
+  // ─── 10. Mark ───────────────────────────────────────────────────
   {
     name: "email_mark",
     description:
@@ -375,7 +439,7 @@ export const tools = [
     },
   },
 
-  // ─── 10. Archive / Move / Delete ───────────────────────────────
+  // ─── 11. Archive / Move / Delete ───────────────────────────────
   {
     name: "email_archive",
     description:
@@ -441,7 +505,7 @@ export const tools = [
     },
   },
 
-  // ─── 11. Attachments ───────────────────────────────────────────
+  // ─── 12. Attachments ───────────────────────────────────────────
   {
     name: "email_attachments",
     description:
@@ -476,7 +540,7 @@ export const tools = [
     },
   },
 
-  // ─── 12. Folders ───────────────────────────────────────────────
+  // ─── 13. Folders ───────────────────────────────────────────────
   {
     name: "email_folders",
     description:

@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `email_archive`) to preserve the old behavior.
 
 ### Added
+- **`tb edit <messageId>`** — edit an existing draft in place (to/cc/bcc/subject/body/from/priority) with `--draft`/`--open`/`--send` modes
+- **`email_edit` MCP tool** — same capability for agents; returns `messageId` + `previousMessageId` (IMAP may reassign draft IDs on save)
+- Extension route `POST /compose/edit` using `compose.beginNew` + `setComposeDetails` + `saveMessage`, gated by the same `compose`/`send` access policy switches as `POST /compose` (see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
 - `--keep-unread` on `tb delete` and `tb archive` (`keepUnread` on MCP `email_archive`) — keep
   the unread state instead of marking read before refiling.
 - `tb reply` / `tb forward` and MCP `email_reply` / `email_forward` now append the earlier
@@ -127,7 +130,7 @@ Initial public release. First stable version after live-testing against 22 real 
 - Request/response correlation via UUIDs
 - 30-second default timeout, configurable
 
-**CLI (`cli/`) — 38 commands**
+**CLI (`cli/`) — 38 commands** (39 as of Unreleased: +`edit`)
 - **Connection:** `health`, `bridge-status`
 - **Accounts:** `accounts`, `account`, `identities`
 - **Folders:** `folders` (with `--all`), `folder-info`, `folder-create`, `folder-rename`, `folder-delete`
@@ -152,7 +155,7 @@ Initial public release. First stable version after live-testing against 22 real 
 - Global `--timeout <ms>` for request timeout
 - Formats: `json` (default, pretty), `compact`, `table`
 
-**MCP server (`mcp/`) — 12 tools for Claude Desktop**
+**MCP server (`mcp/`) — 12 tools for Claude Desktop** (13 as of Unreleased: +`email_edit`)
 - `email_stats`, `email_search`, `email_list`, `email_read`, `email_thread`
 - `email_compose`, `email_reply`, `email_forward` (all default to draft)
 - `email_mark`, `email_archive`, `email_attachments`, `email_folders`

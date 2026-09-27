@@ -698,6 +698,126 @@ async function handleRequest({ method, path, body }) {
     return { success: true, action: "draft_saved" };
   }
 
+  // ─── Edit existing draft ────────────────────────────────────────
+
+  if (path === "/compose/edit" && method === "POST") {
+    const {
+      messageId,
+      to, cc, bcc, subject, body: msgBody, isHTML = false,
+      identityId, priority,
+      send = false, open = false,
+    } = body || {};
+
+    if (!messageId) return { error: "messageId is required" };
+
+    const hasFieldChange = to !== undefined || cc !== undefined || bcc !== undefined
+      || subject !== undefined || msgBody !== undefined
+      || identityId !== undefined || priority !== undefined;
+
+    if (!hasFieldChange && !open && !send) {
+      return { error: "Provide at least one field to change, or use open/send mode" };
+    }
+
+    let msg;
+    try {
+      msg = await messenger.messages.get(messageId);
+    } catch {
+      return { error: "Message not found" };
+    }
+    if (!msg) return { error: "Message not found" };
+
+    if (msg.folder?.type !== "drafts") {
+      return {
+        error: `Message is not a draft (folder type: ${msg.folder?.type || "unknown"})`,
+      };
+    }
+
+    let tab = null;
+    try {
+      // beginNew(messageId) opens the draft "as a new message": ComposeDetails.type
+      // is always "new" (there is no WebExtension API for true draft-in-place editing).
+      // We apply field overrides, then save + reconcile any duplicate (see below).
+      tab = await messenger.compose.beginNew(messageId);
+      const current = await messenger.compose.getComposeDetails(tab.id);
+
+      const details = {};
+      if (to !== undefined) {
+        details.to = Array.isArray(to) ? to : String(to).split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      if (cc !== undefined) {
+        details.cc = Array.isArray(cc) ? cc : String(cc).split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      if (bcc !== undefined) {
+        details.bcc = Array.isArray(bcc) ? bcc : String(bcc).split(",").map((s) => s.trim()).filter(Boolean);
+      }
+      if (subject !== undefined) details.subject = subject;
+      if (identityId !== undefined) details.identityId = identityId;
+      if (priority !== undefined) details.priority = priority;
+
+      if (msgBody !== undefined) {
+        // Compose format of an open window cannot be changed. An HTML window
+        // ignores plainTextBody (and vice versa), so set the matching field:
+        //  - plain-text window     -> plainTextBody
+        //  - HTML window + --html  -> body (raw HTML, as given)
+        //  - HTML window + plain   -> body (converted: escaped + <br> for newlines)
+        if (current.isPlainText) {
+          details.plainTextBody = msgBody;
+        } else if (isHTML) {
+          details.body = msgBody;
+        } else {
+          details.body = plainTextToHtml(msgBody);
+        }
+      }
+
+      if (Object.keys(details).length > 0) {
+        await messenger.compose.setComposeDetails(tab.id, details);
+      }
+
+      if (send) {
+        await messenger.compose.sendMessage(tab.id, { mode: "sendNow" });
+        tab = null; // send closes the window
+        return { success: true, action: "sent", previousMessageId: messageId };
+      }
+
+      if (open) {
+        const openedId = tab.id;
+        tab = null; // leave open for human
+        return {
+          success: true,
+          action: "draft_opened",
+          tabId: openedId,
+          messageId,
+          previousMessageId: messageId,
+        };
+      }
+
+      const saved = await messenger.compose.saveMessage(tab.id, { mode: "draft" });
+      const savedId = saved?.messages?.[0]?.id ?? messageId;
+      await messenger.tabs.remove(tab.id);
+      tab = null;
+
+      // beginNew() + saveMessage() creates a *new* draft in Drafts and leaves
+      // the original. We intentionally do NOT auto-delete: the caller should
+      // verify the new draft (tb read <messageId>) and then explicitly delete
+      // the original (tb delete <previousMessageId> --permanent --confirm).
+      // `duplicated` tells the caller whether a distinct draft was created
+      // (safe to delete previousMessageId) vs. TB replaced in place (do not).
+      const duplicated = savedId !== messageId;
+
+      return {
+        success: true,
+        action: "draft_saved",
+        messageId: savedId,
+        previousMessageId: messageId,
+        duplicated,
+      };
+    } finally {
+      if (tab) {
+        try { await messenger.tabs.remove(tab.id); } catch { /* already closed */ }
+      }
+    }
+  }
+
   // ─── Stats (GET — legacy) ──────────────────────────────────────
 
   if (path === "/stats" && method === "GET") {
@@ -869,6 +989,18 @@ async function handleRequest({ method, path, body }) {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────
+
+function plainTextToHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => (line === "" ? "<br>" : line))
+    .join("<br>\n");
+}
 
 function formatMessage(msg) {
   return {

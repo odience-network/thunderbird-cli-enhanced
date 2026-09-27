@@ -46,6 +46,7 @@ function load(config) {
     },
     messages: {
       list: async () => ({ id: null, messages: [{ id: 1, read: true, flagged: false, tags: [] }] }),
+      get: async (id) => ({ id, folder: { type: "drafts" } }),
       delete: async (ids, permanent) => { calls.messagesDelete.push({ ids, permanent }); },
       update: async (id, props) => { calls.messagesUpdate.push({ id, props }); },
       move: async (ids, folder) => { calls.messagesMove.push({ ids, folderId: folder.id }); },
@@ -61,8 +62,10 @@ function load(config) {
     },
     compose: {
       beginNew: async () => ({ id: 1 }),
+      getComposeDetails: async () => ({ isPlainText: true }),
+      setComposeDetails: async () => {},
       sendMessage: async (tabId) => { calls.composeSent.push(tabId); },
-      saveMessage: async (tabId) => { calls.composeSaved.push(tabId); },
+      saveMessage: async (tabId) => { calls.composeSaved.push(tabId); return {}; },
     },
     tabs: {
       remove: async () => {},
@@ -179,6 +182,14 @@ console.log("\n\x1b[1mNew switches — default open\x1b[0m");
   const sent = await handle("POST", "/compose", { to: "a@b.com", subject: "s", body: "b", send: true });
   test("send allowed by default", sent.action === "sent" && calls.composeSent.length === 1);
 
+  const edited = await handle("POST", "/compose/edit", { messageId: 1, subject: "s2" });
+  test("compose/edit allowed by default (shares compose switch)",
+    edited.action === "draft_saved" && calls.composeSaved.length === 2);
+
+  const editedAndSent = await handle("POST", "/compose/edit", { messageId: 1, subject: "s2", send: true });
+  test("compose/edit send allowed by default (shares send switch)",
+    editedAndSent.action === "sent" && calls.composeSent.length === 2);
+
   const attachment = await handle("POST", "/messages/1/attachment", { partName: "1.2" });
   test("downloadAttachments allowed by default", attachment.name === "f.pdf");
 }
@@ -249,6 +260,8 @@ console.log("\n\x1b[1mNew switches — can be disabled\x1b[0m");
     await rejects(handle("POST", "/reply", { messageId: 1, body: "b" }), /^FORBIDDEN: 'compose'/));
   test("forward refused too (shares the compose switch)",
     await rejects(handle("POST", "/forward", { messageId: 1, to: "a@b.com", body: "b" }), /^FORBIDDEN: 'compose'/));
+  test("compose/edit refused too (shares the compose switch)",
+    await rejects(handle("POST", "/compose/edit", { messageId: 1, subject: "s2" }), /^FORBIDDEN: 'compose'/));
 }
 {
   const { handle } = load({ send: false });
@@ -256,6 +269,11 @@ console.log("\n\x1b[1mNew switches — can be disabled\x1b[0m");
   test("draft still allowed when only send is disabled", draft.action === "draft_saved");
   test("send refused when disabled",
     await rejects(handle("POST", "/compose", { to: "a@b.com", body: "b", send: true }), /^FORBIDDEN: 'send'/));
+
+  const editDraft = await handle("POST", "/compose/edit", { messageId: 1, subject: "s2" });
+  test("compose/edit draft still allowed when only send is disabled", editDraft.action === "draft_saved");
+  test("compose/edit send refused when disabled",
+    await rejects(handle("POST", "/compose/edit", { messageId: 1, subject: "s2", send: true }), /^FORBIDDEN: 'send'/));
 }
 
 // ─── Deny-by-default: routes with no access-control classification ──
