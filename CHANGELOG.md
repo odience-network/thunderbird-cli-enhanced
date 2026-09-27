@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The extension's add-on ID is now `thunderbird-cli-enhanced@odience.net` (was `thunderbird-ai@extension`,
   which belongs to the upstream author's addons.thunderbird.net account and can't be signed by this fork).
   Thunderbird treats it as a separate add-on: remove the old "Thunderbird AI Bridge" before installing.
+- The extension is renamed "Thunderbird CLI Enhanced" (was "Thunderbird AI Bridge"), and `npm run build:xpi`
+  now writes `dist/thunderbird-cli-enhanced-<version>.xpi`. The signed 2.1.0 XPI predates the rename.
 - `tb delete` (to trash) and `tb archive` now mark messages read by default before refiling,
   preventing unread clutter in Trash/Archive. Use `--keep-unread` (CLI) / `keepUnread` (MCP
   `email_archive`) to preserve the old behavior.
@@ -24,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`email_edit` MCP tool** — same capability for agents; returns `messageId` + `previousMessageId` (IMAP may reassign draft IDs on save)
 - Extension route `POST /compose/edit` using `compose.beginNew` + `setComposeDetails` + `saveMessage`, gated by the same `compose`/`send` access policy switches as `POST /compose` (see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
 - **`tb extension-reload`** — reloads the Thunderbird extension and waits for it to reconnect. The extension sends an `extension-ready` beacon event on every connect, buffered and long-pollable via the new `GET /bridge/events` endpoint. Extension route `POST /extension/reload` is ungated (`UNGATED_POST`, no mail-data access, comparable to `/sync`); `/bridge/events` is bridge-local like `/bridge/status` and needs no access-control classification.
+- **`--output-version 2`** (or `TB_OUTPUT_VERSION=2`), opt-in: table on a TTY and compact JSON when piped,
+  no `{ok, data}` envelope, nulls stripped, short field presets for `search`/`list`/`recent`, local-time
+  dates. `--envelope`, `--verbose`, `--fields full`, `--utc` and `--pretty` restore the v1 pieces. The v1
+  envelope stays the default.
+- Extension icons and a toolbar connection-status indicator.
 - `--keep-unread` on `tb delete` and `tb archive` (`keepUnread` on MCP `email_archive`) — keep
   the unread state instead of marking read before refiling.
 - `tb reply` / `tb forward` and MCP `email_reply` / `email_forward` now append the earlier
@@ -63,6 +70,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`tb search` general query** — replaced 3-parallel-query OR (body+subject+author) with single `fullText` query; ~33% faster and far less resource-intensive
 - **Search latency** — reduced `autoPaginationTimeout` from 1000ms default to 200ms on all `messages.query()` calls, cutting ~800ms per low-result query
 - **`tb list` default sort** — now defaults to date-descending (was unsorted ascending)
+- `npm run lint` and `npm run sign:xpi` looked for the pre-rename `dist/thunderbird-cli-<version>.xpi`,
+  so lint failed after a clean build and the `sign-xpi` workflow failed on the rename commit.
+- `npm run build:diagrams` finds archify in `.agents/skills/` too, where `npx skills experimental_install`
+  restores it.
+
+### Documentation
+- Docs now describe this fork (`odience-network/thunderbird-cli-enhanced`): repointed badges, links and clone URLs; install from source via `setup.sh` / `setup.ps1` (the upstream npm packages don't carry fork changes); README "Why this fork" table and Acknowledgements for upstream and each integrated fork.
+- Five [archify](https://github.com/tt-a1i/archify) diagrams in `docs/diagrams/` (architecture, search sequence, access control, release workflow, roadmap), each as JSON IR, interactive HTML and light/dark PNG; rebuilt with `npm run build:diagrams` (see CONTRIBUTING.md).
+- `npm run test:docs` (also in CI): every `tb` command and flag from `tb --help` must be in `docs/COMMANDS.md`, README/COMMANDS examples may only use real commands and flags, and every diagram must have its HTML and PNGs.
+- Counts corrected to 41 CLI commands (including `extension-reload`) and 13 MCP tools; missing flags added to `docs/COMMANDS.md` (`thread --headers`, `compose --header`, `reply --html`, `bulk` filters and `-l`, `contacts-search`).
+- SECURITY.md marks which defenses are enforced and which are design only; the companion skill no longer claims `email_read` returns junk scores, SPF/DKIM or contact status, or that hidden HTML is stripped.
 
 ## [1.1.0] — 2026-09-14
 

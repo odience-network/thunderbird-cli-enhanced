@@ -50,7 +50,7 @@ function fail(message) {
 // ─── Locate the unsigned XPI and read its manifest ─────────────────
 
 const extManifest = JSON.parse(readFileSync(join(REPO_ROOT, "extension/manifest.json"), "utf-8"));
-const xpiPath = values.xpi || join(REPO_ROOT, "dist", `thunderbird-cli-${extManifest.version}.xpi`);
+const xpiPath = values.xpi || join(REPO_ROOT, "dist", `thunderbird-cli-enhanced-${extManifest.version}.xpi`);
 if (!existsSync(xpiPath)) fail(`${xpiPath} not found — run \`npm run build:xpi\` first`);
 
 const manifestEntry = new AdmZip(xpiPath).getEntry("manifest.json");

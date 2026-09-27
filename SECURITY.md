@@ -1,4 +1,4 @@
-# thunderbird-cli — Security Architecture
+# Thunderbird CLI Enhanced — Security Architecture
 
 ## IMPORTANT: This is the security-focused appendix to SPEC.md.
 ## Based on OWASP 2025 Top 10 for LLM Applications (LLM01: Prompt Injection)
@@ -96,7 +96,11 @@ Covered by `npm run test:bridge-security`.
 
 These are deterministic, require no AI, and run in the extension/bridge.
 
+> **Implementation status.** Defenses 1–8 below are **design specifications that are not implemented yet**: message content is returned without sanitization, trust annotations, pattern flags, URL or attachment classification, and the bridge has no read-only mode, audit log or rate limiter. What *is* enforced today: bridge caller authentication and origin/host checks (see above), junk exclusion from search, the add-on [access policy](docs/ACCESS-CONTROL.md), and draft-by-default / `--confirm` guards. The [Defense Matrix](#summary-defense-matrix) marks each layer.
+
 ### Defense 1: Structured Trust Boundaries in Output
+
+*Status: design — not implemented.*
 
 Every field is marked as TRUSTED (from IMAP protocol/server) or 
 UNTRUSTED (from email sender, can be spoofed/malicious).
@@ -139,6 +143,8 @@ isolation between trusted and untrusted content.
 
 ### Defense 2: HTML Sanitization (Hidden Content Removal)
 
+*Status: design — not implemented.*
+
 Applied during HTML-to-text conversion in the extension:
 
 | Technique | What it hides | Detection method |
@@ -158,6 +164,8 @@ Applied during HTML-to-text conversion in the extension:
 Output includes `sanitization` report so agent knows what was removed.
 
 ### Defense 3: Suspicious Pattern Detection
+
+*Status: design — not implemented.*
 
 CLI scans untrusted fields for patterns that look like injection attempts:
 
@@ -182,6 +190,8 @@ Reported in output as:
 
 ### Defense 4: Read-Only Mode
 
+*Status: design — not implemented.*
+
 ```bash
 # Start bridge in read-only mode — all write operations disabled
 node bridge.js --read-only
@@ -201,6 +211,8 @@ This is the safest mode for autonomous agents doing triage/analysis.
 
 ### Defense 5: Audit Log
 
+*Status: design — not implemented.*
+
 All write operations are logged locally, regardless of mode:
 
 ```
@@ -217,6 +229,8 @@ Format:
 Enables post-incident forensics if an agent is compromised.
 
 ### Defense 6: Rate Limiting on Write Operations
+
+*Status: design — not implemented.*
 
 Bridge enforces rate limits on destructive operations:
 
@@ -236,6 +250,8 @@ Prevents a compromised agent from mass-deleting or mass-forwarding.
 
 ### Defense 7: URL Extraction & Classification
 
+*Status: design — not implemented.*
+
 ```bash
 tb read <messageId> --extract-urls
 ```
@@ -253,6 +269,8 @@ Returns all URLs found in the message, classified:
 Helps agents identify phishing links without clicking them.
 
 ### Defense 8: Attachment Safety Metadata
+
+*Status: design — not implemented.*
 
 ```json
 "attachments": [
@@ -447,23 +465,23 @@ adversarial text, never as instructions.
 
 ## Summary: Defense Matrix
 
-| Layer | Where | What | Blocks attacks |
-|-------|-------|------|---------------|
-| HTML sanitization | Extension | Strips hidden text | Hidden instruction injection |
-| Trust boundaries | CLI output | Marks trusted/untrusted fields | Confused deputy |
-| Suspicious patterns | CLI output | Flags injection-like text | Direct prompt injection |
-| Junk exclusion | CLI defaults | Excludes spam from results | Spam-based injection |
-| Caller authentication | Bridge | Requires `Authorization: Bearer` (`TB_AUTH_TOKEN`) | Untrusted local process reaching the mailbox |
-| Origin / Host checks | Bridge | Rejects browser origins, rebinding hosts, web-page WebSockets | Hostile web page (CSRF, DNS rebinding, extension hijack) |
-| Access policy | Extension | Every write/send route gated by a build-time switch, deny-by-default for unclassified routes; deletion off unless built with `delete` / `folderDelete` ([ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)) | Mass/permanent deletion, and any unreviewed new write route, by any caller |
-| Read-only mode | Bridge | Disables all writes | Any write-based attack |
-| Rate limiting | Bridge | Throttles write ops | Mass exfiltration/deletion |
-| Audit log | Bridge | Logs all writes | Post-incident forensics |
-| URL extraction | CLI output | Classifies URLs | Phishing |
-| Attachment metadata | CLI output | Flags dangerous files | Malware delivery |
-| Two-phase read | Agent pattern | Headers first, body later | Context contamination |
-| Context isolation | Agent pattern | Boundary markers | Injection crossing trust boundary |
-| Intent matching | Agent pattern | Validates action vs intent | Confused deputy |
-| Human-in-the-loop | Agent pattern | Approval for writes | All write attacks |
-| Output isolation | Agent pattern | No verbatim forwarding | Self-replicating worms |
-| Multi-agent split | Agent pattern | Separate read/write agents | Combined capability abuse |
+| Layer | Where | What | Blocks attacks | Status |
+|-------|-------|------|---------------|--------|
+| HTML sanitization | Extension | Strips hidden text | Hidden instruction injection | ⏳ design |
+| Trust boundaries | CLI output | Marks trusted/untrusted fields | Confused deputy | ⏳ design |
+| Suspicious patterns | CLI output | Flags injection-like text | Direct prompt injection | ⏳ design |
+| Junk exclusion | CLI defaults | Excludes spam from results | Spam-based injection | ✅ enforced |
+| Caller authentication | Bridge | Requires `Authorization: Bearer` (`TB_AUTH_TOKEN`) | Untrusted local process reaching the mailbox | ✅ enforced |
+| Origin / Host checks | Bridge | Rejects browser origins, rebinding hosts, web-page WebSockets | Hostile web page (CSRF, DNS rebinding, extension hijack) | ✅ enforced |
+| Access policy | Extension | Every write/send route gated by a build-time switch, deny-by-default for unclassified routes; deletion off unless built with `delete` / `folderDelete` ([ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)) | Mass/permanent deletion, and any unreviewed new write route, by any caller | ✅ enforced |
+| Read-only mode | Bridge | Disables all writes | Any write-based attack | ⏳ design |
+| Rate limiting | Bridge | Throttles write ops | Mass exfiltration/deletion | ⏳ design |
+| Audit log | Bridge | Logs all writes | Post-incident forensics | ⏳ design |
+| URL extraction | CLI output | Classifies URLs | Phishing | ⏳ design |
+| Attachment metadata | CLI output | Flags dangerous files | Malware delivery | ⏳ design |
+| Two-phase read | Agent pattern | Headers first, body later | Context contamination | agent guidance |
+| Context isolation | Agent pattern | Boundary markers | Injection crossing trust boundary | agent guidance |
+| Intent matching | Agent pattern | Validates action vs intent | Confused deputy | agent guidance |
+| Human-in-the-loop | Agent pattern | Approval for writes | All write attacks | agent guidance |
+| Output isolation | Agent pattern | No verbatim forwarding | Self-replicating worms | agent guidance |
+| Multi-agent split | Agent pattern | Separate read/write agents | Combined capability abuse | agent guidance |

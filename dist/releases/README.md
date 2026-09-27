@@ -33,7 +33,7 @@ The extension will persist across restarts. No "unsigned" warnings.
 3. Upload the unsigned `.xpi` to https://addons.thunderbird.net as a new version
 4. Wait for signing (usually minutes to hours for already-reviewed extensions)
 5. Download the signed `.xpi` from ATN's "My Submissions" page
-6. Save it to this directory with naming: `thunderbird_ai_bridge-<version>-tb.xpi`
+6. Save it to this directory with naming: `<name>-<version>-tb.xpi`, where `<name>` is the manifest name lowercased with non-alphanumerics as `_` (what `npm run sign:xpi` writes)
 7. Commit, tag `v<version>`, push — GitHub Actions will attach it to the Release
 
 Steps 2–6 are automated: merging the version bump to `main` runs the `sign-xpi` workflow,

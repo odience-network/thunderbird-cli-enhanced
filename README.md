@@ -1,12 +1,14 @@
-# thunderbird-cli
+# Thunderbird CLI Enhanced
 
-> Give Claude (and other AI agents) full access to your email through Mozilla Thunderbird.
+> Give Claude (and other AI agents) full access to your email through Mozilla Thunderbird, with an installation-wide access policy that decides what they may change.
 
-[![tests](https://github.com/vitalio-sh/thunderbird-cli/actions/workflows/test.yml/badge.svg)](https://github.com/vitalio-sh/thunderbird-cli/actions/workflows/test.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![tests](https://github.com/odience-network/thunderbird-cli-enhanced/actions/workflows/test.yml/badge.svg)](https://github.com/odience-network/thunderbird-cli-enhanced/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
 [![Thunderbird](https://img.shields.io/badge/thunderbird-128%2B-blue)](https://www.thunderbird.net)
 [![MCP](https://img.shields.io/badge/MCP-compatible-purple)](https://modelcontextprotocol.io)
+
+This is a maintained fork of [vitalio-sh/thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli). It integrates fixes and features from the community forks listed under [Why this fork](#why-this-fork) and adds an access policy, a signed-XPI release pipeline, and draft editing.
 
 <p align="center">
   <img src="assets/demo.gif" alt="thunderbird-cli demo — Claude answering an email-overview question via MCP" width="700">
@@ -16,50 +18,43 @@
 
 IMAP libraries force you to manage credentials, OAuth flows, and sync state — dangerous in an AI-agent context. **Thunderbird already solves all of that.** This tool treats Thunderbird as the source of truth and exposes every capability as a CLI command or MCP tool, so AI agents can read, search, and write email without ever touching a password.
 
-Tested at scale: **22 accounts, 249,000+ messages, 86,000+ unread** — all managed live through a single CLI.
-
 ## Features
 
 - 🔐 **Zero credential exposure** — all IMAP/SMTP stays in Thunderbird
 - 🤖 **Claude Desktop ready** — 13 MCP tools, one-line config
-- 📨 **40 CLI commands** — read, search, compose, reply, edit drafts, bulk ops, folder CRUD, attachments
-- 🛡️ **Safe by default** — compose/reply/forward save as drafts; permanent delete requires `--confirm`
-- 🎯 **Token-optimized** — `--fields` selection, `--compact` mode, `--max-body` truncation
-- ⚡ **Fast on large folders** — server-side sort (TB 148+), indexed `--unread`/`--flagged` filtering, `--subject`/`--from` search; 50k-message folders respond in <2s
+- 📨 **41 CLI commands** — read, search, compose, reply, edit drafts, bulk ops, folder CRUD, attachments, contacts (read-only)
+- 🛡️ **Access policy** — one policy baked into the add-on gates every write/send route for CLI, MCP and raw bridge calls; deletion is off by default and unknown routes fail closed ([docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
+- ✉️ **Safe by default** — compose/reply/forward/edit save as drafts; permanent delete requires `--confirm`
+- 🚀 **Bridge auto-start** — the CLI and MCP server start the bridge daemon on first use
+- 🎯 **Token-optimized** — `--fields` selection, `--compact` mode, `--max-body` truncation, `-f json|compact|table`, opt-in leaner output with `--output-version 2`
+- ⚡ **Fast on large folders** — server-side full-text query, sort (TB 148+), indexed `--unread`/`--flagged` plus date/size/tag filtering, `--subject`/`--from` search
 - 🏠 **Localhost-only** — no cloud, no telemetry, nothing leaves your machine
-- ✅ **Thunderbird 128+** — signed and approved on addons.thunderbird.net
-- 🧪 **80 tests** — 46 CLI/bridge + 34 MCP integration tests
+- ✅ **Thunderbird 128+** — Mozilla-signed XPI built and signed by CI ([dist/releases/](dist/releases/))
+- 🧪 **Tested** — `npm run test:all` runs the CLI/bridge, bridge security, extension, access-control, signing and MCP suites
 
 ## Quick Start
 
-```bash
-# 1. Install CLI + bridge from npm
-npm install -g thunderbird-cli thunderbird-cli-bridge
-
-# 2. Install the signed Thunderbird extension
-#    Download: https://github.com/vitalio-sh/thunderbird-cli/releases/latest
-#    Thunderbird → Add-ons → ⚙ → Install Add-on From File… → thunderbird_ai_bridge-*.xpi
-
-# 3. Start the bridge daemon (optional — the CLI/MCP server auto-starts it on first use)
-tb-bridge
-
-# 4. Try it
-tb health
-tb stats
-```
-
-**Building from source instead?** Clone the repo and run the one-command setup script, which installs
-dependencies and links the `tb` command for you:
+The npm packages `thunderbird-cli`, `thunderbird-cli-bridge` and `thunderbird-cli-mcp` are published by upstream and do not contain this fork's changes. Install from source:
 
 ```bash
-git clone https://github.com/vitalio-sh/thunderbird-cli
-cd thunderbird-cli
+git clone https://github.com/odience-network/thunderbird-cli-enhanced
+cd thunderbird-cli-enhanced
 
 ./setup.sh       # macOS / Linux
 .\setup.ps1      # Windows (PowerShell)
 ```
 
-Full setup guide (including background service, Docker, troubleshooting): **[docs/SETUP.md](docs/SETUP.md)**
+The setup script installs dependencies, links `tb`, and optionally links `tb-bridge` and `tb-mcp`. Then:
+
+1. Install the signed extension from [`dist/releases/`](dist/releases/): Thunderbird → Add-ons → ⚙ → **Install Add-on From File…** → the `*-tb.xpi` file. The signed 2.1.0 build predates the rename and still shows as "Thunderbird AI Bridge" in the Add-ons Manager.
+2. Try it — the bridge starts automatically on first use:
+
+   ```bash
+   tb health
+   tb stats
+   ```
+
+Full setup guide (background service, Docker, access policy, troubleshooting): **[docs/SETUP.md](docs/SETUP.md)**
 
 ## Usage
 
@@ -91,14 +86,13 @@ Full command reference: **[docs/COMMANDS.md](docs/COMMANDS.md)**
 
 ## Use with Claude Desktop
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+With `tb-mcp` linked by the setup script, add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
 ```json
 {
   "mcpServers": {
     "thunderbird": {
-      "command": "npx",
-      "args": ["-y", "thunderbird-cli-mcp"]
+      "command": "tb-mcp"
     }
   }
 }
@@ -115,7 +109,7 @@ Full MCP guide: **[mcp/README.md](mcp/README.md)**
 
 ### Companion skill for Claude
 
-A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 13 email tools well — token-efficient field selection, draft-by-default safety, trust-metadata checking before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
+A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 13 email tools well — token-efficient field selection, draft-by-default safety, checking trust signals before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
 
 ```bash
 # Claude Code
@@ -130,23 +124,78 @@ Without the skill, the MCP still works. With it, Claude automatically uses the s
 ## How It Works
 
 <p align="center">
-  <img src="assets/architecture.png" alt="thunderbird-cli architecture — clients → npm entrypoints → bridge daemon → Thunderbird" width="900">
+  <a href="docs/diagrams/architecture.html">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.png">
+      <img src="docs/diagrams/architecture.png" alt="Architecture — agents and shells call tb-mcp or the tb CLI, which talk HTTP to the localhost bridge; the bridge relays over WebSocket to the Thunderbird WebExtension, which checks the access policy and calls messenger.* APIs" width="900">
+    </picture>
+  </a>
+  <br><sub>Click for the interactive version. More diagrams: <a href="docs/diagrams/">docs/diagrams/</a></sub>
 </p>
 
 | Component | Role |
 |---|---|
-| **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs. 45 route handlers. |
-| **Bridge** (`bridge/`) | HTTP↔WebSocket proxy daemon. No business logic; buffers recent extension events for long-polling. |
-| **CLI** (`cli/`) | `tb` command — 40 commands. Thin HTTP client. JSON output. |
+| **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs; every route is classified by the access policy. |
+| **Bridge** (`bridge/`) | HTTP↔WebSocket proxy daemon on `127.0.0.1:7700`/`7701`. No business logic; buffers recent extension events for long-polling. |
+| **CLI** (`cli/`) | `tb` command — 41 commands. Thin HTTP client. JSON output. |
 | **MCP** (`mcp/`) | `tb-mcp` server — 13 curated tools for Claude Desktop. |
 
 Thunderbird is the source of truth. The CLI never caches or stores email data.
+
+## Why this fork
+
+Upstream baseline is [vitalio-sh/thunderbird-cli@`465613d`](https://github.com/vitalio-sh/thunderbird-cli/commit/465613d) (1.1.0). Each row below is merged on `main` and linked to the PR that landed it. Planned work is listed separately under [Roadmap](#roadmap).
+
+| Feature | Enhanced | Upstream | Origin | Landed in |
+|---|:-:|:-:|---|---|
+| Access policy for every write/send route, fail-closed on unknown routes | ✅ | ❌ | [reinhardullrich](https://github.com/reinhardullrich/thunderbird-cli) (`93178cb`), extended | [#6](https://github.com/odience-network/thunderbird-cli-enhanced/pull/6) |
+| Deletion disabled unless the policy enables it | ✅ | ❌ | [reinhardullrich](https://github.com/reinhardullrich/thunderbird-cli) (`b5b7714`), modified | [#4](https://github.com/odience-network/thunderbird-cli-enhanced/pull/4) |
+| Filters applied before `--limit`; accurate `hasMore` | ✅ | ❌ | [reinhardullrich](https://github.com/reinhardullrich/thunderbird-cli) | [#2](https://github.com/odience-network/thunderbird-cli-enhanced/pull/2) |
+| Reply keeps the receiving identity and the quoted body | ✅ | ❌ | [bfg1981](https://github.com/bfg1981/thunderbird-cli) | [#1](https://github.com/odience-network/thunderbird-cli-enhanced/pull/1) |
+| Conversation history on reply/forward, `--no-history` | ✅ | ❌ | [inrainbws](https://github.com/inrainbws/thunderbird-cli) | [#3](https://github.com/odience-network/thunderbird-cli-enhanced/pull/3) |
+| Folder-info cache for `list`/`stats`, MCP concurrency tests, live smoke scripts | ✅ | ❌ | [le-dawg](https://github.com/le-dawg/thunderbird-cli) | [#8](https://github.com/odience-network/thunderbird-cli-enhanced/pull/8) |
+| One-command setup scripts (`setup.sh`, `setup.ps1`) | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) | [#9](https://github.com/odience-network/thunderbird-cli-enhanced/pull/9) |
+| Attachment extension inference, general-query and empty-query search, recipient parsing | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) | [#11](https://github.com/odience-network/thunderbird-cli-enhanced/pull/11) |
+| `--keep-unread` on `delete`/`archive` | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) | [#12](https://github.com/odience-network/thunderbird-cli-enhanced/pull/12) |
+| Bridge auto-start from CLI and MCP | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) | [#13](https://github.com/odience-network/thunderbird-cli-enhanced/pull/13) |
+| Server-side sort, filters and full-text query | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) | [#14](https://github.com/odience-network/thunderbird-cli-enhanced/pull/14) |
+| Edit existing drafts (`tb edit`, MCP `email_edit`) | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) | [#15](https://github.com/odience-network/thunderbird-cli-enhanced/pull/15) |
+| Extension icons and toolbar connection-status indicator | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) | [#16](https://github.com/odience-network/thunderbird-cli-enhanced/pull/16) |
+| `tb extension-reload` and the `/bridge/events` long-poll feed | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli) (`0b3a5d7`) | [#17](https://github.com/odience-network/thunderbird-cli-enhanced/pull/17) |
+| Opt-in v2 output: TTY tables, no envelope, short field presets (`--output-version 2`) | ✅ | ❌ | [KaiSingL](https://github.com/KaiSingL/thunderbird-cli), made opt-in | [#19](https://github.com/odience-network/thunderbird-cli-enhanced/pull/19) |
+| CI builds, lints, tests and Mozilla-signs the XPI | ✅ | ❌ | this fork | [#5](https://github.com/odience-network/thunderbird-cli-enhanced/pull/5), [#7](https://github.com/odience-network/thunderbird-cli-enhanced/pull/7) |
+| Bridge enforces `TB_AUTH_TOKEN` | ✅ | ✅ | [jctots](https://github.com/jctots/thunderbird-cli) | upstream [`a052c8d`](https://github.com/odience-network/thunderbird-cli-enhanced/commit/a052c8d) |
+| `--account` filtering for `recent`/`thread`, accountId inside pagination | ✅ | ✅ | [dboeckenhoff](https://github.com/dboeckenhoff/thunderbird-cli) (equivalent fix already upstream) | verified in [`54cd46d`](https://github.com/odience-network/thunderbird-cli-enhanced/commit/54cd46d) |
+
+<details>
+<summary>How one search travels through the system (#13, #14)</summary>
+
+<a href="docs/diagrams/search-sequence.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/search-sequence-dark.png">
+  <img src="docs/diagrams/search-sequence.png" alt="Sequence of one search: the client probes and auto-starts the bridge, the bridge forwards over WebSocket, the extension checks the access policy and runs one server-side messages.query, results return sorted and limited" width="900">
+</picture></a>
+
+</details>
+
+## Roadmap
+
+Planned, **not on `main`**:
+
+- Calendar, contacts write, notes and tasks, toward feature parity with [atbridge.ai](https://atbridge.ai).
+- Extension stability pass: audit against the known reconnect/backoff and lifecycle fixes, with regression tests.
+
+<a href="docs/diagrams/roadmap.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/roadmap-dark.png">
+  <img src="docs/diagrams/roadmap.png" alt="Roadmap lifecycle: upstream → fork merges → mail today → calendar and contacts write → notes and tasks → atbridge parity; an extension stability pass runs alongside" width="800">
+</picture></a>
+
+Details and status: [docs/PLAN.md](docs/PLAN.md).
 
 ## How this compares
 
 | Tool | Credentials | AI-agent ready | Compose / send | Multi-account | Runtime |
 |---|---|---|---|---|---|
-| **thunderbird-cli** | stay in Thunderbird | ✅ CLI + MCP, JSON out | ✅ draft / open / send | ✅ any Thunderbird account | Node.js |
+| **Thunderbird CLI Enhanced** | stay in Thunderbird | ✅ CLI + MCP, JSON out | ✅ draft / open / send / edit draft | ✅ any Thunderbird account | Node.js |
 | Raw IMAP libs (imapflow, imaplib) | you manage them | you wire it yourself | SMTP, separate | manual per account | varies |
 | [notmuch](https://notmuchmail.org) | via your MUA | CLI only, text output | ❌ reader only | via config | C |
 | [mu / mu4e](https://www.djcbsoftware.nl/code/mu/) | via your MUA | CLI only, sexp/text | ❌ reader only | via config | C |
@@ -160,20 +209,36 @@ The niche: **you already trust Thunderbird with your credentials and account sta
 | Doc | What's inside |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | Installation, background service, Docker, troubleshooting |
-| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 40 CLI commands |
+| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 41 CLI commands |
+| [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md) | The access policy: switches, defaults, how to change them |
+| [docs/diagrams/](docs/diagrams/) | Architecture, search sequence, access control, release and roadmap diagrams |
 | [docs/CLAUDE.md](docs/CLAUDE.md) | AI-agent-focused quick reference + security rules |
 | [skills/thunderbird-cli/SKILL.md](skills/thunderbird-cli/SKILL.md) | **Companion Claude Skill** — recipes, safety defaults, token patterns |
 | [mcp/README.md](mcp/README.md) | Claude Desktop integration guide |
 | [AGENTS.md](AGENTS.md) | Guide for AI agents editing this codebase |
 | [SPEC.md](SPEC.md) | Full technical specification |
+| [docs/PLAN.md](docs/PLAN.md) | Fork integration plan and roadmap status |
 | [SECURITY.md](SECURITY.md) | Threat model, prompt-injection defenses |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, code style, PR process |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, tests, diagram builds, PR process |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## Contributing
 
-Contributions welcome. Please open an issue first to discuss non-trivial changes. See [CONTRIBUTING.md](CONTRIBUTING.md) for local dev setup and the 80-test suite.
+Contributions welcome. Please open an issue first to discuss non-trivial changes. See [CONTRIBUTING.md](CONTRIBUTING.md) for local dev setup, the test suites and how to rebuild the diagrams.
+
+## Acknowledgements
+
+- **[Vitalii Ionov / vitalio-sh/thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli)** — the original project: extension, bridge, CLI, MCP server, companion skill and the upstream security hardening this fork builds on.
+- **[bfg1981](https://github.com/bfg1981/thunderbird-cli)** — reply identity and quoted-body preservation ([#1](https://github.com/odience-network/thunderbird-cli-enhanced/pull/1)).
+- **[reinhardullrich](https://github.com/reinhardullrich/thunderbird-cli)** — filter-before-limit pagination, the deletion gate and the access-control groundwork ([#2](https://github.com/odience-network/thunderbird-cli-enhanced/pull/2), [#4](https://github.com/odience-network/thunderbird-cli-enhanced/pull/4), [#6](https://github.com/odience-network/thunderbird-cli-enhanced/pull/6)).
+- **[inrainbws](https://github.com/inrainbws/thunderbird-cli)** — conversation history on reply/forward ([#3](https://github.com/odience-network/thunderbird-cli-enhanced/pull/3)).
+- **[le-dawg](https://github.com/le-dawg/thunderbird-cli)** — folder-info cache, MCP concurrency tests and live smoke scripts ([#8](https://github.com/odience-network/thunderbird-cli-enhanced/pull/8)).
+- **[KaiSingL](https://github.com/KaiSingL/thunderbird-cli)** — setup scripts, search and attachment fixes, `--keep-unread`, bridge auto-start, server-side search, draft editing, removal of the stale 2.0.0 XPI, extension icons and status indicator, `tb extension-reload` and the v2 output format ([#9](https://github.com/odience-network/thunderbird-cli-enhanced/pull/9)–[#17](https://github.com/odience-network/thunderbird-cli-enhanced/pull/17), [#19](https://github.com/odience-network/thunderbird-cli-enhanced/pull/19)).
+- **[jctots](https://github.com/jctots/thunderbird-cli)** — bridge `TB_AUTH_TOKEN` enforcement, merged upstream ([`a052c8d`](https://github.com/odience-network/thunderbird-cli-enhanced/commit/a052c8d)).
+- **[dboeckenhoff](https://github.com/dboeckenhoff/thunderbird-cli)** — multi-account `--account` filter fixes; an equivalent fix was already upstream ([`54cd46d`](https://github.com/odience-network/thunderbird-cli-enhanced/commit/54cd46d)).
+
+Diagrams are built with [archify](https://github.com/tt-a1i/archify).
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT — see [LICENSE](LICENSE). The original copyright notice (Vitalii Ionov) is retained; contributions from the forks above are used under the same license.

@@ -148,7 +148,9 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      icons, registered in manifest), `4af2811` (rename extension display name to
      "Thunderbird CLI Enhanced" — landed as a plain rename rather than `dd2ff7e`'s original
      "Thunderbird CLI Bridge", after a product-naming review), `a8d0001` (toolbar
-     connection-status dot). No `access-control.js` impact — UI/manifest only.
+     connection-status dot). No `access-control.js` impact — UI/manifest only. The unsigned build is now
+     `dist/thunderbird-cli-enhanced-<version>.xpi`; the signed 2.1.0 XPI in `dist/releases/`
+     predates the rename and still shows "Thunderbird AI Bridge".
    - **Shipped (ODIAA-2324)**: CLI output-format overhaul chain (`81396d6`, `c53c625`,
      `a7d35e2`, `451815f`, `25ebcce`, `e21e72c`, `749c79d`, `09adc41`) — hand-adapted as
      **`--output-version 2` / `TB_OUTPUT_VERSION=2`, opt-in**, not the hard default-flip
@@ -249,16 +251,26 @@ not a metered SaaS.
 
 ## 5. Roadmap phases
 
+<a href="diagrams/roadmap.html"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/roadmap-dark.png">
+  <img src="diagrams/roadmap.png" alt="Roadmap lifecycle: upstream → fork merges → mail today → calendar and contacts write → notes and tasks → atbridge parity; an extension stability pass runs alongside" width="800">
+</picture></a>
+
 1. **Fork integration** (child issues per fork, section 3) — bring `main` up to the best
-   known-good state across all forks.
+   known-good state across all forks. **Status:** shipped as PRs #1–#17 and #19 (the CLI
+   output-format overhaul, opt-in via `--output-version 2`). Still open: KaiSingL `4d0d0e9`
+   (README repositioning), left for separate triage.
 2. **Calendar, Contacts, Notes, Tasks** — extend `extension`, `bridge`, `cli`, and `mcp`
    surfaces to cover the atbridge.ai-equivalent feature list in section 4, reusing the
    existing mailbox architecture and access-policy model from the `reinhardullrich` fork.
+   **Status:** not started (ODIAA-2306); contacts are read-only today.
 3. **Extension stability pass** — audit `extension/` against the hardening commits already
    identified (reconnect/backoff, IPC queue, lifecycle fixes) and add regression coverage.
+   **Status:** in progress — folder-info cache and MCP concurrency tests shipped in #8.
 4. **Signed extension build pipeline** — GitHub Actions workflow (and a local pre-push
    equivalent) that builds, lints, tests, and produces a signed Thunderbird XPI, committed
-   to `dist/releases/` per the existing `.gitignore` carve-out.
+   to `dist/releases/` per the existing `.gitignore` carve-out. **Status:** shipped
+   (`sign-xpi.yml`, #5 and #7; ODIAA-2308).
 
 ## 6. Open questions for the CEO / board
 
@@ -273,3 +285,4 @@ not a metered SaaS.
   integration.
 - Signing credentials for the Thunderbird extension (AMO/private signing key) — where are
   these stored/injected? Needed before the signed-build workflow can run in CI.
+  **Resolved (#5):** repository secrets `MOZILLA_HUB_JWT_ISSUER` / `MOZILLA_HUB_JWT_SECRET`.

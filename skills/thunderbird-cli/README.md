@@ -2,7 +2,7 @@
 
 > **Skill file:** [`SKILL.md`](./SKILL.md)
 >
-> This is a [Claude Skill](https://agentskills.io) that teaches Claude how to drive the [thunderbird-cli-mcp](https://www.npmjs.com/package/thunderbird-cli-mcp) server effectively — handling token-efficient field selection, draft-by-default safety, trust metadata, and common email workflows across all the user's Thunderbird accounts.
+> This is a [Claude Skill](https://agentskills.io) that teaches Claude how to drive the [`tb-mcp`](../../mcp/) server effectively — handling token-efficient field selection, draft-by-default safety, trust metadata, and common email workflows across all the user's Thunderbird accounts.
 
 Use it alongside the MCP server: the MCP gives Claude the capability (12 email tools), this skill gives Claude the recipes for using them well.
 
@@ -14,8 +14,8 @@ Use it alongside the MCP server: the MCP gives Claude the capability (12 email t
 
 1. Download this folder:
    ```
-   gh repo clone vitalio-sh/thunderbird-cli
-   cd thunderbird-cli/skills
+   gh repo clone odience-network/thunderbird-cli-enhanced
+   cd thunderbird-cli-enhanced/skills
    zip -r thunderbird-cli.zip thunderbird-cli
    ```
 2. Claude.ai → **Settings → Capabilities → Skills → Upload skill**
@@ -44,21 +44,20 @@ Skills are supported on the API via the Code Execution Tool beta. See Anthropic'
 The skill itself is just instructions — it needs the MCP server to do anything. Before enabling, set up the full stack:
 
 1. **Install Thunderbird 128+** with your email accounts configured (normal Thunderbird install).
-2. **Install the signed WebExtension** from [Releases](https://github.com/vitalio-sh/thunderbird-cli/releases/latest) → *Install Add-on From File…* in Thunderbird.
-3. **Start the bridge daemon:** `npm install -g thunderbird-cli-bridge && tb-bridge`
+2. **Install the signed WebExtension** from [`dist/releases/`](https://github.com/odience-network/thunderbird-cli-enhanced/tree/main/dist/releases) → *Install Add-on From File…* in Thunderbird.
+3. **Install the CLI, bridge and MCP server** from a clone with `./setup.sh` (or `.\setup.ps1`), linking `tb-bridge` and `tb-mcp` when asked. The bridge auto-starts on first use.
 4. **Configure the MCP server** in `claude_desktop_config.json` (or equivalent):
    ```json
    {
      "mcpServers": {
        "thunderbird": {
-         "command": "npx",
-         "args": ["-y", "thunderbird-cli-mcp"]
+         "command": "tb-mcp"
        }
      }
    }
    ```
 
-Full setup: <https://github.com/vitalio-sh/thunderbird-cli/blob/main/docs/SETUP.md>
+Full setup: <https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/SETUP.md>
 
 ---
 
@@ -67,7 +66,7 @@ Full setup: <https://github.com/vitalio-sh/thunderbird-cli/blob/main/docs/SETUP.
 - Token-efficient field selection (`fields=["id","author","subject","date"]` cuts a search response by ~15×)
 - Draft-by-default safety on `email_compose` / `email_reply` / `email_forward`
 - Explicit `confirm: true` gate for permanent delete, folder delete, and bulk delete
-- Trust metadata interpretation (junk score, SPF/DKIM, contact status)
+- Trust signals (junk flag, `Authentication-Results` in raw headers, contacts lookup)
 - Prompt-injection defense — treating message bodies as untrusted input
 - Recipes for the seven most common email workflows (stats, search, read, reply, compose, attachment download, bulk archive)
 - Troubleshooting common errors: `BRIDGE_UNREACHABLE`, `EXTENSION_DISCONNECTED`, `TIMEOUT`, `NOT_FOUND`
@@ -89,4 +88,4 @@ The YAML `description` teaches Claude to auto-load the skill on queries like:
 
 ## License
 
-MIT — see the [root LICENSE](https://github.com/vitalio-sh/thunderbird-cli/blob/main/LICENSE).
+MIT — see the [root LICENSE](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/LICENSE).

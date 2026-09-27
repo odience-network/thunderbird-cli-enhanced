@@ -65,7 +65,7 @@ jobs:
 
             ### Install the Thunderbird extension
 
-            Download the attached **`thunderbird_ai_bridge-*-tb.xpi`** (signed by Mozilla via addons.thunderbird.net; the extension has its own version number) and install via:
+            Download the attached **`*-tb.xpi`** (signed by Mozilla via addons.thunderbird.net; the extension has its own version number) and install via:
             1. Thunderbird → **Add-ons and Themes**
             2. ⚙ gear icon → **Install Add-on From File…**
             3. Select the downloaded `.xpi`
@@ -73,16 +73,16 @@ jobs:
             ### Install the CLI and MCP server
 
             ```bash
-            git clone https://github.com/vitalio-sh/thunderbird-cli
-            cd thunderbird-cli
+            git clone https://github.com/odience-network/thunderbird-cli-enhanced
+            cd thunderbird-cli-enhanced
             npm install
             ```
 
-            See [docs/SETUP.md](https://github.com/vitalio-sh/thunderbird-cli/blob/v${{ steps.version.outputs.version }}/docs/SETUP.md) for the full setup guide.
+            See [docs/SETUP.md](https://github.com/odience-network/thunderbird-cli-enhanced/blob/v${{ steps.version.outputs.version }}/docs/SETUP.md) for the full setup guide.
 
             ### Changelog
 
-            See [CHANGELOG.md](https://github.com/vitalio-sh/thunderbird-cli/blob/v${{ steps.version.outputs.version }}/CHANGELOG.md) for details.
+            See [CHANGELOG.md](https://github.com/odience-network/thunderbird-cli-enhanced/blob/v${{ steps.version.outputs.version }}/CHANGELOG.md) for details.
           files: |
             ${{ steps.xpi.outputs.signed }}
             ${{ steps.xpi.outputs.unsigned }}

@@ -2,10 +2,10 @@
 
 > Stateless HTTP↔WebSocket bridge daemon between thunderbird-cli (or any HTTP client) and the Thunderbird WebExtension.
 
-[![tests](https://github.com/vitalio-sh/thunderbird-cli/actions/workflows/test.yml/badge.svg)](https://github.com/vitalio-sh/thunderbird-cli/actions/workflows/test.yml)
+[![tests](https://github.com/odience-network/thunderbird-cli-enhanced/actions/workflows/test.yml/badge.svg)](https://github.com/odience-network/thunderbird-cli-enhanced/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Part of the [thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli) project.
+Part of the [Thunderbird CLI Enhanced](https://github.com/odience-network/thunderbird-cli-enhanced) project.
 
 ## What it does
 
@@ -23,9 +23,15 @@ HTTP client (CLI / MCP / curl) ──HTTP→ tb-bridge ──WS→ Thunderbird E
 
 ## Install
 
+From a clone of this repository (the published npm package comes from upstream and lags this fork):
+
 ```bash
-npm install -g thunderbird-cli-bridge
+git clone https://github.com/odience-network/thunderbird-cli-enhanced
+cd thunderbird-cli-enhanced
+./setup.sh       # or .\setup.ps1 on Windows
 ```
+
+Say yes when it offers to link `tb-bridge`. You rarely need to start it by hand: `tb` and `tb-mcp` auto-start `bridge/bridge.js` when it isn't reachable.
 
 ## Run
 
@@ -120,16 +126,16 @@ curl http://127.0.0.1:7700/bridge/status
 
 ### Everything else
 
-All other paths get forwarded to the Thunderbird extension via WebSocket and the response is returned as JSON. See [SPEC.md](https://github.com/vitalio-sh/thunderbird-cli/blob/main/SPEC.md) for the full route list (44 routes).
+All other paths get forwarded to the Thunderbird extension via WebSocket and the response is returned as JSON. See [SPEC.md](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/SPEC.md) for the full route list.
 
 ## Prerequisites
 
 The bridge alone does nothing useful — you need:
 
-1. **Mozilla Thunderbird 128+** with the [thunderbird-cli-enhanced extension](https://github.com/vitalio-sh/thunderbird-cli/releases) installed
-2. **Optional:** [`thunderbird-cli`](https://www.npmjs.com/package/thunderbird-cli) or [`thunderbird-cli-mcp`](https://www.npmjs.com/package/thunderbird-cli-mcp) as the HTTP client
+1. **Mozilla Thunderbird 128+** with the signed extension from [`dist/releases/`](https://github.com/odience-network/thunderbird-cli-enhanced/tree/main/dist/releases) installed
+2. **Optional:** the `tb` CLI (`cli/`) or the `tb-mcp` server (`mcp/`) as the HTTP client
 
-See the [main repo setup guide](https://github.com/vitalio-sh/thunderbird-cli/blob/main/docs/SETUP.md).
+See the [main repo setup guide](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/SETUP.md).
 
 ## License
 
