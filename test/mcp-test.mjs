@@ -520,6 +520,25 @@ console.log("\n\x1b[1mError handling\x1b[0m");
 const unknownTool = await client.callTool("nonexistent_tool", {});
 test("unknown tool returns error", unknownTool, (r) => r.error?.includes("Unknown tool"));
 
+console.log("\n\x1b[1mConcurrency\x1b[0m");
+const concurrencyEnv = {
+  TB_BRIDGE_HOST: "127.0.0.1",
+  TB_BRIDGE_PORT: String(PORT),
+};
+const clientA = new McpClient(MCP_SERVER, concurrencyEnv);
+const clientB = new McpClient(MCP_SERVER, concurrencyEnv);
+await clientA.initialize();
+await clientB.initialize();
+const toolsA = await clientA.listTools();
+const toolsB = await clientB.listTools();
+test(
+  "concurrent MCP server instances initialize and list tools",
+  { toolsACount: toolsA.length, toolsBCount: toolsB.length },
+  (r) => r.toolsACount === 12 && r.toolsBCount === 12
+);
+clientA.close();
+clientB.close();
+
 // Summary
 console.log(`\n\x1b[1m${"─".repeat(40)}\x1b[0m`);
 console.log(
