@@ -41,15 +41,14 @@ The package page on npmjs shows a **Provenance** badge linking back to the workf
 
 ## npm authentication (one-time setup, org owner)
 
-Preferred: **trusted publishing (OIDC)**, so no npm token is stored anywhere.
+Publishing uses **trusted publishing (OIDC)**: npm trusts the `npm-publish` job directly, so no npm token is stored anywhere. Set up since 1.2.1; 1.2.0 was the only release published with a token.
 
-1. On npmjs, open the package settings for `@odience-network/thunderbird-cli-enhanced` → **Trusted publishing** → GitHub Actions, with organization `odience-network`, repository `thunderbird-cli-enhanced`, workflow `release.yml` and environment `npm`.
-   The package has to exist before you can open its settings, so the very first publish uses the token fallback below; switch to trusted publishing right after.
+1. On npmjs, open the package settings for `@odience-network/thunderbird-cli-enhanced` → **Trusted publishing** → GitHub Actions, with organization `odience-network`, repository `thunderbird-cli-enhanced`, workflow `release.yml` and environment `npm`. All four must match, or the publish fails with a 404/403.
 2. In GitHub → Settings → Environments, create `npm`. Add required reviewers if a human should approve each publish.
 
-Fallback: an npm **granular access token** with publish rights on the `@odience-network` scope, stored as the GitHub Actions secret `NPM_TOKEN` (in the `npm` environment). The workflow passes it as `NODE_AUTH_TOKEN`; npm never prints it. Delete the secret once trusted publishing works.
+The job needs `id-token: write` and npm >= 11.5.1 (the workflow upgrades npm). It sets no `NODE_AUTH_TOKEN`; the publish log shows the provenance statement being signed and published to the transparency log.
 
-Never commit a token, put one in `.npmrc` in the repo, or echo it in a workflow step.
+Never create an npm token for CI, commit one, put one in an `.npmrc` in the repo, or echo one in a workflow step. If trusted publishing ever has to be bypassed, use a short-lived granular token from a local shell, not a repository secret.
 
 ## Rollback
 

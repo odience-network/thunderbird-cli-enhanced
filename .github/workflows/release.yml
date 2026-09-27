@@ -98,8 +98,7 @@ jobs:
             ${{ steps.xpi.outputs.unsigned }}
 
   # Publishes @odience-network/thunderbird-cli-enhanced to npmjs, only after the
-  # tests above passed. Auth is npm trusted publishing (OIDC, no stored token);
-  # the NPM_TOKEN secret is only a fallback until trusted publishing is set up.
+  # tests above passed. Auth is npm trusted publishing (OIDC, no stored token).
   # The `npm` environment can require a reviewer before this job runs.
   # Rollback: docs/RELEASING.md.
   npm-publish:
@@ -124,8 +123,6 @@ jobs:
         run: npm install -g npm@11
 
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           NAME=$(node -p "require('./package.json').name")
           VERSION=$(node -p "require('./package.json').version")
