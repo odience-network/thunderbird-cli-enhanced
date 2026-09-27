@@ -76,7 +76,7 @@ Manifest format: `manifest_version: 2` (MV2). MV3 migration planned for future.
 
 ## Output Format
 
-All commands output JSON to stdout. Errors output JSON to stderr with exit code 1.
+By default, all commands output JSON to stdout. Errors output JSON to stderr with exit code 1.
 
 ```json
 // Success
@@ -85,6 +85,21 @@ All commands output JSON to stdout. Errors output JSON to stderr with exit code 
 // Error
 { "ok": false, "error": "Message not found", "code": "NOT_FOUND" }
 ```
+
+### Default output (v2) — opt-in
+
+`--output-version 2` (or `TB_OUTPUT_VERSION=2`) opts into a leaner default
+shape, off by default so it can't silently break existing consumers of the
+envelope above:
+
+- Smart format: table on a TTY, compact (single-line) JSON when piped — `--format` still overrides explicitly
+- No `{ok, data}` envelope on success by default — `--envelope` restores it (errors always keep the envelope)
+- Nulls and empty arrays stripped by default — `--verbose` restores them
+- `search`/`list`/`recent` default to a short field set (`id,author,subject,date,read,flagged,tags`) — `--fields full` restores all fields, `--fields <csv>` still takes a custom list
+- Dates render in local time by default — `--utc` restores UTC
+- `--pretty` restores 2-space JSON indentation
+- Table format uses an adaptive-width Unicode renderer (bold headers, colored booleans, summary lines) instead of `console.table`
+- `--compact` is a no-op under v2 (its v1 behavior — strip nulls — is the v2 default)
 
 ### Token Optimization: Detail Levels
 

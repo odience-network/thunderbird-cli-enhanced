@@ -151,11 +151,17 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      sanity check before merge, since `main`'s manifest/dist artifacts still say "AI Bridge"),
      `a8d0001` (toolbar connection-status dot; its manifest diff depends on `3e7c145`'s icon
      paths already existing). No `access-control.js` impact — UI/manifest only.
-   - **Not yet landed**: CLI output-format overhaul chain (`81396d6`, `c53c625`, `a7d35e2`,
-     `4d0d0e9`, `451815f`, `25ebcce`, `e21e72c`, `749c79d`, `09adc41`) — nine tightly sequential
-     commits rewriting the table renderer and date formatting (`451815f` is marked `!` /
-     breaking). Bundle as one PR in commit order; flag for a CLI-UX read given the breaking
-     output-format change before merge.
+   - **Shipped (ODIAA-2324)**: CLI output-format overhaul chain (`81396d6`, `c53c625`,
+     `a7d35e2`, `451815f`, `25ebcce`, `e21e72c`, `749c79d`, `09adc41`) — hand-adapted as
+     **`--output-version 2` / `TB_OUTPUT_VERSION=2`, opt-in**, not the hard default-flip
+     `451815f` originally shipped as (it's marked `!` / breaking in the fork). CLI-UX
+     decision on ODIAA-2324: ship opt-in first, shape accepted as reviewed. Today's
+     `{ok,data}` envelope stays the default so `docs/CLAUDE.md`/`AGENTS.md`'s documented
+     contract — and every script/agent parsing it — is unaffected unless they opt in.
+     Excluded `4d0d0e9` (README AI-agent-first → CLI-first repositioning) — a product-
+     positioning rewrite unrelated to the output-format mechanism, not evaluated by the
+     CLI-UX decision; left for separate triage if wanted. `docs/CLAUDE.md`'s "Default
+     output (v2)" forward-reference (excluded when landing PR #14) is now filled in.
    - **Shipped (PR #13)**: bridge auto-start resilience (`b5ff6eb`, `69ecf68`, `622fd68`,
      `4994fc0`) — CLI/MCP now spawn `bridge.js` detached on first use if unreachable.
      `b5ff6eb`'s own diff predated ODIAA-2311's security hardening of `bridge.js`; hand-rewrote

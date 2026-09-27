@@ -91,6 +91,21 @@ tb search "invoice" --fields id,subject,date    # only these fields
 tb stats --compact                               # strip nulls
 ```
 
+### Default output (v2) — opt-in
+
+A leaner output shape is available behind `--output-version 2` (or `TB_OUTPUT_VERSION=2`):
+table format on a TTY / compact JSON when piped, no `{ok, data}` envelope by
+default, nulls and empty arrays stripped, short field presets for
+`search`/`list`/`recent` (`id,author,subject,date,read,flagged,tags`), and
+local-time dates. It's off by default so existing scripts/agents parsing
+today's `{ok, data}` shape aren't broken by a silent format change — opt in
+explicitly if you want it:
+```bash
+tb search "invoice" --output-version 2          # table on TTY, compact JSON piped
+TB_OUTPUT_VERSION=2 tb list <folderId>          # same, via env var
+tb search "invoice" --output-version 2 --envelope --pretty --verbose --fields full --utc  # v1-equivalent shape, under v2
+```
+
 ## Key Notes
 
 - **Thunderbird must be running** with the extension loaded and bridge daemon active

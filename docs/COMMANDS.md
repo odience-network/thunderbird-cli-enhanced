@@ -7,10 +7,15 @@ All 40 commands in the `tb` CLI. For the quick tour, see the [main README](../RE
 ```bash
 tb [command] [options]
   -f, --format <type>      # json (default) | compact | table
-  --fields <csv>           # comma-separated fields to include
-  --compact                # strip null values
+  --fields <csv>           # comma-separated fields to include (or short|full preset, --output-version 2)
+  --compact                # strip null values (default behavior, no-op under --output-version 2)
   --max-body <chars>       # truncate message bodies
   --timeout <ms>           # request timeout (default: 30000)
+  --output-version <n>     # 1 (default) | 2 (opt-in leaner output — see "Output Format" below)
+  --verbose                # (--output-version 2 only) include nulls/empty arrays
+  --envelope               # (--output-version 2 only) wrap output in {ok, data}
+  --pretty                 # (--output-version 2 only) pretty-print JSON
+  --utc                    # (--output-version 2 only) UTC dates instead of local time
 ```
 
 ## Connection & Status
@@ -244,7 +249,7 @@ tb bulk fetch <folderId> [-l <n>]                                 # force IMAP d
 
 ## Output Format
 
-All commands output JSON wrapped in a standard envelope:
+By default, all commands output JSON wrapped in a standard envelope:
 
 ```json
 // Success
@@ -253,6 +258,17 @@ All commands output JSON wrapped in a standard envelope:
 // Error
 { "ok": false, "error": "Message not found", "code": "NOT_FOUND" }
 ```
+
+### Default output (v2) — opt-in
+
+`--output-version 2` (or `TB_OUTPUT_VERSION=2`) switches to a leaner, more
+human-readable shape: table format on a TTY, compact JSON when piped, no
+envelope by default (`--envelope` restores it), nulls/empty arrays stripped
+(`--verbose` restores them), short field presets on `search`/`list`/`recent`
+(`--fields full` restores all fields), and local-time dates (`--utc` restores
+UTC). It's opt-in — the v1 envelope above stays the default so existing
+scripts/agents aren't broken by a silent shape change. See `CLAUDE.md` for
+examples.
 
 ### Token Optimization
 

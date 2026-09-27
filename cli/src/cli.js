@@ -61,18 +61,68 @@ program
   .name("tb")
   .description("AI-agent email management via Thunderbird")
   .version(version)
-  .option("-f, --format <type>", "output format: json, compact, table", "json")
-  .option("--fields <csv>", "comma-separated fields to include in output")
-  .option("--compact", "strip null values and minimize output")
+  .option("-f, --format <type>", "output format: json, compact, table (default: json; with --output-version 2, table when TTY / json when piped)")
+  .option("--fields <preset>", "comma-separated fields, or (with --output-version 2) 'short'/'full' preset")
+  .option("--compact", "strip null values and minimize output (default behavior, no-op, under --output-version 2)")
   .option("--max-body <chars>", "truncate message bodies to N characters")
-  .option("--timeout <ms>", "request timeout in milliseconds", "30000");
+  .option("--timeout <ms>", "request timeout in milliseconds", "30000")
+  .option("--output-version <n>", "output format version: 1 (default, {ok,data} envelope) or 2 (opt-in — see docs/CLAUDE.md). Also settable via TB_OUTPUT_VERSION env var.")
+  .option("--verbose", "(--output-version 2 only) include null values and empty arrays in output")
+  .option("--envelope", "(--output-version 2 only) wrap output in {ok, data} envelope")
+  .option("--pretty", "(--output-version 2 only) pretty-print JSON output with indentation")
+  .option("--utc", "(--output-version 2 only) display dates in UTC instead of local time");
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
-function getOutputOpts(globalOpts) {
+// Fields presets, only resolved when --output-version 2 is active.
+const FIELD_PRESETS = {
+  short: ["id", "author", "subject", "date", "read", "flagged", "tags"],
+  full: null, // null means all fields
+};
+
+// Output format v2 ("Default output (v2)" in docs/CLAUDE.md) is opt-in only —
+// via --output-version 2 or TB_OUTPUT_VERSION=2 — per CLI-UX decision on
+// ODIAA-2324: the fork's original chain hard-flipped the default, which would
+// break every script/agent parsing today's {ok,data} envelope.
+function resolveOutputVersion(globalOpts) {
+  return globalOpts.outputVersion || process.env.TB_OUTPUT_VERSION || "1";
+}
+
+function isV2(globalOpts) {
+  return resolveOutputVersion(globalOpts) === "2";
+}
+
+function getFormat(globalOpts) {
+  if (globalOpts.format) return globalOpts.format;
+  if (isV2(globalOpts)) return process.stdout.isTTY ? "table" : "json";
+  return "json";
+}
+
+function getOutputOpts(globalOpts, defaultFieldsPreset) {
   const opts = {};
-  if (globalOpts.fields) opts.fields = globalOpts.fields.split(",").map(s => s.trim());
-  if (globalOpts.compact) opts.compact = true;
+  const v2 = isV2(globalOpts);
+  opts.outputVersion = v2 ? 2 : 1;
+
+  if (globalOpts.fields) {
+    const f = globalOpts.fields.trim();
+    if (v2 && f in FIELD_PRESETS) {
+      opts.fields = FIELD_PRESETS[f];
+    } else {
+      opts.fields = f.split(",").map(s => s.trim());
+    }
+  } else if (v2 && defaultFieldsPreset) {
+    opts.fields = FIELD_PRESETS[defaultFieldsPreset];
+  }
+
+  if (v2) {
+    if (globalOpts.verbose) opts.verbose = true;
+    if (globalOpts.envelope) opts.envelope = true;
+    if (globalOpts.pretty) opts.pretty = true;
+    if (globalOpts.utc) opts.utc = true;
+  } else if (globalOpts.compact) {
+    opts.compact = true;
+  }
+
   if (globalOpts.maxBody) opts.maxBody = parseInt(globalOpts.maxBody);
   return opts;
 }
@@ -86,7 +136,8 @@ function run(fn) {
     try {
       await fn(...args);
     } catch (err) {
-      outputError(err, program.opts().format);
+      const g = program.opts();
+      outputError(err, getFormat(g), { outputVersion: isV2(g) ? 2 : 1 });
     }
   };
 }
@@ -103,7 +154,7 @@ program
   .action(run(async () => {
     const g = program.opts();
     const data = await api("GET", "/health", null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Access Policy ──────────────────────────────────────────────────────
@@ -114,7 +165,7 @@ program
   .action(run(async () => {
     const g = program.opts();
     const data = await api("GET", "/access", null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Bridge Status ────────────────────────────────────────────────────
@@ -125,7 +176,7 @@ program
   .action(run(async () => {
     const g = program.opts();
     const data = await api("GET", "/bridge/status", null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Accounts ─────────────────────────────────────────────────────────
@@ -136,7 +187,7 @@ program
   .action(run(async () => {
     const g = program.opts();
     const data = await api("GET", "/accounts", null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 program
@@ -145,7 +196,7 @@ program
   .action(run(async (accountId) => {
     const g = program.opts();
     const data = await api("GET", `/accounts/${accountId}`, null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Identities ───────────────────────────────────────────────────────
@@ -156,7 +207,7 @@ program
   .action(run(async () => {
     const g = program.opts();
     const data = await api("GET", "/identities", null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Folders ──────────────────────────────────────────────────────────
@@ -167,7 +218,7 @@ program
   .option("--all", "list folders across all accounts")
   .action(run(async (accountId, opts) => {
     const g = program.opts();
-    const fmt = g.format;
+    const fmt = getFormat(g);
     const outOpts = getOutputOpts(g);
     const timeout = getTimeout(g);
 
@@ -181,7 +232,7 @@ program
       output(allFolders, fmt, outOpts);
     } else {
       if (!accountId) {
-        outputError({ message: "Provide accountId or use --all", code: "INVALID_ARGS" }, fmt);
+        outputError({ message: "Provide accountId or use --all", code: "INVALID_ARGS" }, fmt, outOpts);
         return;
       }
       const data = await api("GET", `/accounts/${accountId}/folders`, null, timeout);
@@ -197,7 +248,7 @@ program
   .action(run(async (folderId) => {
     const g = program.opts();
     const data = await api("POST", "/folders/info", { folderId }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Folder Create ────────────────────────────────────────────────────
@@ -208,7 +259,7 @@ program
   .action(run(async (parentFolderId, name) => {
     const g = program.opts();
     const data = await api("POST", "/folders/create", { parentFolderId, name }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Folder Rename ────────────────────────────────────────────────────
@@ -219,7 +270,7 @@ program
   .action(run(async (folderId, newName) => {
     const g = program.opts();
     const data = await api("POST", "/folders/rename", { folderId, newName }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Folder Delete ────────────────────────────────────────────────────
@@ -230,9 +281,9 @@ program
   .option("--confirm", "required to confirm deletion")
   .action(run(async (folderId, opts) => {
     const g = program.opts();
-    const fmt = g.format;
+    const fmt = getFormat(g);
     if (!opts.confirm) {
-      outputError({ message: "Use --confirm to delete", code: "INVALID_ARGS" }, fmt);
+      outputError({ message: "Use --confirm to delete", code: "INVALID_ARGS" }, fmt, { outputVersion: isV2(g) ? 2 : 1 });
       return;
     }
     const data = await api("POST", "/folders/delete", { folderId }, getTimeout(g));
@@ -254,10 +305,10 @@ program
       if (accountId) body.accountId = accountId;
       if (opts.folders) body.folders = true;
       const data = await api("POST", "/stats", body, timeout);
-      output(data, g.format, getOutputOpts(g));
+      output(data, getFormat(g), getOutputOpts(g));
     } else {
       const data = await api("GET", "/stats", null, timeout);
-      output(data, g.format, getOutputOpts(g));
+      output(data, getFormat(g), getOutputOpts(g));
     }
   }));
 
@@ -303,7 +354,7 @@ program
     if (opts.includeJunk) body.includeJunk = true;
 
     const data = await api("POST", "/messages/search", body, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g, "short"));
   }));
 
 // ─── List Messages ────────────────────────────────────────────────────
@@ -330,7 +381,7 @@ program
     if (opts.sortOrder) body.sortOrder = opts.sortOrder;
 
     const data = await api("POST", "/messages/list", body, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g, "short"));
   }));
 
 // ─── Read Message ─────────────────────────────────────────────────────
@@ -350,22 +401,22 @@ program
 
     if (opts.raw) {
       const data = await api("GET", `/messages/${messageId}/raw`, null, timeout);
-      output(data, g.format, outOpts);
+      output(data, getFormat(g), outOpts);
     } else if (opts.headers) {
       const data = await api("GET", `/messages/${messageId}/headers`, null, timeout);
-      output(data, g.format, outOpts);
+      output(data, getFormat(g), outOpts);
     } else if (opts.full) {
       const data = await api("GET", `/messages/${messageId}/full`, null, timeout);
-      output(data, g.format, outOpts);
+      output(data, getFormat(g), outOpts);
     } else if (opts.checkDownload) {
       const data = await api("GET", `/messages/${messageId}/check-download`, null, timeout);
-      output(data, g.format, outOpts);
+      output(data, getFormat(g), outOpts);
     } else if (opts.bodyOnly) {
       const data = await api("GET", `/messages/${messageId}`, null, timeout);
-      output(data.parts?.text || data.body || "", g.format, { ...outOpts, raw: true });
+      output(data.parts?.text || data.body || "", getFormat(g), { ...outOpts, raw: true });
     } else {
       const data = await api("GET", `/messages/${messageId}`, null, timeout);
-      output(data, g.format, outOpts);
+      output(data, getFormat(g), outOpts);
     }
   }));
 
@@ -378,7 +429,7 @@ program
     const g = program.opts();
     const ids = parseIds(messageIds);
     const data = await api("POST", "/messages/read-batch", { messageIds: ids }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Thread ───────────────────────────────────────────────────────────
@@ -390,7 +441,7 @@ program
   .action(run(async (messageId) => {
     const g = program.opts();
     const data = await api("GET", `/messages/${messageId}/thread`, null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Recent ───────────────────────────────────────────────────────────
@@ -412,7 +463,7 @@ program
     if (opts.account) body.accountId = opts.account;
 
     const data = await api("POST", "/recent", body, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g, "short"));
   }));
 
 // ─── Move ─────────────────────────────────────────────────────────────
@@ -427,7 +478,7 @@ program
       messageIds: ids,
       destinationFolderId: folderId,
     }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Copy ─────────────────────────────────────────────────────────────
@@ -442,7 +493,7 @@ program
       messageIds: ids,
       destinationFolderId: folderId,
     }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Delete ───────────────────────────────────────────────────────────
@@ -455,9 +506,9 @@ program
   .option("--keep-unread", "do not mark read before trashing")
   .action(run(async (messageIds, opts) => {
     const g = program.opts();
-    const fmt = g.format;
+    const fmt = getFormat(g);
     if (opts.permanent && !opts.confirm) {
-      outputError({ message: "Use --confirm for permanent delete", code: "INVALID_ARGS" }, fmt);
+      outputError({ message: "Use --confirm for permanent delete", code: "INVALID_ARGS" }, fmt, { outputVersion: isV2(g) ? 2 : 1 });
       return;
     }
     const ids = parseIds(messageIds);
@@ -482,7 +533,7 @@ program
       messageIds: ids,
       keepUnread: opts.keepUnread || false,
     }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Mark ─────────────────────────────────────────────────────────────
@@ -511,14 +562,14 @@ program
 
     if (ids.length === 1) {
       const data = await api("POST", "/messages/update", { messageId: ids[0], ...flags }, timeout);
-      output(data, g.format, getOutputOpts(g));
+      output(data, getFormat(g), getOutputOpts(g));
     } else {
       const results = [];
       for (const id of ids) {
         const data = await api("POST", "/messages/update", { messageId: id, ...flags }, timeout);
         results.push(data);
       }
-      output(results, g.format, getOutputOpts(g));
+      output(results, getFormat(g), getOutputOpts(g));
     }
   }));
 
@@ -530,7 +581,7 @@ program
   .action(run(async () => {
     const g = program.opts();
     const data = await api("GET", "/tags", null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Tag ──────────────────────────────────────────────────────────────
@@ -554,7 +605,7 @@ program
       messageId: parseInt(messageId),
       tags,
     }, timeout);
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Tag Create ───────────────────────────────────────────────────────
@@ -565,7 +616,7 @@ program
   .action(run(async (key, label, color) => {
     const g = program.opts();
     const data = await api("POST", "/tags/create", { key, tag: label, color }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Compose ──────────────────────────────────────────────────────────
@@ -616,7 +667,7 @@ program
     }
 
     const data = await api("POST", "/compose", payload, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Reply ────────────────────────────────────────────────────────────
@@ -658,7 +709,7 @@ program
     }
 
     const data = await api("POST", "/reply", payload, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Forward ──────────────────────────────────────────────────────────
@@ -690,7 +741,7 @@ program
     }
 
     const data = await api("POST", "/forward", payload, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Edit draft ───────────────────────────────────────────────────────
@@ -729,7 +780,7 @@ program
       outputError({
         message: "Provide at least one field to change (--to, --subject, --body, …), or use --open",
         code: "INVALID_ARGS",
-      }, fmt);
+      }, fmt, { outputVersion: isV2(g) ? 2 : 1 });
       return;
     }
 
@@ -765,7 +816,7 @@ program
   .action(run(async (messageId) => {
     const g = program.opts();
     const data = await api("GET", `/messages/${messageId}/attachments`, null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Attachment Download ──────────────────────────────────────────────
@@ -797,10 +848,10 @@ program
         writeFileSync(filePath, Buffer.from(data.data, "base64"));
         results.push({ partName: att.partName, name: fileName, path: filePath });
       }
-      output(results, g.format, getOutputOpts(g));
+      output(results, getFormat(g), getOutputOpts(g));
     } else {
       if (!partName) {
-        outputError({ message: "Provide partName or use --all", code: "INVALID_ARGS" }, g.format);
+        outputError({ message: "Provide partName or use --all", code: "INVALID_ARGS" }, getFormat(g), { outputVersion: isV2(g) ? 2 : 1 });
         return;
       }
       const data = await api("POST", `/messages/${messageId}/attachment`, { partName }, timeout);
@@ -810,9 +861,9 @@ program
           outPath += mimeToExt(data.contentType);
         }
         writeFileSync(outPath, Buffer.from(data.data, "base64"));
-        output({ saved: outPath, size: data.size }, g.format, getOutputOpts(g));
+        output({ saved: outPath, size: data.size }, getFormat(g), getOutputOpts(g));
       } else {
-        output(data, g.format, getOutputOpts(g));
+        output(data, getFormat(g), getOutputOpts(g));
       }
     }
   }));
@@ -834,7 +885,7 @@ program
       if (opts.limit) body.limit = parseInt(opts.limit);
     }
     const data = await api("POST", "/messages/fetch", body, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Download Status ──────────────────────────────────────────────────
@@ -845,7 +896,7 @@ program
   .action(run(async (messageId) => {
     const g = program.opts();
     const data = await api("GET", `/messages/${messageId}/download-status`, null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Contacts ─────────────────────────────────────────────────────────
@@ -862,10 +913,10 @@ program
       if (opts.book) body.book = opts.book;
       if (opts.limit) body.limit = parseInt(opts.limit);
       const data = await api("POST", "/contacts/search", body, getTimeout(g));
-      output(data, g.format, getOutputOpts(g));
+      output(data, getFormat(g), getOutputOpts(g));
     } else {
       const data = await api("GET", "/contacts", null, getTimeout(g));
-      output(data, g.format, getOutputOpts(g));
+      output(data, getFormat(g), getOutputOpts(g));
     }
   }));
 
@@ -882,7 +933,7 @@ program
     if (opts.book) body.book = opts.book;
     if (opts.limit) body.limit = parseInt(opts.limit);
     const data = await api("POST", "/contacts/search", body, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Contact ──────────────────────────────────────────────────────────
@@ -893,7 +944,7 @@ program
   .action(run(async (contactId) => {
     const g = program.opts();
     const data = await api("GET", `/contacts/${contactId}`, null, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Sync ─────────────────────────────────────────────────────────────
@@ -911,7 +962,7 @@ program
       body.folderId = folderId;
     }
     const data = await api("POST", "/sync", body, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Sync Status ──────────────────────────────────────────────────────
@@ -922,7 +973,7 @@ program
   .action(run(async (folderId) => {
     const g = program.opts();
     const data = await api("POST", "/sync/status", { folderId }, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Extension Reload ─────────────────────────────────────────────────
@@ -933,7 +984,7 @@ program
   .option("--no-wait", "reload without waiting for reconnection")
   .action(run(async (opts) => {
     const g = program.opts();
-    const fmt = g.format;
+    const fmt = getFormat(g);
     const timeout = getTimeout(g);
 
     const reloadResult = await api("POST", "/extension/reload", {}, timeout);
@@ -973,7 +1024,7 @@ program
       outputError({
         message: `Extension did not reconnect within ${timeout}ms`,
         code: "RECONNECT_TIMEOUT",
-      }, fmt);
+      }, fmt, { outputVersion: isV2(g) ? 2 : 1 });
     }
   }));
 
@@ -1000,7 +1051,7 @@ bulk
       await api("POST", "/messages/update", { messageId: msg.id, read: true }, timeout);
       marked++;
     }
-    output({ success: true, marked }, g.format, getOutputOpts(g));
+    output({ success: true, marked }, getFormat(g), getOutputOpts(g));
   }));
 
 bulk
@@ -1040,7 +1091,7 @@ bulk
       }, timeout);
     }
 
-    output({ success: true, moved: toMove.length }, g.format, getOutputOpts(g));
+    output({ success: true, moved: toMove.length }, getFormat(g), getOutputOpts(g));
   }));
 
 bulk
@@ -1053,9 +1104,9 @@ bulk
   .option("-l, --limit <n>", "batch size", "100")
   .action(run(async (folderId, opts) => {
     const g = program.opts();
-    const fmt = g.format;
+    const fmt = getFormat(g);
     if (!opts.confirm) {
-      outputError({ message: "Use --confirm for bulk delete", code: "INVALID_ARGS" }, fmt);
+      outputError({ message: "Use --confirm for bulk delete", code: "INVALID_ARGS" }, fmt, { outputVersion: isV2(g) ? 2 : 1 });
       return;
     }
     const timeout = getTimeout(g);
@@ -1086,7 +1137,7 @@ bulk
     if (opts.limit) body.limit = parseInt(opts.limit);
 
     const data = await api("POST", "/bulk/tag", body, timeout);
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 bulk
@@ -1098,11 +1149,12 @@ bulk
     const body = { folderId };
     if (opts.limit) body.limit = parseInt(opts.limit);
     const data = await api("POST", "/bulk/fetch", body, getTimeout(g));
-    output(data, g.format, getOutputOpts(g));
+    output(data, getFormat(g), getOutputOpts(g));
   }));
 
 // ─── Parse & Run ──────────────────────────────────────────────────────
 
 program.parseAsync(process.argv).catch(err => {
-  outputError(err, program.opts().format);
+  const g = program.opts();
+  outputError(err, getFormat(g), { outputVersion: isV2(g) ? 2 : 1 });
 });

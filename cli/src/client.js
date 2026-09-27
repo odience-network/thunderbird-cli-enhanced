@@ -256,15 +256,446 @@ function truncateBody(data, maxChars) {
   return data;
 }
 
+// ─── Grid Table Formatting (--output-version 2 only) ───────────────────
+//
+// Renderer for the opt-in "Default output (v2)" format — see docs/CLAUDE.md.
+// Ported from the fork-KaiSingL output-format chain (ODIAA-2324), gated
+// behind --output-version 2 / TB_OUTPUT_VERSION=2 per CLI-UX decision:
+// today's {ok,data} envelope stays the default so existing scripts/agents
+// parsing `tb` output aren't broken by a silent default-shape change.
+
+const HAS_COLOR = process.stdout.isTTY;
+const BOLD = HAS_COLOR ? "\x1b[1m" : "";
+const RESET = HAS_COLOR ? "\x1b[0m" : "";
+const GREEN = HAS_COLOR ? "\x1b[32m" : "";
+const RED = HAS_COLOR ? "\x1b[31m" : "";
+
+/**
+ * Strip ANSI escape codes from a string for visual length measurement.
+ */
+function stripAnsi(str) {
+  // eslint-disable-next-line no-control-regex
+  return String(str).replace(/\x1b\[[0-9;]*m/g, "");
+}
+
+/**
+ * Truncate a string to fit within a given visual width, appending ellipsis.
+ */
+function truncateToWidth(str, maxWidth) {
+  const visual = stripAnsi(str);
+  if (visual.length <= maxWidth) return str;
+  if (maxWidth <= 1) return "…";
+  let cut = 0;
+  let visualLen = 0;
+  for (const char of visual) {
+    if (visualLen + 1 > maxWidth - 1) break;
+    visualLen++;
+    cut++;
+  }
+  return visual.slice(0, cut) + "…";
+}
+
+/**
+ * Parse an author string like "Name <email>" into {name, email}.
+ * Returns {name: "Name", email: "<email>"}.
+ */
+function parseAuthor(author) {
+  if (!author) return { name: "", email: "" };
+  const s = String(author);
+  const match = s.match(/^(.*?)\s*<([^>]*)>/);
+  if (match) {
+    const name = match[1].trim().replace(/^"|"$/g, "");
+    return { name: name || "", email: `<${match[2]}>` };
+  }
+  return { name: "", email: `<${s}>` };
+}
+
+/**
+ * Render an adaptive column table that fits within termWidth.
+ *
+ * columns: [{header, key, widthRule, truncate?, multiline?}]
+ *   - widthRule: "auto" | "flex" | {fixed: n} | {min: n, flex: true}
+ *   - truncate: boolean (default true)
+ *   - multiline: number (default 1) — how many lines this column spans per row
+ * rows: array of objects where keys match column `key`
+ * termWidth: total terminal width
+ *
+ * Each data row renders exactly 2 lines. Multiline columns show [line1, line2];
+ * single-line columns show value on line 1 and empty on line 2.
+ */
+function formatColumnTable(columns, rows, termWidth) {
+  const padding = 1;
+  const N = columns.length;
+  // Overhead: left border + right border + (N-1) separators + N*2 padding
+  const overhead = 2 + (N - 1) + N * 2;
+  const availableWidth = Math.max(0, termWidth - overhead);
+
+  // Phase 1: Calculate widths for non-flex columns
+  const widths = new Array(N).fill(0);
+  const isFlex = new Array(N).fill(false);
+  let fixedTotal = 0;
+
+  for (let i = 0; i < N; i++) {
+    const col = columns[i];
+    if (col.widthRule === "auto") {
+      let maxW = stripAnsi(col.header).length;
+      for (const row of rows) {
+        const val = row[col.key];
+        if (Array.isArray(val)) {
+          for (const line of val) {
+            maxW = Math.max(maxW, stripAnsi(String(line)).length);
+          }
+        } else {
+          maxW = Math.max(maxW, stripAnsi(String(val)).length);
+        }
+      }
+      widths[i] = maxW;
+      fixedTotal += maxW;
+    } else if (typeof col.widthRule === "object" && "fixed" in col.widthRule) {
+      widths[i] = col.widthRule.fixed;
+      fixedTotal += col.widthRule.fixed;
+    } else if (typeof col.widthRule === "object" && col.widthRule.flex) {
+      const min = col.widthRule.min || 5;
+      widths[i] = min;
+      isFlex[i] = true;
+      fixedTotal += min;
+    } else if (col.widthRule === "flex") {
+      widths[i] = 5;
+      isFlex[i] = true;
+      fixedTotal += 5;
+    }
+  }
+
+  // Phase 2: Distribute remaining space to flex columns
+  const remaining = availableWidth - fixedTotal;
+  if (remaining > 0 && isFlex.some(Boolean)) {
+    const flexIndices = isFlex.map((f, i) => f ? i : -1).filter(i => i >= 0);
+    const flexMinTotal = flexIndices.reduce((sum, i) => sum + widths[i], 0);
+    let distributed = 0;
+    for (let idx = 0; idx < flexIndices.length; idx++) {
+      const i = flexIndices[idx];
+      const share = idx === flexIndices.length - 1
+        ? remaining - distributed
+        : Math.round(remaining * (widths[i] / flexMinTotal));
+      widths[i] += share;
+      distributed += share;
+    }
+  }
+
+  // Phase 3: Build table
+  const colWidths = widths.map(w => w + padding * 2);
+
+  const top = "┌" + colWidths.map(w => "─".repeat(w)).join("┬") + "┐";
+  const sep = "├" + colWidths.map(w => "─".repeat(w)).join("┼") + "┤";
+  const bot = "└" + colWidths.map(w => "─".repeat(w)).join("┴") + "┘";
+
+  function pad(text, width) {
+    const s = String(text);
+    const visualLen = stripAnsi(s).length;
+    return " ".repeat(padding) + s + " ".repeat(Math.max(0, width - visualLen - padding));
+  }
+
+  const linesPerRow = 2;
+
+  // Build cell content for each row: [row][col][line]
+  const cells = rows.map(row => {
+    return columns.map((col, colIdx) => {
+      const val = row[col.key];
+      const shouldTruncate = col.truncate !== false;
+      const isMultiline = col.multiline === 2;
+
+      const lines = [];
+      if (isMultiline && Array.isArray(val)) {
+        lines.push(shouldTruncate ? truncateToWidth(String(val[0] || ""), widths[colIdx]) : String(val[0] || ""));
+        lines.push(shouldTruncate ? truncateToWidth(String(val[1] || ""), widths[colIdx]) : String(val[1] || ""));
+      } else {
+        const text = shouldTruncate ? truncateToWidth(String(val || ""), widths[colIdx]) : String(val || "");
+        lines.push(text);
+        lines.push(""); // empty second line
+      }
+      return lines;
+    });
+  });
+
+  const parts = [top];
+
+  // Header row (1 line)
+  const headerLine = "│" + columns.map((col, i) => {
+    const h = HAS_COLOR ? `${BOLD}${col.header}${RESET}` : col.header;
+    return pad(h, colWidths[i]);
+  }).join("│") + "│";
+  parts.push(headerLine);
+  parts.push(sep);
+
+  // Data rows (2 lines each)
+  for (let r = 0; r < cells.length; r++) {
+    for (let line = 0; line < linesPerRow; line++) {
+      const rowLine = "│" + cells[r].map((cellLines, colIdx) => {
+        return pad(cellLines[line] || "", colWidths[colIdx]);
+      }).join("│") + "│";
+      parts.push(rowLine);
+    }
+    if (r < cells.length - 1) {
+      parts.push(sep);
+    }
+  }
+
+  parts.push(bot);
+  return parts.join("\n");
+}
+
+/**
+ * Format a list of messages as a 2-line adaptive column table.
+ */
+function formatMessageListTable(messages) {
+  if (!messages || !messages.length) return "";
+  const unread = messages.filter(m => !m.read).length;
+  const summary = `${messages.length} message${messages.length !== 1 ? "s" : ""}${unread ? ` (${unread} unread)` : ""}`;
+  if (HAS_COLOR) {
+    process.stdout.write(`${BOLD}${summary}${RESET}\n\n`);
+  } else {
+    process.stdout.write(summary + "\n\n");
+  }
+
+  // Check which columns have data
+  const hasFolder = messages.some(m => m.folder?.path || m.folder?.name || (typeof m.folder === "string" && m.folder));
+
+  // Date formatting: replace T with space
+  const formatDateShort = (d) => d ? String(d).replace("T", " ") : "";
+
+  // Parse author into name + email
+  const rows = messages.map(m => {
+    const { name, email } = parseAuthor(m.author);
+    const folder = m.folder?.path || m.folder?.name || (typeof m.folder === "string" ? m.folder : "") || "";
+    return {
+      id: String(m.id),
+      from: [name || email.slice(1, -1) || "", name ? email : ""],
+      subject: m.subject || "",
+      date: formatDateShort(m.date),
+      read: m.read ? "◉" : "○",
+      flagged: m.flagged ? "⚑" : "○",
+      folder: folder,
+    };
+  });
+
+  const columns = [
+    { header: "#", key: "id", widthRule: "auto", truncate: false },
+    { header: "from", key: "from", widthRule: { min: 8, flex: true }, truncate: true, multiline: 2 },
+    { header: "subj", key: "subject", widthRule: { min: 10, flex: true }, truncate: true },
+    { header: "date", key: "date", widthRule: "auto", truncate: false },
+    { header: "◉", key: "read", widthRule: { fixed: 1 }, truncate: false },
+    { header: "⚑", key: "flagged", widthRule: { fixed: 1 }, truncate: false },
+  ];
+  if (hasFolder) {
+    columns.push({ header: "🗀", key: "folder", widthRule: { min: 5, flex: true }, truncate: true });
+  }
+
+  const termWidth = process.stdout.columns || 80;
+  const table = formatColumnTable(columns, rows, termWidth);
+  process.stdout.write(table + "\n");
+}
+
+function formatGrid(rows, { labelMin = 10, valueMin = 20, padding = 1 } = {}) {
+  if (!rows.length) return "";
+
+  const termWidth = process.stdout.columns || 80;
+  const borderAndSep = 3; // │ + padding on each side = 1 + 1 + 1
+
+  // Calculate max label width using visual length (strip ANSI codes for measurement)
+  const maxLabel = Math.max(labelMin, ...rows.map((r) => stripAnsi(r.label).length));
+  const maxAvailableValue = termWidth - maxLabel - borderAndSep - (padding * 2);
+  const targetValueWidth = Math.max(valueMin, ...rows.map((r) => {
+    return Math.max(...String(r.value).split("\n").map((l) => stripAnsi(l).length));
+  }));
+  const valueWidth = Math.min(targetValueWidth, maxAvailableValue);
+
+  function wrapLine(text, width) {
+    if (width <= 0) return [text];
+    const lines = [];
+    for (const raw of String(text).replace(/\r\n/g, "\n").replace(/\r/g, "").split("\n")) {
+      // Use visual length for wrapping (strip ANSI for measurement)
+      const visualRaw = stripAnsi(raw);
+      if (visualRaw.length <= width) { lines.push(raw); continue; }
+      let line = "";
+      for (const word of raw.split(/(\s+)/)) {
+        const visualLine = stripAnsi(line);
+        const visualWord = stripAnsi(word);
+        if (visualLine.length + visualWord.length > width && visualLine.length > 0) {
+          lines.push(line);
+          line = word.trimStart();
+        } else {
+          line += word;
+        }
+      }
+      if (line) lines.push(line);
+    }
+    while (lines.length && !lines[lines.length - 1]) lines.pop();
+    return lines;
+  }
+
+  const prepared = rows.map((r) => ({
+    label: r.label,
+    lines: wrapLine(r.value, valueWidth),
+  }));
+
+  const lw = maxLabel + padding * 2;
+  const vw = valueWidth + padding * 2;
+
+  const top = "┌" + "─".repeat(lw) + "┬" + "─".repeat(vw) + "┐";
+  const mid = "├" + "─".repeat(lw) + "┼" + "─".repeat(vw) + "┤";
+  const bot = "└" + "─".repeat(lw) + "┴" + "─".repeat(vw) + "┘";
+
+  function pad(text, width) {
+    const s = String(text);
+    const visualLen = stripAnsi(s).length;
+    return " ".repeat(padding) + s + " ".repeat(Math.max(0, width - visualLen - padding));
+  }
+
+  const parts = [top];
+  for (let i = 0; i < prepared.length; i++) {
+    const row = prepared[i];
+    for (let j = 0; j < row.lines.length; j++) {
+      // Bold labels in the first line of each row
+      const label = j === 0 ? `${BOLD}${row.label}${RESET}` : "";
+      parts.push("│" + pad(label, lw) + "│" + pad(row.lines[j], vw) + "│");
+    }
+    if (i < prepared.length - 1) parts.push(mid);
+  }
+  parts.push(bot);
+  return parts.join("\n");
+}
+
+function formatMessageTable(msg) {
+  function humanSize(bytes) {
+    if (!bytes || bytes <= 0) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  const body = (msg.parts?.text || msg.body || "").replace(/\r\n/g, "\n").replace(/\r/g, "");
+  const attachments = msg.parts?.attachments || msg.attachments || [];
+  const rows = [
+    { label: "ID", value: String(msg.id ?? "") },
+    { label: "Subject", value: msg.subject || "" },
+    { label: "From", value: msg.author || "" },
+  ];
+  if (msg.recipients?.length) {
+    rows.push({ label: "To", value: msg.recipients.join("\n") });
+  }
+  if (msg.ccList?.length) {
+    rows.push({ label: "CC", value: msg.ccList.join("\n") });
+  }
+  if (msg.bccList?.length) {
+    rows.push({ label: "BCC", value: msg.bccList.join("\n") });
+  }
+  rows.push(
+    { label: "Date", value: msg.date || "" },
+    { label: "Read", value: msg.read ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}` },
+    { label: "Flagged", value: msg.flagged ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}` },
+    { label: "Junk", value: msg.junk ? `${RED}✓${RESET}` : `${GREEN}✗${RESET}` },
+  );
+  if (msg.size) {
+    rows.push({ label: "Size", value: humanSize(msg.size) });
+  }
+  if (msg.folder) {
+    const name = msg.folder.name;
+    const path = msg.folder.path;
+    const folder = (name && name !== path?.split("/").pop()) ? `${path} (${name})` : (path || name || "");
+    rows.push({ label: "Folder", value: folder });
+  }
+  if (msg.tags?.length) {
+    rows.push({ label: "Tags", value: msg.tags.join("\n") });
+  }
+  if (msg.priority) {
+    rows.push({ label: "Priority", value: String(msg.priority) });
+  }
+  if (body) {
+    rows.push({ label: "Body", value: body });
+  }
+  if (attachments.length) {
+    rows.push({
+      label: "Attachments",
+      value: attachments.map((a) => {
+        const name = a.name || a.fileName || "unnamed";
+        const meta = [];
+        if (a.contentType) meta.push(a.contentType);
+        if (a.size) meta.push(humanSize(a.size));
+        return meta.length ? `${name} (${meta.join(", ")})` : name;
+      }).join("\n"),
+    });
+  }
+  return formatGrid(rows);
+}
+
+/**
+ * Format an ISO date string for display.
+ * Defaults to local time; use utc=true for UTC.
+ */
+function formatDate(isoStr, utc = false) {
+  if (!isoStr) return isoStr || "";
+  if (utc) return isoStr.slice(0, 16);
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return isoStr;
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Recursively transform all "date" keys in data using formatDate.
+ * Applies local/UTC formatting consistently across all output formats.
+ */
+function transformDates(data, utc = false) {
+  if (Array.isArray(data)) return data.map(item => transformDates(item, utc));
+  if (data && typeof data === "object") {
+    const result = {};
+    for (const [k, v] of Object.entries(data)) {
+      result[k] = k === "date" ? formatDate(v, utc) : transformDates(v, utc);
+    }
+    return result;
+  }
+  return data;
+}
+
+/**
+ * Format a value for display in a table cell.
+ * Handles arrays, objects, and primitives intelligently.
+ */
+function formatValue(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v !== "object") return String(v);
+  if (Array.isArray(v)) {
+    if (v.length === 0) return "";
+    // Array of primitives (strings, numbers)
+    if (typeof v[0] !== "object" || v[0] === null) return v.join(", ");
+    // Array of objects — summarize each
+    return v.map(item => {
+      if (item === null || item === undefined) return "";
+      if (typeof item !== "object") return String(item);
+      // Try to get a meaningful one-line summary
+      const name = item.name || item.path || item.subject || item.author || item.email || "";
+      const detail = item.path || item.type || item.role || item.contentType || item.size || "";
+      if (name && detail && name !== detail) return `${name} (${detail})`;
+      return name || detail || Object.entries(item).map(([k, val]) => `${k}: ${formatValue(val)}`).join(", ");
+    }).join("\n");
+  }
+  // Plain object — show key: value lines
+  const entries = Object.entries(v).filter(([, val]) => val !== null && val !== undefined);
+  if (entries.length === 0) return "";
+  return entries.map(([k, val]) => {
+    const formatted = formatValue(val);
+    return `${k}: ${formatted}`;
+  }).join("\n");
+}
+
 // ─── Standard Output ───────────────────────────────────────────────
 
 /**
- * Output data in standard {ok, data} format
- * @param {*} data - raw response data
- * @param {string} format - json|compact|table
- * @param {object} opts - {fields: string[], compact: bool, maxBody: number, raw: bool}
+ * v1 output (default): standard {ok, data} envelope, always. This is the
+ * output shape documented in docs/CLAUDE.md and AGENTS.md and relied on by
+ * every existing script/agent — do not change its behavior here.
  */
-export function output(data, format = "json", opts = {}) {
+function outputV1(data, format, opts) {
   if (opts.maxBody) data = truncateBody(data, opts.maxBody);
   if (opts.fields) data = filterFields(data, opts.fields);
 
@@ -309,15 +740,126 @@ export function output(data, format = "json", opts = {}) {
 }
 
 /**
- * Output error to stderr and exit
+ * v2 output (opt-in via --output-version 2 / TB_OUTPUT_VERSION=2): the
+ * fork-KaiSingL "Default output (v2)" shape — smart TTY/pipe format,
+ * bare data by default (--envelope restores {ok,data}), compact-by-default
+ * JSON (--verbose restores nulls/empty arrays, --pretty restores indentation),
+ * short field presets for list-shaped commands, local-time dates (--utc
+ * restores UTC), and the adaptive Unicode table renderer.
  */
-export function outputError(err, format = "json") {
+function outputV2(data, format, opts) {
+  if (opts.maxBody) data = truncateBody(data, opts.maxBody);
+  if (opts.fields) data = filterFields(data, opts.fields);
+
+  // Compactify by default; skip only if --verbose
+  // (Run BEFORE envelope wrapping so that null/empty keys are stripped
+  // from inner data, preserving the envelope's `data` key.)
+  if (!opts.verbose) data = compactify(data);
+
+  // Envelope logic: errors always use envelope; success only if --envelope
+  if (!opts.raw) {
+    if (data && data.error) {
+      // Error responses always use envelope format
+      data = { ok: false, error: data.error, code: data.code || "THUNDERBIRD_ERROR" };
+    } else if (opts.envelope) {
+      // Success with envelope: wrap in {ok, data}
+      data = { ok: true, data };
+    }
+    // else: output bare data, no envelope
+  }
+  data = transformDates(data, opts.utc);
+
+  switch (format) {
+    case "compact":
+    case "json": {
+      const indent = opts.pretty ? 2 : undefined;
+      process.stdout.write(JSON.stringify(data, null, indent) + "\n");
+      break;
+    }
+    case "table": {
+      // If data is a string, just print it directly
+      if (typeof data === "string") {
+        process.stdout.write(data + "\n");
+        break;
+      }
+      const inner = data?.data || data;
+      if (Array.isArray(inner) && inner.length === 0) {
+        process.stdout.write("No results found.\n");
+        break;
+      }
+      if (inner?.messages && Array.isArray(inner.messages) && inner.messages.length === 0) {
+        process.stdout.write("No results found.\n");
+        break;
+      }
+      // Check for empty result objects (e.g., {total: 0, ...} without messages)
+      if (inner && typeof inner === "object" && !Array.isArray(inner) && !inner.messages && !inner.subject && !inner.author) {
+        const vals = Object.values(inner);
+        if (vals.length === 0 || vals.every(v => v === 0 || v === false || v === "" || (Array.isArray(v) && v.length === 0))) {
+          process.stdout.write("No results found.\n");
+          break;
+        }
+      }
+      if (Array.isArray(inner)) {
+        // Check if it looks like message objects for enhanced display
+        if (inner.length > 0 && inner[0] && inner[0].subject !== undefined) {
+          formatMessageListTable(inner);
+        } else {
+          console.table(inner);
+        }
+      } else if (inner?.messages) {
+        formatMessageListTable(inner.messages);
+      } else if (inner?.subject && inner?.author) {
+        process.stdout.write(formatMessageTable(inner) + "\n");
+      } else {
+        const rows = [];
+        for (const [k, v] of Object.entries(inner)) {
+          if (v && typeof v === "object" && !Array.isArray(v) &&
+              Object.values(v).every(val => val == null || typeof val !== "object")) {
+            // Flat object — promote each property as its own row
+            for (const [pk, pv] of Object.entries(v)) {
+              if (pv != null) rows.push({ label: pk, value: formatValue(pv) });
+            }
+          } else {
+            rows.push({ label: k, value: formatValue(v) });
+          }
+        }
+        process.stdout.write(formatGrid(rows) + "\n");
+      }
+      break;
+    }
+    default:
+      process.stdout.write(JSON.stringify(data, null, 2) + "\n");
+  }
+}
+
+/**
+ * Output data to stdout.
+ * @param {*} data - raw response data
+ * @param {string} format - json|compact|table
+ * @param {object} opts - {outputVersion: 1|2, fields, compact, verbose, envelope,
+ *   pretty, maxBody, raw, utc} — see outputV1/outputV2 for which opts apply to which version.
+ */
+export function output(data, format = "json", opts = {}) {
+  if (opts.outputVersion === 2) {
+    outputV2(data, format, opts);
+  } else {
+    outputV1(data, format, opts);
+  }
+}
+
+/**
+ * Output error to stderr and exit.
+ * v1 (default): always pretty-printed, unchanged from today's behavior.
+ * v2: compact JSON when piped, pretty when TTY.
+ */
+export function outputError(err, format = "json", opts = {}) {
   const data = {
     ok: false,
     error: err.message || String(err),
     code: err.code || "UNKNOWN",
   };
-  process.stderr.write(JSON.stringify(data, null, 2) + "\n");
+  const indent = opts.outputVersion === 2 ? (process.stderr.isTTY ? 2 : undefined) : 2;
+  process.stderr.write(JSON.stringify(data, null, indent) + "\n");
   process.exit(1);
 }
 
