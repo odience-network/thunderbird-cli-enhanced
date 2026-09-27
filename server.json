@@ -1,16 +1,16 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.vitalio-sh/thunderbird-cli",
+  "name": "io.github.odience-network/thunderbird-cli-enhanced",
   "description": "Give AI agents full read/write email access via Mozilla Thunderbird. Zero credentials.",
   "version": "1.1.0",
   "repository": {
-    "url": "https://github.com/vitalio-sh/thunderbird-cli",
+    "url": "https://github.com/odience-network/thunderbird-cli-enhanced",
     "source": "github"
   },
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "thunderbird-cli-mcp",
+      "identifier": "@odience-network/thunderbird-cli-enhanced",
       "version": "1.1.0",
       "transport": {
         "type": "stdio"
@@ -18,14 +18,14 @@
       "environmentVariables": [
         {
           "name": "TB_BRIDGE_HOST",
-          "description": "Hostname of the thunderbird-cli-bridge (default: 127.0.0.1). Set to host.docker.internal when running inside a container.",
+          "description": "Hostname of the tb-bridge (default: 127.0.0.1). Set to host.docker.internal when running inside a container.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
         },
         {
           "name": "TB_BRIDGE_PORT",
-          "description": "HTTP port of the thunderbird-cli-bridge (default: 7700).",
+          "description": "HTTP port of the tb-bridge (default: 7700).",
           "isRequired": false,
           "format": "string",
           "isSecret": false

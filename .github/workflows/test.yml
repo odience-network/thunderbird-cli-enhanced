@@ -58,3 +58,9 @@ jobs:
 
       - name: Run MCP server integration tests (mock)
         run: npm run test:mcp
+
+      - name: Check npm package contents (npm pack --dry-run)
+        run: npm run test:pack
+
+      - name: Smoke-test the packed tarball (global install into a temp prefix)
+        run: npm run test:pack-smoke

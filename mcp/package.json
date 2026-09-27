@@ -1,19 +1,14 @@
 {
   "name": "thunderbird-cli-mcp",
-  "mcpName": "io.github.vitalio-sh/thunderbird-cli",
   "version": "1.1.0",
+  "private": true,
   "description": "MCP server that gives Claude Desktop full access to your email through Mozilla Thunderbird. 12 high-level tools: search, read, compose, reply, attachments, folders.",
   "type": "module",
   "bin": {
     "tb-mcp": "./src/server.js"
   },
-  "files": [
-    "src/",
-    "README.md"
-  ],
   "scripts": {
-    "start": "node src/server.js",
-    "prepublishOnly": "cd .. && npm run test:mcp"
+    "start": "node src/server.js"
   },
   "engines": {
     "node": ">=18"
@@ -47,11 +42,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vitalio-sh/thunderbird-cli",
+    "url": "https://github.com/odience-network/thunderbird-cli-enhanced",
     "directory": "mcp"
   },
   "bugs": {
-    "url": "https://github.com/vitalio-sh/thunderbird-cli/issues"
+    "url": "https://github.com/odience-network/thunderbird-cli-enhanced/issues"
   },
-  "homepage": "https://github.com/vitalio-sh/thunderbird-cli/tree/main/mcp#readme"
+  "homepage": "https://github.com/odience-network/thunderbird-cli-enhanced#readme"
 }

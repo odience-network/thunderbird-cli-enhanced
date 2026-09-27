@@ -6,13 +6,13 @@
 
 ## What this repo ships
 
-Four artifacts, one architecture. The npm names below are upstream's published packages; this fork doesn't publish to them, so users install from source (`setup.sh` / `setup.ps1`).
+Four artifacts, one architecture. The three Node workspaces below are private and keep upstream's names in their own `package.json`; they ship together as one npm package, `@odience-network/thunderbird-cli-enhanced` (the repo root `package.json`, bins `tb`, `tb-bridge`, `tb-mcp`). Never publish a workspace: upstream owns those unscoped names. Release process: [docs/RELEASING.md](docs/RELEASING.md).
 
 | Artifact | What | Where |
 |---|---|---|
-| `thunderbird-cli` | `tb` CLI (43 commands) | `cli/` → npm: `thunderbird-cli` |
-| `thunderbird-cli-bridge` | Stateless HTTP↔WS proxy daemon | `bridge/` → npm: `thunderbird-cli-bridge` |
-| `thunderbird-cli-mcp` | MCP server (16 tools for Claude Desktop) | `mcp/` → npm: `thunderbird-cli-mcp` |
+| `thunderbird-cli` | `tb` CLI (43 commands) | `cli/` → bin `tb` in `@odience-network/thunderbird-cli-enhanced` |
+| `thunderbird-cli-bridge` | Stateless HTTP↔WS proxy daemon | `bridge/` → bin `tb-bridge` in `@odience-network/thunderbird-cli-enhanced` |
+| `thunderbird-cli-mcp` | MCP server (16 tools for Claude Desktop) | `mcp/` → bin `tb-mcp` in `@odience-network/thunderbird-cli-enhanced` |
 | Thunderbird WebExtension | WS client inside Thunderbird | `extension/` → Mozilla-signed (unlisted) XPI in `dist/releases/` |
 
 ```

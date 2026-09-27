@@ -45,13 +45,14 @@ The skill itself is just instructions — it needs the MCP server to do anything
 
 1. **Install Thunderbird 128+** with your email accounts configured (normal Thunderbird install).
 2. **Install the signed WebExtension** from [`dist/releases/`](https://github.com/odience-network/thunderbird-cli-enhanced/tree/main/dist/releases) → *Install Add-on From File…* in Thunderbird.
-3. **Install the CLI, bridge and MCP server** from a clone with `./setup.sh` (or `.\setup.ps1`), linking `tb-bridge` and `tb-mcp` when asked. The bridge auto-starts on first use.
+3. **Install the CLI, bridge and MCP server:** `npm i -g @odience-network/thunderbird-cli-enhanced`, or from a clone with `./setup.sh` (or `.\setup.ps1`), linking `tb-bridge` and `tb-mcp` when asked. The bridge auto-starts on first use.
 4. **Configure the MCP server** in `claude_desktop_config.json` (or equivalent):
    ```json
    {
      "mcpServers": {
        "thunderbird": {
-         "command": "tb-mcp"
+         "command": "npx",
+         "args": ["-y", "-p", "@odience-network/thunderbird-cli-enhanced", "tb-mcp"]
        }
      }
    }

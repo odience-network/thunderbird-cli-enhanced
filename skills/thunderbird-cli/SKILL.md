@@ -1,12 +1,12 @@
 ---
 name: thunderbird-cli
-description: Manage email through Mozilla Thunderbird — read, search, compose, reply, forward, edit drafts, archive, move, tag, download attachments, and bulk-operate across all configured IMAP/SMTP accounts via the thunderbird-cli-mcp server. Use whenever the user mentions "email", "inbox", "mailbox", "unread", "messages", asks to "check email", "read my mail", "search for an email about X", "draft a reply", "forward that message", "archive old newsletters", "download attachment", "how many unread", or names specific folders (Inbox, Sent, Drafts, Archive, Junk). Do NOT use for calendar/contacts-only work (use a dedicated calendar skill instead) or for services that are not configured in the user's Thunderbird (ask which account to use first).
-compatibility: Requires Mozilla Thunderbird 128+ with the thunderbird-cli WebExtension installed, the bridge daemon on 127.0.0.1:7700 (auto-started on first use), and the tb-mcp MCP server configured in the client. Install from a clone of https://github.com/odience-network/thunderbird-cli-enhanced with ./setup.sh plus the signed XPI in dist/releases/. Localhost-only — no cloud, no credentials outside Thunderbird.
+description: Manage email through Mozilla Thunderbird — read, search, compose, reply, forward, edit drafts, archive, move, tag, download attachments, and bulk-operate across all configured IMAP/SMTP accounts via the tb-mcp server. Use whenever the user mentions "email", "inbox", "mailbox", "unread", "messages", asks to "check email", "read my mail", "search for an email about X", "draft a reply", "forward that message", "archive old newsletters", "download attachment", "how many unread", or names specific folders (Inbox, Sent, Drafts, Archive, Junk). Do NOT use for calendar/contacts-only work (use a dedicated calendar skill instead) or for services that are not configured in the user's Thunderbird (ask which account to use first).
+compatibility: Requires Mozilla Thunderbird 128+ with the thunderbird-cli WebExtension installed, the bridge daemon on 127.0.0.1:7700 (auto-started on first use), and the tb-mcp MCP server configured in the client. Install with `npm i -g @odience-network/thunderbird-cli-enhanced` (or from a clone with ./setup.sh) plus the signed XPI in dist/releases/ of https://github.com/odience-network/thunderbird-cli-enhanced. Localhost-only — no cloud, no credentials outside Thunderbird.
 license: MIT
 metadata:
   author: Vitalii Ionov
   version: 1.1.0
-  mcp-server: thunderbird-cli-mcp
+  mcp-server: @odience-network/thunderbird-cli-enhanced
   category: communication
   tags: [email, thunderbird, imap, smtp, mcp, productivity, localhost, privacy]
   documentation: https://github.com/odience-network/thunderbird-cli-enhanced
