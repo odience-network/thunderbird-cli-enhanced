@@ -182,12 +182,22 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      behavior. Hand-adapted around two forward-reference conflicts in `background.js`
      (the not-yet-ported `/compose/edit` handler and its `plainTextToHtml` helper from
      the held-back `e510ec3`), both excluded from this PR.
-   - **Needs hand-adaptation, own PR**: `67e31b8` (server-side sort/filter/full-text via
-     `messages.list`/`messages.query`, TB 148+ with JS fallback). Touches the same
-     `background.js` list/search internals as the already-merged `dboeckenhoff`
-     pagination/`accountId` filtering and `le-dawg`'s `mapWithIpcLimit`/`drainIpcQueue`
-     concurrency wrapping — cannot be a blind cherry-pick, needs the same hand-adaptation
-     treatment those two got. Highest-risk item in this fork.
+   - **Shipped (PR #14)**: `67e31b8` (server-side sort/filter/full-text via
+     `messages.list`/`messages.query`, TB 148+ with JS fallback). Hand-adapted around the
+     already-merged `dboeckenhoff` pagination/`accountId` filtering and `le-dawg`'s
+     `mapWithIpcLimit`/`drainIpcQueue` concurrency wrapping in `background.js` — not a blind
+     cherry-pick. Verified `messages.query({ fullText })` and
+     `messages.list(folder, { sortType, sortOrder })` are real, documented Thunderbird APIs
+     (not fork-author assumptions) against the official WebExtension API docs before
+     adapting; `sortType`/`sortOrder` require TB 148+, hence the JS-sort fallback for older
+     versions. Excluded the same two forward-references as PR #12 (`/compose/edit` handler
+     and `plainTextToHtml`, held back for `tb edit`) plus a CLI-output-format-overhaul line
+     in `docs/CLAUDE.md` (held back pending CLI-UX review). No new routes, so no
+     `access-control.js` change needed. Rewrote the PR #11 OR-search tests in
+     `test/extension.test.mjs` (asserted the old 3-parallel-query approach) to match the new
+     single-`fullText`-query behavior; also fixed a `CHANGELOG.md` merge artifact where the
+     new entries had auto-merged into the historical `[1.0.2]` section instead of
+     `[Unreleased]`.
    - **Needs access-control classification decision**: `0b3a5d7` (`tb extension-reload` +
      `/bridge/events` long-poll). `POST /extension/reload` is routed through `background.js`
      and is currently unclassified (would 403). `/bridge/events` is a bridge-local endpoint
