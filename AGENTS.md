@@ -120,6 +120,8 @@ Tagging `vX.Y.Z` fires `.github/workflows/release.yml`:
 3. Finds the signed XPI in `dist/releases/` (must be checked in)
 4. Creates the GitHub Release with both XPIs attached
 
+The signed XPI itself comes from `.github/workflows/sign-xpi.yml`: bumping `version` in `extension/manifest.json` on `main` runs `npm run verify`, signs through the addons.thunderbird.net API (`npm run sign:xpi`, secrets `MOZILLA_HUB_JWT_ISSUER` / `MOZILLA_HUB_JWT_SECRET`) and commits `dist/releases/<name>-<version>-tb.xpi`. Tag after that commit lands.
+
 npm publish is manual (`cd cli && npm publish`) — intentionally, so a release tag without publish is a no-op you can recover from.
 
 ## Key files to know

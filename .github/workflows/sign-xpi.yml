@@ -1,0 +1,58 @@
+name: sign-xpi
+
+# Build → lint → test the extension, sign it through addons.thunderbird.net and commit
+# the signed XPI to dist/releases/. Runs when the extension version changes on main,
+# or on demand. Local equivalent of the gate: .githooks/pre-push (npm run verify).
+#
+# Requires repository secrets MOZILLA_HUB_JWT_ISSUER and MOZILLA_HUB_JWT_SECRET
+# (ATN → Tools → Manage API Keys). The manifest's add-on ID must be new or owned by
+# that ATN account.
+
+on:
+  push:
+    branches: [main]
+    paths: [extension/manifest.json]
+  workflow_dispatch:
+
+concurrency:
+  group: sign-xpi
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build, lint and test
+        run: npm run verify
+
+      - name: Sign via addons.thunderbird.net
+        env:
+          MOZILLA_HUB_JWT_ISSUER: ${{ secrets.MOZILLA_HUB_JWT_ISSUER }}
+          MOZILLA_HUB_JWT_SECRET: ${{ secrets.MOZILLA_HUB_JWT_SECRET }}
+        run: npm run sign:xpi
+
+      - name: Commit signed XPI
+        run: |
+          git add dist/releases/
+          if git diff --cached --quiet; then
+            echo "Signed XPI for this version is already committed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(release): add signed XPI $(git diff --cached --name-only | xargs -n1 basename)"
+          git push

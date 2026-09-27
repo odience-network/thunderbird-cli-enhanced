@@ -47,5 +47,8 @@ jobs:
       - name: Run extension background-script tests (mocked messenger API)
         run: npm run test:extension
 
+      - name: Run XPI signing tests (mock ATN API)
+        run: npm run test:sign
+
       - name: Run MCP server integration tests (mock)
         run: npm run test:mcp
