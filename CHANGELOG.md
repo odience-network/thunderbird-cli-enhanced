@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`tb edit <messageId>`** — edit an existing draft in place (to/cc/bcc/subject/body/from/priority) with `--draft`/`--open`/`--send` modes
 - **`email_edit` MCP tool** — same capability for agents; returns `messageId` + `previousMessageId` (IMAP may reassign draft IDs on save)
 - Extension route `POST /compose/edit` using `compose.beginNew` + `setComposeDetails` + `saveMessage`, gated by the same `compose`/`send` access policy switches as `POST /compose` (see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
+- **`tb extension-reload`** — reloads the Thunderbird extension and waits for it to reconnect. The extension sends an `extension-ready` beacon event on every connect, buffered and long-pollable via the new `GET /bridge/events` endpoint. Extension route `POST /extension/reload` is ungated (`UNGATED_POST`, no mail-data access, comparable to `/sync`); `/bridge/events` is bridge-local like `/bridge/status` and needs no access-control classification.
 - `--keep-unread` on `tb delete` and `tb archive` (`keepUnread` on MCP `email_archive`) — keep
   the unread state instead of marking read before refiling.
 - `tb reply` / `tb forward` and MCP `email_reply` / `email_forward` now append the earlier

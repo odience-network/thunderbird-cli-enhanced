@@ -925,6 +925,58 @@ program
     output(data, g.format, getOutputOpts(g));
   }));
 
+// ─── Extension Reload ─────────────────────────────────────────────────
+
+program
+  .command("extension-reload")
+  .description("Reload the Thunderbird extension (waits for reconnection)")
+  .option("--no-wait", "reload without waiting for reconnection")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const fmt = g.format;
+    const timeout = getTimeout(g);
+
+    const reloadResult = await api("POST", "/extension/reload", {}, timeout);
+
+    if (!opts.wait) {
+      output(reloadResult, fmt, getOutputOpts(g));
+      return;
+    }
+
+    // 1s buffer guards against clock skew between the CLI and bridge processes.
+    const since = Date.now() - 1000;
+    try {
+      const eventResp = await api(
+        "GET",
+        `/bridge/events?wait=extension-ready&since=${since}&timeout=${timeout}`,
+        null,
+        timeout + 5000
+      );
+      output({
+        ...reloadResult,
+        reconnected: true,
+        readyAt: eventResp.event?.receivedAt,
+      }, fmt, getOutputOpts(g));
+    } catch (err) {
+      if (err.code !== "EVENT_TIMEOUT" && err.code !== "TIMEOUT") throw err;
+      // Fallback: the beacon can be missed (e.g. bridge restarted mid-wait); check whether
+      // the extension reconnected anyway before giving up.
+      const status = await api("GET", "/bridge/status", null, 5000).catch(() => null);
+      if (status?.extension === "connected") {
+        output({
+          ...reloadResult,
+          reconnected: "likely",
+          warning: "Beacon not received, but extension is connected",
+        }, fmt, getOutputOpts(g));
+        return;
+      }
+      outputError({
+        message: `Extension did not reconnect within ${timeout}ms`,
+        code: "RECONNECT_TIMEOUT",
+      }, fmt);
+    }
+  }));
+
 // ─── Bulk Operations ─────────────────────────────────────────────────
 
 const bulk = program.command("bulk").description("Bulk operations");

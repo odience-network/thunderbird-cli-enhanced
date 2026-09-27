@@ -67,6 +67,7 @@ function handle({ method, path, body }) {
   if (path === "/bulk/delete") return { success: true, deleted: 3 };
   if (path === "/bulk/tag") return { success: true, tagged: 5 };
   if (path === "/bulk/fetch") return { success: true, fetched: 10, total: 10 };
+  if (path === "/extension/reload") return { ok: true, reloading: true, message: "Extension reloading" };
   return { error: `Not found: ${method} ${path}` };
 }
 
@@ -74,18 +75,66 @@ async function startBridge() {
   return new Promise((resolve) => {
     const pending = new Map();
     let extSock = null;
+    const recentEvents = [];
+    const eventWaiters = []; // { name, since, resolve, timer }
     const wss = new WebSocketServer({ host: "127.0.0.1", port: WS_PORT });
     wss.on("connection", ws => {
       extSock = ws;
       ws.on("message", d => {
         const m = JSON.parse(d.toString());
-        const p = pending.get(m.id);
-        if (p) { pending.delete(m.id); clearTimeout(p.timer); p.resolve(m.result); }
+
+        // Response to a pending request.
+        if (m.id !== undefined) {
+          const p = pending.get(m.id);
+          if (p) { pending.delete(m.id); clearTimeout(p.timer); p.resolve(m.result); }
+          return;
+        }
+
+        // Unsolicited event from the extension.
+        if (m.type === "event") {
+          const event = { name: m.name, data: m.data || {}, receivedAt: Date.now() };
+          recentEvents.push(event);
+          for (let i = eventWaiters.length - 1; i >= 0; i--) {
+            const w = eventWaiters[i];
+            if (w.name === event.name && event.receivedAt >= w.since) {
+              eventWaiters.splice(i, 1);
+              clearTimeout(w.timer);
+              w.resolve({ event });
+            }
+          }
+        }
       });
     });
     const httpServer = createServer(async (req, res) => {
       res.setHeader("Content-Type", "application/json");
       if (req.url === "/bridge/status") { res.writeHead(200); res.end(JSON.stringify({ bridge: "running", extension: "connected" })); return; }
+
+      if (req.url.startsWith("/bridge/events")) {
+        const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+        const waitName = url.searchParams.get("wait");
+        const since = parseInt(url.searchParams.get("since") || "0");
+        const eventTimeoutMs = parseInt(url.searchParams.get("timeout") || "30000");
+
+        if (!waitName) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ events: recentEvents.filter(e => e.receivedAt >= since) }));
+          return;
+        }
+
+        const found = recentEvents.find(e => e.name === waitName && e.receivedAt >= since);
+        if (found) { res.writeHead(200); res.end(JSON.stringify({ event: found })); return; }
+
+        const timer = setTimeout(() => {
+          const idx = eventWaiters.findIndex(w => w.resolve === resolveWaiter);
+          if (idx !== -1) eventWaiters.splice(idx, 1);
+          res.writeHead(408);
+          res.end(JSON.stringify({ error: "Event timeout", code: "EVENT_TIMEOUT" }));
+        }, eventTimeoutMs);
+        const resolveWaiter = (data) => { res.writeHead(200); res.end(JSON.stringify(data)); };
+        eventWaiters.push({ name: waitName, since, resolve: resolveWaiter, timer });
+        return;
+      }
+
       let b = ""; for await (const c of req) b += c;
       let pb = null; if (b.trim()) try { pb = JSON.parse(b); } catch {}
       try {
@@ -101,7 +150,11 @@ async function startBridge() {
     });
     httpServer.listen(PORT, "127.0.0.1", () => {
       const mock = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
-      mock.on("open", () => resolve({ httpServer, wss, mock }));
+      mock.on("open", () => {
+        // Send the startup beacon like the real extension does on every WS connect.
+        mock.send(JSON.stringify({ type: "event", name: "extension-ready", data: {} }));
+        resolve({ httpServer, wss, mock });
+      });
       mock.on("message", d => {
         const r = JSON.parse(d.toString());
         mock.send(JSON.stringify({ id: r.id, result: handle(r) }));
@@ -207,6 +260,20 @@ console.log("\n\x1b[1mBulk\x1b[0m");
 test("POST /bulk/delete", await httpCall("POST", "/bulk/delete", { folderId: "f1" }), r => r.success);
 test("POST /bulk/tag", await httpCall("POST", "/bulk/tag", { folderId: "f1", tagKey: "$l1" }), r => r.success);
 test("POST /bulk/fetch", await httpCall("POST", "/bulk/fetch", { folderId: "f1" }), r => r.success);
+
+console.log("\n\x1b[1mExtension Management\x1b[0m");
+test("POST /extension/reload", await httpCall("POST", "/extension/reload", {}), r => r.ok && r.reloading);
+
+console.log("\n\x1b[1mBridge Events\x1b[0m");
+test("GET /bridge/events returns buffered events", await httpCall("GET", "/bridge/events"), r => Array.isArray(r.events) && r.events.some(e => e.name === "extension-ready"));
+test("GET /bridge/events?wait=extension-ready (from buffer)", await httpCall("GET", "/bridge/events?wait=extension-ready&since=0&timeout=1000"), r => r.event?.name === "extension-ready");
+test("GET /bridge/events?wait=nonexistent (timeout)", await httpCall("GET", "/bridge/events?wait=nonexistent&since=0&timeout=500"), r => r.code === "EVENT_TIMEOUT");
+
+// Live push: start a long-poll wait, then push a matching event over the mock WS.
+const liveWait = httpCall("GET", "/bridge/events?wait=test-event&since=0&timeout=3000");
+await new Promise(r => setTimeout(r, 200)); // ensure the waiter is registered before the push
+servers.mock.send(JSON.stringify({ type: "event", name: "test-event", data: { hello: "world" } }));
+test("GET /bridge/events?wait=test-event (live push)", await liveWait, r => r.event?.name === "test-event" && r.event?.data?.hello === "world");
 
 console.log(`\n\x1b[1m${"─".repeat(40)}\x1b[0m`);
 console.log(`\x1b[1m${passed} passed, ${failed} failed, ${passed + failed} total\x1b[0m\n`);

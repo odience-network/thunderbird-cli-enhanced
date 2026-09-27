@@ -120,6 +120,13 @@ function connect() {
       reconnectTimer = null;
     }
     updateBrowserAction("connected");
+    // Unsolicited beacon so a waiting `tb extension-reload` can detect this reconnection,
+    // distinguishing it from a reload of some earlier connection.
+    try {
+      socket.send(JSON.stringify({ type: "event", name: "extension-ready", data: {} }));
+    } catch (e) {
+      console.log("[tb-ai] Failed to send extension-ready beacon:", e.message);
+    }
   };
 
   socket.onmessage = async (event) => {
@@ -1027,6 +1034,20 @@ async function handleRequest({ method, path, body }) {
       folderId: folder.id, totalMessages: folder.totalMessageCount,
       unread: folder.unreadMessageCount, type: folder.type, name: folder.name,
     };
+  }
+
+  // ─── Extension Management ───────────────────────────────────────
+
+  if (path === "/extension/reload" && method === "POST") {
+    if (typeof messenger.runtime.reload !== "function") {
+      return { error: "runtime.reload() not available in this Thunderbird version" };
+    }
+    // Respond first, then reload after a delay so the WebSocket response is delivered before
+    // the reload tears down this connection.
+    setTimeout(() => {
+      messenger.runtime.reload();
+    }, 500);
+    return { ok: true, reloading: true, message: "Extension reloading" };
   }
 
   // ─── Bulk operations ───────────────────────────────────────────
