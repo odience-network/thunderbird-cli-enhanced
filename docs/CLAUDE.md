@@ -31,8 +31,10 @@ tb list <folderId> --unread --fields id,author,subject
 tb mark <messageId> --read
 tb mark <id1,id2,id3> --flagged      # batch mark
 tb move <messageId> <folderId>
-tb archive <messageId>
-tb delete <messageId>
+tb archive <messageId>                       # marked read by default
+tb delete <messageId>                         # to trash, marked read by default
+tb delete <messageId> --permanent --confirm   # permanent delete (unrecoverable)
+tb delete <messageId> --keep-unread           # trash but keep unread state
 
 # Tags
 tb tag <messageId> $label1            # add tag

@@ -346,14 +346,16 @@ tb move <id1,id2,id3> <destinationFolderId>
 tb copy <messageId> <destinationFolderId>
 tb copy <id1,id2,id3> <destinationFolderId>
 
-# Delete (to trash)
+# Delete (to trash, marked read by default)
+tb delete <messageId> --keep-unread         # trash but keep unread state
 tb delete <messageId>
-tb delete <id1,id2,id3>
+tb delete <id1,id2,id3> --keep-unread
 
-# Permanent delete (skip trash) — requires --confirm flag
+# Permanent delete (skip trash + read-mark) — requires --confirm flag
 tb delete <messageId> --permanent --confirm
 
-# Archive
+# Archive (marked read by default)
+tb archive <messageId> --keep-unread         # archive but keep unread state
 tb archive <messageId>
 tb archive <id1,id2,id3>
 ```

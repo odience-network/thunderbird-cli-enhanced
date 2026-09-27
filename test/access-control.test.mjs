@@ -149,7 +149,7 @@ console.log("\n\x1b[1mNew switches — default open\x1b[0m");
     ["downloadAttachments", "compose", "send", "move", "copy", "archive", "mark",
       "tag", "tagCreate", "folderCreate", "folderRename"].every((k) => access.policy[k] === true));
 
-  const archived = await handle("POST", "/messages/archive", { messageIds: [1, 2] });
+  const archived = await handle("POST", "/messages/archive", { messageIds: [1, 2], keepUnread: true });
   test("archive allowed by default", archived.archived === 2 && calls.messagesArchive.length === 1);
 
   const moved = await handle("POST", "/messages/move", { messageIds: [1], destinationFolderId: "f2" });

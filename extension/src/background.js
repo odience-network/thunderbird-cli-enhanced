@@ -338,12 +338,18 @@ async function handleRequest({ method, path, body }) {
   // ─── Archive ────────────────────────────────────────────────────
 
   if (path === "/messages/archive" && method === "POST") {
-    const { messageIds } = body || {};
+    const { messageIds, keepUnread = false } = body || {};
+    if (!keepUnread) {
+      for (const id of messageIds) {
+        try { await messenger.messages.update(id, { read: true }); }
+        catch { /* message may already be gone */ }
+      }
+    }
     await messenger.messages.archive(messageIds);
     return { success: true, archived: messageIds.length };
   }
 
-  // ─── Move ───────────────────────────────────────────────────────
+  // ─── Move ─────────────────────────────────────────────────────────
 
   if (path === "/messages/move" && method === "POST") {
     const { messageIds, destinationFolderId } = body;
@@ -364,7 +370,14 @@ async function handleRequest({ method, path, body }) {
   // ─── Delete ─────────────────────────────────────────────────────
 
   if (path === "/messages/delete" && method === "POST") {
-    const { messageIds, permanent = false } = body;
+    const { messageIds, permanent = false, keepUnread = false } = body;
+    // Only mark read when moving to trash (not permanent): the message survives in trash and would otherwise bloat the unread count.
+    if (!permanent && !keepUnread) {
+      for (const id of messageIds) {
+        try { await messenger.messages.update(id, { read: true }); }
+        catch { /* message may already be gone */ }
+      }
+    }
     await messenger.messages.delete(messageIds, permanent);
     return { success: true, deleted: messageIds.length };
   }

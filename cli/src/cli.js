@@ -449,9 +449,10 @@ program
 
 program
   .command("delete <messageIds>")
-  .description("Delete message(s) (to trash); needs add-on access policy delete=true")
+  .description("Delete message(s) (to trash, marked read by default); needs add-on access policy delete=true")
   .option("--permanent", "permanently delete (skip trash)")
   .option("--confirm", "required for permanent delete")
+  .option("--keep-unread", "do not mark read before trashing")
   .action(run(async (messageIds, opts) => {
     const g = program.opts();
     const fmt = g.format;
@@ -463,6 +464,7 @@ program
     const data = await api("POST", "/messages/delete", {
       messageIds: ids,
       permanent: opts.permanent || false,
+      keepUnread: opts.keepUnread || false,
     }, getTimeout(g));
     output(data, fmt, getOutputOpts(g));
   }));
@@ -471,11 +473,15 @@ program
 
 program
   .command("archive <messageIds>")
-  .description("Archive message(s) (comma-separated IDs)")
-  .action(run(async (messageIds) => {
+  .description("Archive message(s) (marked read by default, comma-separated IDs)")
+  .option("--keep-unread", "do not mark read before archiving")
+  .action(run(async (messageIds, opts) => {
     const g = program.opts();
     const ids = parseIds(messageIds);
-    const data = await api("POST", "/messages/archive", { messageIds: ids }, getTimeout(g));
+    const data = await api("POST", "/messages/archive", {
+      messageIds: ids,
+      keepUnread: opts.keepUnread || false,
+    }, getTimeout(g));
     output(data, g.format, getOutputOpts(g));
   }));
 

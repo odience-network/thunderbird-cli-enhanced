@@ -15,8 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The extension's add-on ID is now `thunderbird-cli-enhanced@odience.net` (was `thunderbird-ai@extension`,
   which belongs to the upstream author's addons.thunderbird.net account and can't be signed by this fork).
   Thunderbird treats it as a separate add-on: remove the old "Thunderbird AI Bridge" before installing.
+- `tb delete` (to trash) and `tb archive` now mark messages read by default before refiling,
+  preventing unread clutter in Trash/Archive. Use `--keep-unread` (CLI) / `keepUnread` (MCP
+  `email_archive`) to preserve the old behavior.
 
 ### Added
+- `--keep-unread` on `tb delete` and `tb archive` (`keepUnread` on MCP `email_archive`) — keep
+  the unread state instead of marking read before refiling.
 - `tb reply` / `tb forward` and MCP `email_reply` / `email_forward` now append the earlier
   thread (resolved the same way as `tb thread`, oldest first, quoted `>` style) below the body.
   On by default; opt out with `--no-history` / `includeHistory: false`.
