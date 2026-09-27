@@ -169,10 +169,13 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      `body.send` is set. Holding for CTO sign-off since this is a new write-capable route on
      the permission surface, not merging unilaterally. `d70236d` (docs) partially covers this
      commit and partially the next one — will split across both PRs.
-   - **Not yet landed, no access-control change needed**: `f6c95d3` (`--keep-unread` /
-     `keepUnread` on archive+delete) only adds a body param to the already-classified
-     `/messages/archive` and `/messages/delete` routes; no new route. Note the behavior
-     change: default is now mark-read-before-archive/delete (old behavior needs the new flag).
+   - **Shipped (PR #12)**: `f6c95d3` (`--keep-unread` / `keepUnread` on archive+delete) —
+     only added a body param to the already-classified `/messages/archive` and
+     `/messages/delete` routes, no new route, no access-control change needed. Default is
+     now mark-read-before-archive/delete; `--keep-unread` / `keepUnread` restores the old
+     behavior. Hand-adapted around two forward-reference conflicts in `background.js`
+     (the not-yet-ported `/compose/edit` handler and its `plainTextToHtml` helper from
+     the held-back `e510ec3`), both excluded from this PR.
    - **Needs hand-adaptation, own PR**: `67e31b8` (server-side sort/filter/full-text via
      `messages.list`/`messages.query`, TB 148+ with JS fallback). Touches the same
      `background.js` list/search internals as the already-merged `dboeckenhoff`
