@@ -1,6 +1,6 @@
 # Email Management via `tb` CLI
 
-The `tb` CLI connects to Thunderbird (must be running with the thunderbird-ai extension) to manage all email accounts. All output is JSON in `{ok, data}` format.
+The `tb` CLI connects to Thunderbird (must be running with the Thunderbird CLI Enhanced extension) to manage all email accounts. All output is JSON in `{ok, data}` format.
 
 ## Quick Reference
 

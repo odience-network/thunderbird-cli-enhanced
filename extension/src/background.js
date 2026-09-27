@@ -1,5 +1,5 @@
 /**
- * Thunderbird AI Bridge — Background Script (v2)
+ * Thunderbird CLI Enhanced — Background Script (v2)
  *
  * Pure WebExtension — no Experiment APIs.
  * Connects to local Node.js bridge via WebSocket.
@@ -23,6 +23,78 @@ let reconnectDelay = RECONNECT_BASE_MS;
 let ipcInFlight = 0;
 const ipcQueue = [];
 const folderInfoCache = new Map(); // folderId -> { info, expiresAt }
+let connectionState = "connecting";
+
+// ─── Toolbar Indicator ─────────────────────────────────────────────
+
+const STATUS_COLORS = {
+  connected: "#4CAF50",
+  disconnected: "#F44336",
+  connecting: "#FF9800",
+};
+
+const STATUS_TITLES = {
+  connected: "Thunderbird CLI Enhanced — Connected",
+  disconnected: "Thunderbird CLI Enhanced — Disconnected",
+  connecting: "Thunderbird CLI Enhanced — Connecting…",
+};
+
+function createIconWithDot(size, dotColor) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  const img = new Image();
+  img.src = browser.runtime.getURL(`icons/icon-${size}.png`);
+
+  return new Promise((resolve) => {
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, size, size);
+
+      const radius = Math.max(Math.round(size * 0.18), 2);
+      const cx = size - radius - 1;
+      const cy = size - radius - 1;
+
+      ctx.save();
+      ctx.shadowColor = dotColor;
+      ctx.shadowBlur = Math.max(Math.round(size * 0.25), 2);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = dotColor;
+      ctx.fill();
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+      ctx.fillStyle = dotColor;
+      ctx.fill();
+
+      resolve(ctx.getImageData(0, 0, size, size));
+    };
+    img.onerror = () => {
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+      ctx.fillStyle = dotColor;
+      ctx.fill();
+      resolve(ctx.getImageData(0, 0, size, size));
+    };
+  });
+}
+
+async function updateBrowserAction(state) {
+  connectionState = state;
+  try {
+    const color = STATUS_COLORS[state] || STATUS_COLORS.disconnected;
+    const imageData = {
+      16: await createIconWithDot(16, color),
+      48: await createIconWithDot(48, color),
+    };
+    browser.browserAction.setIcon({ imageData });
+    browser.browserAction.setTitle({ title: STATUS_TITLES[state] || STATUS_TITLES.disconnected });
+  } catch (e) {
+    console.log("[tb-ai] browserAction update failed:", e.message);
+  }
+}
 
 // ─── WebSocket Connection ───────────────────────────────────────────
 
@@ -34,6 +106,7 @@ function connect() {
     socket = new WebSocket(WS_URL);
   } catch (err) {
     console.log("[tb-ai] WebSocket create failed:", err.message);
+    updateBrowserAction("disconnected");
     scheduleReconnect();
     return;
   }
@@ -46,6 +119,7 @@ function connect() {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
+    updateBrowserAction("connected");
     // Unsolicited beacon so a waiting `tb extension-reload` can detect this reconnection,
     // distinguishing it from a reload of some earlier connection.
     try {
@@ -79,12 +153,14 @@ function connect() {
   socket.onclose = () => {
     console.log("[tb-ai] Disconnected from bridge");
     if (ws === socket) ws = null;
+    updateBrowserAction("disconnected");
     scheduleReconnect();
   };
 
   socket.onerror = () => {
     console.log("[tb-ai] WebSocket error, will reconnect");
     if (ws === socket) ws = null;
+    updateBrowserAction("disconnected");
     scheduleReconnect();
   };
 }
