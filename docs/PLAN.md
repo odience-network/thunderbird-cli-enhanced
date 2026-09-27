@@ -167,14 +167,15 @@ Rather than one large merge, integrate fork-by-fork as separate reviewable PRs a
      `e625adc` search across body/subject/sender, `bac88be` empty/omitted search query,
      `12f27e2` comma-separated to/cc/bcc parsing) — no new routes, bundled as one PR with
      5 new tests covering the general-query OR-search behavior.
-   - **Needs access-control classification + CTO permissions review before merge**:
-     `e510ec3` (`tb edit` / `email_edit`) adds a new `POST /compose/edit` route to
-     `background.js` with no `access-control.js` entry — under ODIAA-2311's fail-closed
-     design it would currently 403 as "unclassified". Proposed classification mirrors the
-     existing `/compose` handler: gate on `compose`, and additionally on `send` when
-     `body.send` is set. Holding for CTO sign-off since this is a new write-capable route on
-     the permission surface, not merging unilaterally. `d70236d` (docs) partially covers this
-     commit and partially the next one — will split across both PRs.
+   - **Shipped (PR #15, ODIAA-2321)**: `e510ec3` (`tb edit` / `email_edit`) adds a new
+     `POST /compose/edit` route to `background.js`, gated in `access-control.js` on `compose`
+     (and additionally `send` when `body.send` is set) — mirroring the existing `/compose`
+     handler exactly. This was a new write-capable route on the permission surface, so it was
+     held out of PRs #12 and #14 pending CTO sign-off on the classification rather than
+     merged unilaterally; sign-off obtained before merge. Also folds in the compose/edit-
+     relevant portion of `f6c95d3` (`plainTextToHtml` helper so body edits land correctly in
+     HTML drafts, and returning a `duplicated` flag instead of silently deleting the original
+     draft) and the matching slice of `d70236d` (docs).
    - **Shipped (PR #12)**: `f6c95d3` (`--keep-unread` / `keepUnread` on archive+delete) —
      only added a body param to the already-classified `/messages/archive` and
      `/messages/delete` routes, no new route, no access-control change needed. Default is
