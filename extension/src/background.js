@@ -960,6 +960,18 @@ async function handleRequest({ method, path, body }) {
     return result;
   }
 
+  // ─── Calendars (ODIAA-2327 proof, read-only) ────────────────────
+  // Requires the calendar_calendars Experiment API (manifest experiment_apis, see
+  // extension/experiments/calendar/) to have loaded successfully.
+
+  if (path === "/calendars" && method === "GET") {
+    if (!messenger.calendar?.calendars?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const calendars = await messenger.calendar.calendars.query({});
+    return calendars;
+  }
+
   // ─── Contacts search (must be before /contacts/:id) ─────────────
 
   if (path === "/contacts/search" && method === "POST") {

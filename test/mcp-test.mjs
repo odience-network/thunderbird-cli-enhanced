@@ -29,6 +29,8 @@ const failures = [];
 
 function handle({ method, path, body }) {
   if (path === "/health") return { status: "ok", version: "2.0.0", thunderbird: true };
+  if (path === "/calendars" && method === "GET")
+    return [{ id: "cal1", type: "storage", name: "Home", url: "moz-storage-calendar://cal1", readOnly: false, enabled: true, color: "#3366CC" }];
   if (path === "/accounts" && method === "GET")
     return [
       {
@@ -337,13 +339,14 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 21 tools", toolList, (r) => Array.isArray(r) && r.length === 21);
+test("tools/list returns 22 tools", toolList, (r) => Array.isArray(r) && r.length === 22);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
 
 console.log("\n\x1b[1mTools\x1b[0m");
 
+test("calendar_list", await client.callTool("calendar_list", {}), (r) => Array.isArray(r) && r[0]?.id === "cal1");
 test("email_stats", await client.callTool("email_stats", {}), (r) => r.totalAccounts === 1);
 test(
   "email_stats with accountId",
@@ -659,7 +662,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 21 && r.toolsBCount === 21
+  (r) => r.toolsACount === 22 && r.toolsBCount === 22
 );
 clientA.close();
 clientB.close();

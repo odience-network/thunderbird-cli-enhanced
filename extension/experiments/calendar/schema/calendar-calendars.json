@@ -1,0 +1,40 @@
+[
+  {
+    "namespace": "calendar.calendars",
+    "types": [
+      {
+        "id": "Calendar",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "name": { "type": "string" },
+          "url": { "type": "string" },
+          "readOnly": { "type": "boolean" },
+          "enabled": { "type": "boolean" },
+          "color": { "type": "string", "optional": true }
+        }
+      }
+    ],
+    "functions": [
+      {
+        "name": "query",
+        "async": true,
+        "type": "function",
+        "description": "List calendars registered in the calendar manager, optionally filtered.",
+        "parameters": [
+          {
+            "type": "object",
+            "name": "queryInfo",
+            "optional": true,
+            "properties": {
+              "type": { "type": "string", "optional": true, "description": "Provider type, e.g. 'storage', 'ics', 'caldav'" },
+              "readOnly": { "type": "boolean", "optional": true },
+              "enabled": { "type": "boolean", "optional": true }
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

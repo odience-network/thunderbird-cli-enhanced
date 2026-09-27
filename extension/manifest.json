@@ -42,5 +42,15 @@
   ],
   "background": {
     "scripts": ["src/access-config.js", "src/access-control.js", "src/thread-utils.js", "src/background.js"]
+  },
+  "experiment_apis": {
+    "calendar_calendars": {
+      "schema": "experiments/calendar/schema/calendar-calendars.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "experiments/calendar/parent/ext-calendar-calendars.js",
+        "paths": [["calendar", "calendars"]]
+      }
+    }
   }
 }

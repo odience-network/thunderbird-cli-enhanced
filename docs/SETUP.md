@@ -14,7 +14,12 @@ Docker/Devcontainer:
        ↕ http://host.docker.internal:7700
 ```
 
-Pure WebExtension. No Experiment APIs. Requires Thunderbird 128+.
+Almost entirely a plain WebExtension. Requires Thunderbird 128+. The one
+exception is calendar listing (`tb calendars`, read-only, experimental — see
+[docs/decisions/calendar-backend.md](decisions/calendar-backend.md)), which
+needs a chrome-privileged Experiment API since Thunderbird's WebExtension
+permission model has no calendar access. Signed releases that include it need
+a human ATN reviewer, which can take days — see the decision doc for status.
 
 ## Quick path: npm
 

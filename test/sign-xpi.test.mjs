@@ -195,13 +195,17 @@ await scenario("review rejected", async ({ input, out, signedPath }) => {
   test("rejected review writes nothing", existsSync(signedPath), false);
 });
 
-await scenario("still pending", async ({ input, out, signedPath }) => {
+await scenario("still pending manual review", async ({ input, out, signedPath }) => {
+  // processed+valid but never reviewed is the expected state for a version bundling
+  // Experiment APIs (calendar_calendars) — ATN requires a human reviewer for those, which
+  // can take days. That's not a failure, so this must not make sign-xpi.yml exit non-zero.
   const atn = await startAtn("pending");
   const r = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn.url, ATN_SIGN_TIMEOUT: "0.2" });
   atn.close();
-  test("unapproved version times out", r.code, 1);
-  test("timeout says how to resume", r.out.includes("re-run later"), true);
-  test("timeout writes nothing", existsSync(signedPath), false);
+  test("awaiting manual review exits 0, not a CI failure", r.code, 0);
+  test("says it's queued for manual review", r.out.includes("manual review"), true);
+  test("says how to resume", r.out.includes("Re-run"), true);
+  test("writes nothing yet", existsSync(signedPath), false);
 });
 
 await scenario("tampered download", async ({ input, out, signedPath }) => {
