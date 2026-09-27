@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Build thunderbird-cli.xpi from extension/ directory.
+ * Build thunderbird-cli-enhanced.xpi from extension/ directory.
  *
  * Usage: npm run build:xpi [-- --access-config <file.json>]
- * Output: dist/thunderbird-cli-<version>.xpi
+ * Output: dist/thunderbird-cli-enhanced-<version>.xpi
  *
  * The .xpi file is a standard ZIP with manifest.json at the root.
  * Ready for submission to addons.thunderbird.net for signing.
@@ -98,7 +98,7 @@ if (!files.some((f) => f.rel === "manifest.json")) {
 
 if (!existsSync(DIST_DIR)) mkdirSync(DIST_DIR, { recursive: true });
 
-const xpiName = `thunderbird-cli-${version}.xpi`;
+const xpiName = `thunderbird-cli-enhanced-${version}.xpi`;
 const xpiPath = join(DIST_DIR, xpiName);
 
 const zip = new AdmZip();

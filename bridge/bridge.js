@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Thunderbird AI Bridge Server
+ * Thunderbird CLI Bridge Server
  *
  * HTTP server (port 7700) for CLI requests.
  * WebSocket server (port 7701) for Thunderbird extension.

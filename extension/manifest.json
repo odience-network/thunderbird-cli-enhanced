@@ -1,14 +1,28 @@
 {
   "manifest_version": 2,
-  "name": "Thunderbird AI Bridge",
+  "name": "Thunderbird CLI Enhanced",
   "version": "2.1.0",
-  "description": "Connects Thunderbird to AI agents via WebSocket bridge",
-  "author": "thunderbird-ai",
+  "description": "Connects Thunderbird to CLI agents via WebSocket bridge",
+  "author": "thunderbird-cli-enhanced",
   "browser_specific_settings": {
     "gecko": {
       "id": "thunderbird-cli-enhanced@odience.net",
       "strict_min_version": "128.0"
     }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png",
+    "512": "icons/icon-512.png"
+  },
+  "browser_action": {
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png"
+    },
+    "default_title": "Thunderbird CLI Enhanced — Connecting…"
   },
   "permissions": [
     "accountsRead",
