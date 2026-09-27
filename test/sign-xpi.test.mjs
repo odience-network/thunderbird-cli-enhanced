@@ -8,7 +8,7 @@
 
 import AdmZip from "adm-zip";
 import { spawn } from "child_process";
-import { createHmac } from "crypto";
+import { createHash, createHmac } from "crypto";
 import { createServer } from "http";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
@@ -32,13 +32,17 @@ function test(name, actual, expected) {
   }
 }
 
-function xpi({ signed = false, version = "1.2.3" } = {}) {
+function xpi({ version = "1.2.3", marker = "" } = {}) {
   const zip = new AdmZip();
   const manifest = { manifest_version: 2, name: "Test Add-on", version, browser_specific_settings: { gecko: { id: GUID } } };
   zip.addFile("manifest.json", Buffer.from(JSON.stringify(manifest)));
-  if (signed) zip.addFile("META-INF/mozilla.rsa", Buffer.from("sig"));
+  if (marker) zip.addFile("marker.txt", Buffer.from(marker));
   return zip.toBuffer();
 }
+
+/** The bytes the mock ATN serves as the approved file. */
+const APPROVED = xpi({ marker: "served by ATN" });
+const sha256 = (buf) => `sha256:${createHash("sha256").update(buf).digest("hex")}`;
 
 /** True when the Authorization header is a valid, short-lived HS256 JWT for ISSUER. */
 function validJwt(header) {
@@ -52,7 +56,8 @@ function validJwt(header) {
 
 /**
  * Start a mock ATN. `scenario` picks the upload response and the status sequence;
- * resolves with { url, requests, close }.
+ * resolves with { url, requests, close }. Like the real ATN, approved files are
+ * served unsigned (`signed: false`) with a sha256 `hash`.
  */
 function startAtn(scenario) {
   const requests = [];
@@ -67,9 +72,9 @@ function startAtn(scenario) {
         res.end(JSON.stringify(json));
       };
       const base = `http://127.0.0.1:${server.address().port}`;
-      if (req.url === "/download/signed.xpi") {
+      if (req.url === "/download/approved.xpi") {
         res.writeHead(200);
-        return res.end(xpi({ signed: scenario !== "unsigned-download", version: "1.2.3" }));
+        return res.end(scenario === "tampered-download" ? xpi({ marker: "tampered" }) : APPROVED);
       }
       if (req.method === "PUT") {
         if (scenario === "not-owner") return send(403, { error: "You do not own this addon." });
@@ -78,12 +83,15 @@ function startAtn(scenario) {
       }
       polls++;
       const done = polls >= 2;
+      const ok = scenario !== "invalid" && scenario !== "rejected";
       send(200, {
         processed: done,
         valid: scenario !== "invalid",
+        reviewed: done && scenario !== "pending",
+        passed_review: done && ok && scenario !== "pending",
         validation_url: `${base}/validation/1`,
         validation_results: { messages: [{ type: "error", message: "bad manifest" }] },
-        files: done && scenario !== "invalid" ? [{ signed: true, download_url: `${base}/download/signed.xpi` }] : [],
+        files: done && ok ? [{ signed: false, hash: sha256(APPROVED), download_url: `${base}/download/approved.xpi` }] : [],
       });
     });
   });
@@ -130,24 +138,27 @@ await scenario("happy path", async ({ input, out, signedPath }) => {
   atn.close();
   test("signs and exits 0", r.code, 0);
   test("writes <slug>-<version>-tb.xpi", existsSync(signedPath), true);
-  test("output carries the signature", !!new AdmZip(readFileSync(signedPath)).getEntry("META-INF/mozilla.rsa"), true);
+  test("output is the exact ATN-served bytes", sha256(readFileSync(signedPath)), sha256(APPROVED));
   test("uploads to /addons/<guid>/versions/<version>/", atn.requests[0].url, `/addons/${encodeURIComponent(GUID)}/versions/1.2.3/`);
   test("uploads as PUT", atn.requests[0].method, "PUT");
   test("uploads the unlisted channel by default", /name="channel"\r\n\r\nunlisted/.test(atn.requests[0].body), true);
   test("every request carries a valid JWT", atn.requests.every((q) => q.auth), true);
 
-  const again = await runSign(["--xpi", input, "--out-dir", out], { ATN_API_URL: "http://127.0.0.1:9" });
-  test("re-run with the signed file present is a no-op", again.code, 0);
+  const atn2 = await startAtn("already-uploaded");
+  const again = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn2.url });
+  atn2.close();
+  test("re-run with the approved file present is a no-op", again.code, 0);
+  test("re-run skips the download", atn2.requests.some((q) => q.url.startsWith("/download/")), false);
 });
 
-await scenario("unsigned file in place", async ({ input, out, signedPath }) => {
+await scenario("stale file in place", async ({ input, out, signedPath }) => {
   mkdirSync(out, { recursive: true });
-  writeFileSync(signedPath, xpi());
+  writeFileSync(signedPath, xpi({ marker: "hand-built" }));
   const atn = await startAtn("ok");
   const r = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn.url });
   atn.close();
-  test("an unsigned file under the output name is re-signed", r.code, 0);
-  test("the unsigned file is replaced by the signed one", !!new AdmZip(readFileSync(signedPath)).getEntry("META-INF/mozilla.rsa"), true);
+  test("a file that differs from ATN's is replaced", r.code, 0);
+  test("the replacement is ATN's approved file", sha256(readFileSync(signedPath)), sha256(APPROVED));
 });
 
 await scenario("already uploaded resumes",async ({ input, out, signedPath }) => {
@@ -176,12 +187,29 @@ await scenario("validation failure", async ({ input, out, signedPath }) => {
   test("invalid upload writes nothing", existsSync(signedPath), false);
 });
 
-await scenario("unsigned download", async ({ input, out, signedPath }) => {
-  const atn = await startAtn("unsigned-download");
+await scenario("review rejected", async ({ input, out, signedPath }) => {
+  const atn = await startAtn("rejected");
   const r = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn.url });
   atn.close();
-  test("download without META-INF signature fails", r.code, 1);
-  test("download without signature writes nothing", existsSync(signedPath), false);
+  test("rejected review fails", r.code, 1);
+  test("rejected review writes nothing", existsSync(signedPath), false);
+});
+
+await scenario("still pending", async ({ input, out, signedPath }) => {
+  const atn = await startAtn("pending");
+  const r = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn.url, ATN_SIGN_TIMEOUT: "0.2" });
+  atn.close();
+  test("unapproved version times out", r.code, 1);
+  test("timeout says how to resume", r.out.includes("re-run later"), true);
+  test("timeout writes nothing", existsSync(signedPath), false);
+});
+
+await scenario("tampered download", async ({ input, out, signedPath }) => {
+  const atn = await startAtn("tampered-download");
+  const r = await runSign(["--xpi", input, "--out-dir", out], { ...creds, ATN_API_URL: atn.url });
+  atn.close();
+  test("download not matching ATN's hash fails", r.code, 1);
+  test("hash mismatch writes nothing", existsSync(signedPath), false);
 });
 
 await scenario("missing credentials", async ({ input, out }) => {

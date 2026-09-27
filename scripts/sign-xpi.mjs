@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * Sign the built XPI through the addons.thunderbird.net (ATN) signing API and save
- * the signed file to dist/releases/.
+ * Submit the built XPI through the addons.thunderbird.net (ATN) signing API and save
+ * the ATN-approved file to dist/releases/.
+ *
+ * Unlike addons.mozilla.org, ATN does not add a META-INF/ signature: Thunderbird does
+ * not require one. "Signed" here means ATN validated and approved the version and
+ * serves these exact bytes; the download is checked against ATN's published sha256.
  *
  * Usage: npm run build:xpi && npm run sign:xpi [-- --xpi <file> --out-dir <dir>]
  * Output: dist/releases/<name>-<version>-tb.xpi
@@ -12,16 +16,15 @@
  *   MOZILLA_HUB_JWT_SECRET  ATN API secret                 — required
  *   ATN_API_URL             default https://addons.thunderbird.net/api/v4
  *   ATN_CHANNEL             "unlisted" (self-distributed, default) or "listed"
- *   ATN_SIGN_TIMEOUT        seconds to wait for signing, default 900
+ *   ATN_SIGN_TIMEOUT        seconds to wait for approval, default 900
  *
  * The add-on ID in manifest.json must be new or owned by the API key's ATN account.
- * Re-running for a version that is already signed in dist/releases/ is a no-op (an
- * unsigned file under the same name is replaced), and
- * a version that was already uploaded (HTTP 409) resumes polling instead of failing.
+ * A version that was already uploaded (HTTP 409) resumes polling instead of failing,
+ * and a file in dist/releases/ that already matches ATN's hash is left untouched.
  */
 
 import AdmZip from "adm-zip";
-import { createHmac, randomUUID } from "crypto";
+import { createHash, createHmac, randomUUID } from "crypto";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join, dirname, basename } from "path";
 import { fileURLToPath } from "url";
@@ -63,14 +66,6 @@ const outPath = join(outDir, `${slug}-${version}-tb.xpi`);
 
 console.log(`Signing ${name} v${version} (${guid}) via ${API_URL}, channel ${CHANNEL}`);
 
-if (existsSync(outPath)) {
-  if (new AdmZip(outPath).getEntry("META-INF/mozilla.rsa")) {
-    console.log(`✓ ${basename(outPath)} is already signed — nothing to do`);
-    process.exit(0);
-  }
-  console.log(`  ${basename(outPath)} exists but carries no signature — replacing it`);
-}
-
 const { MOZILLA_HUB_JWT_ISSUER: issuer, MOZILLA_HUB_JWT_SECRET: secret } = process.env;
 if (!issuer || !secret) fail("MOZILLA_HUB_JWT_ISSUER and MOZILLA_HUB_JWT_SECRET must be set");
 
@@ -102,49 +97,57 @@ form.append("channel", CHANNEL);
 
 const upload = await api("PUT", versionUrl, form);
 if (upload.status === 409) {
-  console.log(`  version ${version} was already uploaded — waiting for its signed file`);
+  console.log(`  version ${version} was already uploaded — waiting for its approved file`);
 } else if (upload.status === 401 || upload.status === 403) {
   fail(`ATN refused the upload (${upload.status}): ${upload.json?.error || upload.json?.detail || upload.text}
   The add-on ID "${guid}" must be new or owned by the ATN account behind MOZILLA_HUB_JWT_ISSUER.`);
 } else if (upload.status !== 201 && upload.status !== 202) {
   fail(`ATN upload failed (${upload.status}): ${upload.text.slice(0, 500)}`);
 } else {
-  console.log(`  uploaded (${upload.status}), waiting for validation and signing...`);
+  console.log(`  uploaded (${upload.status}), waiting for validation and approval...`);
 }
 
-// ─── Poll until signed ─────────────────────────────────────────────
+// ─── Poll until approved ───────────────────────────────────────────
 
 const deadline = Date.now() + TIMEOUT_MS;
-let signedFile;
-while (!signedFile) {
+let approvedFile;
+while (!approvedFile) {
   const { status, json, text } = await api("GET", versionUrl);
   if (status !== 200) fail(`ATN status check failed (${status}): ${text.slice(0, 500)}`);
   if (json.processed && !json.valid) {
     fail(`ATN validation failed — see ${json.validation_url}\n${JSON.stringify(json.validation_results?.messages ?? [], null, 2)}`);
   }
-  signedFile = json.files?.find((f) => f.signed);
-  if (signedFile) break;
-  if (json.processed && json.reviewed && !json.passed_review) fail(`ATN review rejected v${version}`);
+  if (json.reviewed && !json.passed_review) fail(`ATN review rejected v${version} — see ${json.validation_url}`);
+  if (json.passed_review) approvedFile = json.files?.find((f) => f.download_url && f.hash);
+  if (approvedFile) break;
   if (Date.now() > deadline) {
-    fail(`not signed after ${TIMEOUT_MS / 1000}s (listed versions may need manual review) — re-run later to resume`);
+    fail(`not approved after ${TIMEOUT_MS / 1000}s (listed versions may need manual review) — re-run later to resume`);
   }
   await new Promise((r) => setTimeout(r, POLL_MS));
 }
 
 // ─── Download and verify ───────────────────────────────────────────
 
-const download = await fetch(signedFile.download_url, { headers: { Authorization: authHeader() } });
-if (!download.ok) fail(`signed XPI download failed (${download.status})`);
-const signed = Buffer.from(await download.arrayBuffer());
+const sha256 = (buf) => `sha256:${createHash("sha256").update(buf).digest("hex")}`;
 
-const signedZip = new AdmZip(signed);
-if (!signedZip.getEntry("META-INF/mozilla.rsa")) fail("downloaded XPI has no META-INF/mozilla.rsa signature");
-const signedManifest = JSON.parse(signedZip.getEntry("manifest.json").getData().toString("utf-8"));
-if (signedManifest.browser_specific_settings?.gecko?.id !== guid || signedManifest.version !== version) {
-  fail(`downloaded XPI is ${signedManifest.browser_specific_settings?.gecko?.id} v${signedManifest.version}, expected ${guid} v${version}`);
+if (existsSync(outPath) && sha256(readFileSync(outPath)) === approvedFile.hash) {
+  console.log(`✓ ${basename(outPath)} already matches ATN's approved file — nothing to do`);
+  process.exit(0);
+}
+
+const download = await fetch(approvedFile.download_url, { headers: { Authorization: authHeader() } });
+if (!download.ok) fail(`approved XPI download failed (${download.status})`);
+const approved = Buffer.from(await download.arrayBuffer());
+
+if (sha256(approved) !== approvedFile.hash) {
+  fail(`downloaded XPI hash ${sha256(approved)} does not match ATN's ${approvedFile.hash}`);
+}
+const approvedManifest = JSON.parse(new AdmZip(approved).getEntry("manifest.json").getData().toString("utf-8"));
+if (approvedManifest.browser_specific_settings?.gecko?.id !== guid || approvedManifest.version !== version) {
+  fail(`downloaded XPI is ${approvedManifest.browser_specific_settings?.gecko?.id} v${approvedManifest.version}, expected ${guid} v${version}`);
 }
 
 mkdirSync(outDir, { recursive: true });
-writeFileSync(outPath, signed);
-console.log(`✓ Signed ${basename(outPath)} (${signed.length} bytes)`);
+writeFileSync(outPath, approved);
+console.log(`✓ ATN-approved ${basename(outPath)} (${approved.length} bytes, ${approvedFile.hash})`);
 console.log(`  ${outPath}`);
