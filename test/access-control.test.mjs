@@ -45,6 +45,11 @@ function load(config) {
         return renamed;
       },
     },
+    calendar: {
+      calendars: {
+        query: async () => [{ id: "cal1", type: "storage", name: "Home", url: "moz-storage-calendar://cal1", readOnly: false, enabled: true, color: null }],
+      },
+    },
     messages: {
       list: async () => ({ id: null, messages: [{ id: 1, read: true, flagged: false, tags: [] }] }),
       get: async (id) => ({ id, folder: { type: "drafts" } }),
@@ -352,6 +357,15 @@ console.log("\n\x1b[1mValidation\x1b[0m");
     `accessPermissions(normalizeAccessPolicy(${JSON.stringify(c)}), ${JSON.stringify([...manifest.permissions, "messagesDelete"])})`, ctx);
   test("messagesDelete stripped when delete=false", !perms({}).includes("messagesDelete"));
   test("messagesDelete granted when delete=true", perms({ delete: true }).filter((p) => p === "messagesDelete").length === 1);
+}
+
+// ─── Calendars: new route, ungated read-only (ODIAA-2327) ───────────────
+
+console.log("\n\x1b[1mCalendars route\x1b[0m");
+{
+  const { handle } = load();
+  const calendars = await handle("GET", "/calendars");
+  test("GET /calendars is ungated with the default (all-closed) policy", Array.isArray(calendars) && calendars[0]?.id === "cal1");
 }
 
 console.log(`\n\x1b[1m${"─".repeat(40)}\x1b[0m`);
