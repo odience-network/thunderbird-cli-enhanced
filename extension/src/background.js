@@ -971,17 +971,37 @@ async function handleRequest({ method, path, body }) {
       const contacts = await messenger.contacts.list(b.id);
       for (const c of contacts) {
         const name = c.properties?.DisplayName || "";
-        const email = c.properties?.PrimaryEmail || "";
+        const emails = Object.entries(c.properties || {})
+          .filter(([k, v]) => /Email\d*$/.test(k) && v)
+          .map(([, v]) => v);
         if (query) {
           const q = query.toLowerCase();
-          if (!name.toLowerCase().includes(q) && !email.toLowerCase().includes(q)) continue;
+          const matchesEmail = emails.some((e) => e.toLowerCase().includes(q));
+          if (!name.toLowerCase().includes(q) && !matchesEmail) continue;
         }
-        all.push({ id: c.id, name, email, book: b.name });
+        all.push({ id: c.id, name, email: emails[0] || "", emails, book: b.name, bookId: b.id });
         if (contactLimit && all.length >= contactLimit) break;
       }
       if (contactLimit && all.length >= contactLimit) break;
     }
     return all;
+  }
+
+  // ─── Contacts create/update ──────────────────────────────────────
+
+  if (path === "/contacts/create" && method === "POST") {
+    const { book, properties } = body || {};
+    const books = await messenger.addressBooks.list();
+    const targetBook = books.find((b) => b.id === book || b.name === book);
+    if (!targetBook) return { error: `address book not found: ${book}` };
+    const id = await messenger.contacts.create(targetBook.id, null, properties || {});
+    return { id, book: targetBook.name, bookId: targetBook.id, properties: properties || {} };
+  }
+
+  if (path === "/contacts/update" && method === "POST") {
+    const { id, properties } = body || {};
+    await messenger.contacts.update(id, properties || {});
+    return { id, properties: properties || {} };
   }
 
   // ─── Contacts list ──────────────────────────────────────────────

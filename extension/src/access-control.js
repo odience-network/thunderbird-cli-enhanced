@@ -24,6 +24,7 @@ const ACCESS_DEFAULTS = Object.freeze({
   folderCreate: true,
   folderRename: true,
   folderDelete: false,
+  contactsWrite: false,
 });
 
 function normalizeAccessPolicy(config) {
@@ -70,6 +71,8 @@ const WRITE_PATHS = Object.freeze({
   "/folders/create": "folderCreate",
   "/folders/rename": "folderRename",
   "/folders/delete": "folderDelete",
+  "/contacts/create": "contactsWrite",
+  "/contacts/update": "contactsWrite",
 });
 
 function enforceAccess(method, path, body, policy = ACCESS_POLICY) {

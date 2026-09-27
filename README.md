@@ -21,8 +21,8 @@ IMAP libraries force you to manage credentials, OAuth flows, and sync state — 
 ## Features
 
 - 🔐 **Zero credential exposure** — all IMAP/SMTP stays in Thunderbird
-- 🤖 **Claude Desktop ready** — 13 MCP tools, one-line config
-- 📨 **41 CLI commands** — read, search, compose, reply, edit drafts, bulk ops, folder CRUD, attachments, contacts (read-only)
+- 🤖 **Claude Desktop ready** — 16 MCP tools, one-line config
+- 📨 **43 CLI commands** — read, search, compose, reply, edit drafts, bulk ops, folder CRUD, attachments, contacts (read/write)
 - 🛡️ **Access policy** — one policy baked into the add-on gates every write/send route for CLI, MCP and raw bridge calls; deletion is off by default and unknown routes fail closed ([docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
 - ✉️ **Safe by default** — compose/reply/forward/edit save as drafts; permanent delete requires `--confirm`
 - 🚀 **Bridge auto-start** — the CLI and MCP server start the bridge daemon on first use
@@ -109,7 +109,7 @@ Full MCP guide: **[mcp/README.md](mcp/README.md)**
 
 ### Companion skill for Claude
 
-A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 13 email tools well — token-efficient field selection, draft-by-default safety, checking trust signals before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
+A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 16 email tools well — token-efficient field selection, draft-by-default safety, checking trust signals before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
 
 ```bash
 # Claude Code
@@ -137,8 +137,8 @@ Without the skill, the MCP still works. With it, Claude automatically uses the s
 |---|---|
 | **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs; every route is classified by the access policy. |
 | **Bridge** (`bridge/`) | HTTP↔WebSocket proxy daemon on `127.0.0.1:7700`/`7701`. No business logic; buffers recent extension events for long-polling. |
-| **CLI** (`cli/`) | `tb` command — 41 commands. Thin HTTP client. JSON output. |
-| **MCP** (`mcp/`) | `tb-mcp` server — 13 curated tools for Claude Desktop. |
+| **CLI** (`cli/`) | `tb` command — 43 commands. Thin HTTP client. JSON output. |
+| **MCP** (`mcp/`) | `tb-mcp` server — 16 curated tools for Claude Desktop. |
 
 Thunderbird is the source of truth. The CLI never caches or stores email data.
 
@@ -209,7 +209,7 @@ The niche: **you already trust Thunderbird with your credentials and account sta
 | Doc | What's inside |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | Installation, background service, Docker, troubleshooting |
-| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 41 CLI commands |
+| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 43 CLI commands |
 | [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md) | The access policy: switches, defaults, how to change them |
 | [docs/diagrams/](docs/diagrams/) | Architecture, search sequence, access control, release and roadmap diagrams |
 | [docs/CLAUDE.md](docs/CLAUDE.md) | AI-agent-focused quick reference + security rules |
