@@ -2,8 +2,8 @@
   "schema_version": 1,
   "diagram_type": "lifecycle",
   "meta": {
-    "title": "Roadmap: mail today, PIM next",
-    "subtitle": "Phases 01–03 are on main; 04–05 and the parity target are planned (docs/PLAN.md)",
+    "title": "Roadmap: mail and PIM shipped",
+    "subtitle": "Phases 01–05 shipped in v1.3.0; the stability pass and atbridge parity remain (docs/PLAN.md)",
     "viewBox": [
       980,
       680
@@ -17,20 +17,20 @@
           "baseline",
           "integration",
           "mail",
-          "stability"
+          "calendar",
+          "notes"
         ],
-        "note": "Upstream baseline plus integrated fork work, all merged on main."
+        "note": "Upstream baseline plus fork work, mail, calendar, contacts, notes, tasks, skills and Fast Actions, all released in v1.3.0."
       },
       {
         "id": "planned",
         "label": "Planned",
         "focus": [
-          "mail",
-          "calendar",
           "notes",
+          "stability",
           "parity"
         ],
-        "note": "Calendar, contacts, notes and tasks (ODIAA-2306), then atbridge.ai feature parity."
+        "note": "An extension stability pass, then the remaining atbridge.ai parity gaps."
       }
     ]
   },
@@ -72,50 +72,50 @@
     {
       "id": "mail",
       "type": "active",
-      "label": "Mail today",
+      "label": "Mail",
       "sublabel": "CLI + MCP",
       "lane": "main",
       "col": 2,
       "step": "03",
-      "tag": "you are here"
+      "tag": "shipped"
     },
     {
       "id": "calendar",
-      "type": "waiting",
+      "type": "active",
       "label": "Calendar",
       "sublabel": "+ contacts write",
       "lane": "main",
       "col": 3,
       "step": "04",
-      "tag": "planned"
+      "tag": "shipped"
     },
     {
       "id": "notes",
-      "type": "waiting",
+      "type": "active",
       "label": "Notes, tasks",
-      "sublabel": "ODIAA-2306",
+      "sublabel": "skills, Fast Actions",
       "lane": "main",
       "col": 4,
       "step": "05",
-      "tag": "planned"
+      "tag": "v1.3.0 · you are here"
     },
     {
       "id": "stability",
-      "type": "active",
+      "type": "waiting",
       "label": "Stability pass",
       "sublabel": "extension audit",
       "lane": "hardening",
       "col": 0,
-      "tag": "in progress"
+      "tag": "planned"
     },
     {
       "id": "parity",
       "type": "success",
       "label": "atbridge parity",
-      "sublabel": "actions + skills",
+      "sublabel": "remaining gaps",
       "lane": "terminal",
       "col": 2,
-      "tag": "goal"
+      "tag": "planned"
     }
   ],
   "transitions": [
@@ -145,27 +145,26 @@
   "cards": [
     {
       "dot": "emerald",
-      "title": "Shipped on main",
+      "title": "Shipped in v1.3.0",
       "items": [
-        "41 CLI commands, 13 MCP tools",
-        "Access policy, signed XPI CI, auto-start, server-side search",
-        "extension-reload, opt-in v2 output, read-only contacts"
+        "74 CLI commands, 42 MCP tools",
+        "Calendar with clash detection, tasks, contacts write, notes + transcription",
+        "Deterministic skills, Fast Actions (email to note/task/event/contact)"
       ]
     },
     {
       "dot": "amber",
-      "title": "Planned (ODIAA-2306)",
+      "title": "Planned",
       "items": [
-        "Calendar events with clash detection",
-        "Contact create/update, notes, tasks"
+        "Extension stability pass with regression tests",
+        "Remaining atbridge.ai parity items (docs/PLAN.md)"
       ]
     },
     {
       "dot": "cyan",
       "title": "Parity target",
       "items": [
-        "Email to note/task/event/contact actions",
-        "Deterministic slash-command skills",
+        "Close the remaining atbridge.ai gaps",
         "Writes stay opt-in and local-first"
       ]
     }

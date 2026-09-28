@@ -76,6 +76,32 @@ tb download-status <messageId>        # check: full | headers_only
 # Contacts
 tb contacts-search "john"
 tb contact <contactId>
+tb address-books                                  # books you can write to
+tb contacts create --book <bookId> --email "a@b.com" --display-name "A B"   # needs contactsWrite
+tb contacts update <contactId> --phone "+1 555 0100"                        # needs contactsWrite
+
+# Calendar (needs add-on 2.4.0; writes need calendarWrite)
+tb calendar list
+tb calendar events --start 2026-10-01 --end 2026-10-08
+tb calendar create --calendar <calendarId> --title "Review" --start 2026-10-02T10:00 --end 2026-10-02T11:00
+tb calendar clashes --start 2026-10-01 --end 2026-10-08
+
+# Tasks (needs add-on 2.4.0; writes need tasksWrite)
+tb tasks list --pending
+tb tasks create --calendar <calendarId> --title "Send invoice" --due 2026-10-03
+tb action-items <messageId>                       # Markdown checklist, no LLM
+
+# Deterministic skills (compact Markdown, no LLM tokens)
+tb today
+tb week
+tb clashes --days 7
+tb from "boss@co.com"
+
+# Fast Actions (email → note / task / event / contact)
+tb email-to-note <messageId>
+tb email-to-task <messageId> --calendar <calendarId>
+tb email-to-event <messageId> --calendar <calendarId>
+tb email-to-contact <messageId> --book <bookId>
 
 # Identities (for --from flag in compose)
 tb identities
@@ -86,6 +112,7 @@ tb notes read <name>                              # "Use as Context"
 tb notes save <name> --body "text" [--title <t>]  # "Save to Notes"
 tb notes append <name> --body "more text"
 tb notes to-draft <name> --to "a@b.com"           # render to HTML draft, never sends
+tb notes transcribe memo.m4a --engine faster-whisper   # local speech-to-text, nothing leaves the machine
 ```
 
 ## Output Format

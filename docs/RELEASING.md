@@ -15,7 +15,7 @@ The `cli/`, `bridge/` and `mcp/` workspaces are `private: true` and keep upstrea
 1. Bump the version in **all** of these (`npm run test:pack` fails if they disagree):
    `package.json`, `cli/package.json`, `bridge/package.json`, `mcp/package.json`, and both `version` fields in `server.json`. Then run `npm install` so `package-lock.json` follows.
 2. Move the `[Unreleased]` section of `CHANGELOG.md` under the new version.
-3. Make sure a signed `*-tb.xpi` for the current add-on version is in `dist/releases/` (see the sign-xpi workflow); the release job fails without one.
+3. Make sure a signed `*-tb.xpi` for the current add-on version is in `dist/releases/` (see the sign-xpi workflow); the release job fails without one. It attaches the highest-versioned signed XPI it finds (`sort -V`), which can be older than the manifest while ATN review is pending — v1.3.0 shipped signed 2.1.0 alongside the unsigned 2.4.0.
 4. Run `npm run test:all` and `npm run test:pack-smoke` locally, open a PR, merge.
 5. Tag the merge commit and push the tag:
 

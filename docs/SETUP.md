@@ -14,12 +14,14 @@ Docker/Devcontainer:
        ↕ http://host.docker.internal:7700
 ```
 
-Almost entirely a plain WebExtension. Requires Thunderbird 128+. The one
-exception is calendar support (`tb calendar list`/`events`/`create`/`update`/`delete`/`clashes`,
-experimental — see [docs/decisions/calendar-backend.md](decisions/calendar-backend.md)), which
-needs a chrome-privileged Experiment API since Thunderbird's WebExtension
-permission model has no calendar access. Signed releases that include it need
-a human ATN reviewer, which can take days — see the decision doc for status.
+Almost entirely a plain WebExtension. Requires Thunderbird 128+ (add-on 2.4.0
+supports 128.0 – 156.*). The one exception is calendar and task support (`tb calendar
+list`/`events`/`create`/`update`/`delete`/`clashes`, `tb tasks`, and the Fast Actions
+that create events or tasks — see [docs/decisions/calendar-backend.md](decisions/calendar-backend.md)),
+which needs chrome-privileged Experiment APIs (`calendar_calendars`, `calendar_items`,
+`calendar_tasks`) since Thunderbird's WebExtension permission model has no calendar
+access. Signed releases that include them need a human ATN reviewer, which can take
+days — see [Step 2](#step-2-install-the-thunderbird-extension) for which build to install.
 
 ## Quick path: npm
 
@@ -89,7 +91,9 @@ nohup node bridge/bridge.js > ~/.tb-bridge.log 2>&1 &
 
 The extension is signed by Mozilla through addons.thunderbird.net for self-distribution. It installs permanently and survives Thunderbird restarts.
 
-1. Download the latest signed XPI (`<name>-<version>-tb.xpi`; the current 2.1.0 build is `thunderbird_ai_bridge-2.1.0-tb.xpi` because it predates the rename to Thunderbird CLI Enhanced) from one of these locations:
+> **Which build?** The only ATN-signed build today is **2.1.0** (`thunderbird_ai_bridge-2.1.0-tb.xpi`). It predates the rename, so it shows as "Thunderbird AI Bridge" in the Add-ons Manager, and it has no calendar, tasks or Fast Actions — email, contacts and notes commands work with it. **2.4.0** ("Thunderbird CLI Enhanced", needed for calendar, tasks and Fast Actions) is attached **unsigned** to the [v1.3.0 GitHub Release](https://github.com/odience-network/thunderbird-cli-enhanced/releases/tag/v1.3.0) while ATN's manual review (required for Experiment APIs) is pending. Load it via **Tools → Developer Tools → Debug Add-ons → Load Temporary Add-on…** (removed on restart), or install it permanently on a Thunderbird build that allows unsigned add-ons. Once 2.4.0 is signed it lands in `dist/releases/` as `thunderbird_cli_enhanced-2.4.0-tb.xpi`.
+
+1. Download the latest signed XPI (`<name>-<version>-tb.xpi`, currently `thunderbird_ai_bridge-2.1.0-tb.xpi`) from one of these locations:
    - **Directly from `main`:** [`dist/releases/`](../dist/releases/)
    - **GitHub Releases:** https://github.com/odience-network/thunderbird-cli-enhanced/releases, attached by `release.yml` when a `v*` tag is pushed
 2. Open Thunderbird → **Add-ons and Themes**
@@ -98,7 +102,7 @@ The extension is signed by Mozilla through addons.thunderbird.net for self-distr
 5. Confirm when Thunderbird asks to install
 6. Check the bridge terminal — you should see: `[bridge] Extension connected`
 
-> The signed XPI is byte-identical to the source in `extension/`, but Mozilla's trust registry marks it as verified. You **must** use the XPI downloaded from ATN (or our GitHub Releases) — a locally-built XPI won't install permanently.
+> The signed XPI is built from the source in `extension/` at the version it was signed for, but Mozilla's trust registry marks it as verified. You **must** use the XPI downloaded from ATN (or our GitHub Releases) — a locally-built XPI won't install permanently.
 
 ### Option B: Temporary add-on (for developers making changes)
 
@@ -115,7 +119,7 @@ When you reload after editing, click **Reload** next to the add-on in `about:deb
 
 ### Access policy
 
-The add-on carries one access policy, fixed at build time, that every caller goes through. Deleting messages and deleting folders are off by default; a disabled operation returns `FORBIDDEN`. Check the active policy with `tb access`. To change it, copy `access.example.json` to `access.local.json`, edit it, and install a build from `npm run build:xpi -- --access-config access.local.json`. See [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
+The add-on carries one access policy, fixed at build time, that every caller goes through. Deleting messages and deleting folders are off by default, as are contact, calendar and task writes (`contactsWrite`, `calendarWrite`, `tasksWrite`); a disabled operation returns `FORBIDDEN`. Check the active policy with `tb access`. To change it, copy `access.example.json` to `access.local.json`, edit it, and install a build from `npm run build:xpi -- --access-config access.local.json`. See [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
 
 ## Step 3: Install the CLI
 
@@ -198,6 +202,8 @@ Environment variables override config file values:
 - `TB_BRIDGE_HOST` — bridge hostname
 - `TB_BRIDGE_PORT` — bridge HTTP port
 - `TB_AUTH_TOKEN` — auth token
+- `TB_NOTES_DIR` — notes workspace (default `~/.config/thunderbird-cli/notes`, or `notesDir` in the config file)
+- `TB_WHISPER_CPP_BIN` / `TB_WHISPER_CPP_MODEL` / `TB_FASTER_WHISPER_BIN` — local speech-to-text engine for `tb notes transcribe` (optional; install [whisper.cpp](https://github.com/ggml-org/whisper.cpp) or [faster-whisper](https://github.com/SYSTRAN/faster-whisper)'s `whisper-ctranslate2`; audio never leaves the machine)
 
 ## Troubleshooting
 

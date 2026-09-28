@@ -23,7 +23,13 @@ HTTP client (CLI / MCP / curl) ──HTTP→ tb-bridge ──WS→ Thunderbird E
 
 ## Install
 
-From a clone of this repository (the published npm package comes from upstream and lags this fork):
+From npm — `tb-bridge` ships in the same package as `tb` and `tb-mcp` (the unscoped `thunderbird-cli-bridge` package is upstream's):
+
+```bash
+npm i -g @odience-network/thunderbird-cli-enhanced
+```
+
+Or from a clone of this repository:
 
 ```bash
 git clone https://github.com/odience-network/thunderbird-cli-enhanced
@@ -132,7 +138,7 @@ All other paths get forwarded to the Thunderbird extension via WebSocket and the
 
 The bridge alone does nothing useful — you need:
 
-1. **Mozilla Thunderbird 128+** with the signed extension from [`dist/releases/`](https://github.com/odience-network/thunderbird-cli-enhanced/tree/main/dist/releases) installed
+1. **Mozilla Thunderbird 128+** with the Thunderbird CLI Enhanced add-on installed: the signed build from [`dist/releases/`](https://github.com/odience-network/thunderbird-cli-enhanced/tree/main/dist/releases) (2.1.0, email/contacts/notes), or the unsigned 2.4.0 build attached to the [v1.3.0 GitHub Release](https://github.com/odience-network/thunderbird-cli-enhanced/releases/tag/v1.3.0) for calendar, tasks and Fast Actions while ATN review is pending
 2. **Optional:** the `tb` CLI (`cli/`) or the `tb-mcp` server (`mcp/`) as the HTTP client
 
 See the [main repo setup guide](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/SETUP.md).

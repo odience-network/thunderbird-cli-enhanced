@@ -6,11 +6,11 @@ The HTML files are standalone pages: GitHub shows their source, so download one 
 
 | Diagram | Type | Shows | Embedded in |
 |---|---|---|---|
-| [architecture](architecture.html) ([IR](src/architecture.json)) | architecture | Agents, `tb` / `tb-mcp`, bridge, extension, access policy, accounts | [README](../../README.md#how-it-works) |
+| [architecture](architecture.html) ([IR](src/architecture.json)) | architecture | Agents, `tb` / `tb-mcp`, bridge, extension, access policy, mail + PIM data, local notes workspace | [README](../../README.md#how-it-works) |
 | [search-sequence](search-sequence.html) ([IR](src/search-sequence.json)) | sequence | One search end to end: auto-start (#13), server-side query (#14), liveness | [README](../../README.md#why-this-fork), [SPEC](../../SPEC.md#request-flow) |
 | [access-control](access-control.html) ([IR](src/access-control.json)) | dataflow | Policy from config to build to installed add-on; route classification and `FORBIDDEN` | [ACCESS-CONTROL](../ACCESS-CONTROL.md#how-a-request-is-checked) |
-| [release-workflow](release-workflow.html) ([IR](src/release-workflow.json)) | workflow | Version bump → `sign-xpi.yml` → ATN → signed XPI → tag → `release.yml` | [AGENTS](../../AGENTS.md#release) |
-| [roadmap](roadmap.html) ([IR](src/roadmap.json)) | lifecycle | Upstream → fork merges → mail today → calendar/contacts/notes/tasks → atbridge parity | [README](../../README.md#roadmap), [PLAN](../PLAN.md#5-roadmap-phases) |
+| [release-workflow](release-workflow.html) ([IR](src/release-workflow.json)) | workflow | Version bump → `sign-xpi.yml` → ATN → signed XPI → tag → `release.yml` (GitHub Release + npm) | [AGENTS](../../AGENTS.md#release) |
+| [roadmap](roadmap.html) ([IR](src/roadmap.json)) | lifecycle | Upstream → fork merges → mail → calendar/contacts → notes/tasks/skills/Fast Actions (all shipped in v1.3.0) → stability pass and atbridge parity (planned) | [README](../../README.md#roadmap), [PLAN](../PLAN.md#5-roadmap-phases) |
 
 <p>
   <img src="architecture.png" alt="Architecture" width="49%">

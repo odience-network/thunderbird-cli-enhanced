@@ -1,11 +1,11 @@
 ---
 name: thunderbird-cli
-description: Manage email through Mozilla Thunderbird — read, search, compose, reply, forward, edit drafts, archive, move, tag, download attachments, and bulk-operate across all configured IMAP/SMTP accounts via the tb-mcp server. Use whenever the user mentions "email", "inbox", "mailbox", "unread", "messages", asks to "check email", "read my mail", "search for an email about X", "draft a reply", "forward that message", "archive old newsletters", "download attachment", "how many unread", or names specific folders (Inbox, Sent, Drafts, Archive, Junk). Do NOT use for calendar/contacts-only work (use a dedicated calendar skill instead) or for services that are not configured in the user's Thunderbird (ask which account to use first).
-compatibility: Requires Mozilla Thunderbird 128+ with the thunderbird-cli WebExtension installed, the bridge daemon on 127.0.0.1:7700 (auto-started on first use), and the tb-mcp MCP server configured in the client. Install with `npm i -g @odience-network/thunderbird-cli-enhanced` (or from a clone with ./setup.sh) plus the signed XPI in dist/releases/ of https://github.com/odience-network/thunderbird-cli-enhanced. Localhost-only — no cloud, no credentials outside Thunderbird.
+description: Manage email through Mozilla Thunderbird — read, search, compose, reply, forward, edit drafts, archive, move, tag, download attachments, and bulk-operate across all configured IMAP/SMTP accounts via the tb-mcp server — plus Thunderbird calendar events, tasks, contacts, local Markdown notes, and one-call email-to-note/task/event/contact Fast Actions. Use whenever the user mentions "email", "inbox", "mailbox", "unread", "messages", asks to "check email", "read my mail", "search for an email about X", "draft a reply", "forward that message", "archive old newsletters", "download attachment", "how many unread", or names specific folders (Inbox, Sent, Drafts, Archive, Junk). Do NOT use for calendars/contacts that live outside Thunderbird or for services that are not configured in the user's Thunderbird (ask which account to use first).
+compatibility: Requires Mozilla Thunderbird 128+ with the thunderbird-cli WebExtension installed, the bridge daemon on 127.0.0.1:7700 (auto-started on first use), and the tb-mcp MCP server configured in the client. Install with `npm i -g @odience-network/thunderbird-cli-enhanced` (or from a clone with ./setup.sh) plus the add-on XPI from https://github.com/odience-network/thunderbird-cli-enhanced (the signed build in dist/releases/ is 2.1.0 and lacks calendar/tasks/Fast Actions; use the unsigned 2.4.0 XPI from the v1.3.0 GitHub Release until the signed 2.4.0 lands). Localhost-only — no cloud, no credentials outside Thunderbird.
 license: MIT
 metadata:
   author: Vitalii Ionov
-  version: 1.1.0
+  version: 1.3.0
   mcp-server: @odience-network/thunderbird-cli-enhanced
   category: communication
   tags: [email, thunderbird, imap, smtp, mcp, productivity, localhost, privacy]
@@ -38,9 +38,9 @@ Equivalent to `tb health` — returns account count and bridge status. If it err
 - **EXTENSION_DISCONNECTED** — open Thunderbird. The WebExtension auto-connects within 3s of Thunderbird being open.
 - **NOT_FOUND** on account/folder — the user hasn't added that account to Thunderbird yet.
 
-## The 41 MCP tools
+## The 42 MCP tools
 
-Use these; don't reach for the 47-command CLI unless the user explicitly asks for a bulk operation not covered here.
+Use these; don't reach for the 74-command CLI unless the user explicitly asks for a bulk operation not covered here.
 
 For "what's on my plate" style asks, prefer `skill_today`/`skill_week`/`skill_clashes`/`skill_from` over composing `email_search` + `calendar_events` + `email_stats` yourself — they return ready-to-show Markdown built deterministically (no model reasoning), so pass their output straight through to the user instead of re-summarizing it.
 
@@ -82,6 +82,12 @@ For "what's on my plate" style asks, prefer `skill_today`/`skill_week`/`skill_cl
 | `task_create` | Create a calendar task | ⚠️ requires `tasksWrite` access switch (default off) |
 | `task_update` | Update a task's fields (title, due, priority, description, completed) by id | ⚠️ requires `tasksWrite` access switch (default off) |
 | `email_action_items` | Deterministic (no LLM) extraction of candidate action items from a message body as a Markdown checklist | ✅ read-only |
+| `address_book_list` | List address books (id, name) — pick the target `book` for `contact_create` / `email_to_contact` | ✅ read-only |
+| `email_to_note` | Fast Action: save an email to the local notes workspace | ✅ local file only |
+| `email_to_task` | Fast Action: create a task from an email via action-item extraction | ⚠️ requires `tasksWrite` access switch (default off) |
+| `email_to_event` | Fast Action: create an event from an email via deterministic date/time/location parsing (falls back to a TENTATIVE placeholder) | ⚠️ requires `calendarWrite` access switch (default off) |
+| `email_to_contact` | Fast Action: add the sender as a contact, deduped by email address | ⚠️ requires `contactsWrite` access switch (default off) |
+| `notes_listen_once` | Block until the user clicks "Save to Notes" in Thunderbird (or timeout), then save the note | ✅ local file only |
 
 Notes live entirely on disk (`~/.config/thunderbird-cli/notes` by default) —
 no Thunderbird round-trip except `note_to_draft`, which reuses the same
@@ -332,7 +338,7 @@ Some IMAP servers don't preload attachments. Call `email_read id=<id> mode="chec
 
 ## CLI fallback (for power users)
 
-If the user says "from the terminal" or asks about scripting, the same capabilities are available via the `tb` CLI (47 commands, JSON output). Full reference: `tb <cmd> --help` or https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/COMMANDS.md.
+If the user says "from the terminal" or asks about scripting, the same capabilities are available via the `tb` CLI (74 commands, JSON output). Full reference: `tb <cmd> --help` or https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/COMMANDS.md.
 
 MCP tool → CLI command mapping:
 
@@ -356,7 +362,14 @@ MCP tool → CLI command mapping:
 | `contact_search` | `tb contacts-search <query>` |
 | `contact_create` | `tb contacts create --book <bookId> ...` |
 | `contact_update` | `tb contacts update <contactId> ...` |
-| `calendar_list` | `tb calendars` |
+| `calendar_list` | `tb calendar list` |
+| `calendar_events` | `tb calendar events --start <date> --end <date>` |
+| `calendar_event_create` | `tb calendar create --calendar <calendarId> --title <title> --start <date> --end <date>` |
+| `calendar_event_update` | `tb calendar update <eventId> --calendar <calendarId> ...` |
+| `calendar_event_delete` | `tb calendar delete <eventId> --calendar <calendarId>` |
+| `calendar_clashes` | `tb calendar clashes` |
+| `skill_today` / `skill_week` / `skill_clashes` | `tb today` / `tb week` / `tb clashes` |
+| `skill_from` | `tb from <address>` |
 | `task_list` | `tb tasks list` |
 | `task_create` | `tb tasks create --calendar <calendarId> --title <title> ...` |
 | `task_update` | `tb tasks update <taskId> --calendar <calendarId> ...` |
@@ -370,4 +383,4 @@ MCP tool → CLI command mapping:
 
 ## Version
 
-This skill tracks the `tb-mcp` server on `main` of thunderbird-cli-enhanced (package version 1.1.0). The tool surface (26 tools, parameter names, defaults) is stable within the 1.x line. Check [CHANGELOG](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/CHANGELOG.md) for additions.
+This skill tracks the `tb-mcp` server on `main` of thunderbird-cli-enhanced (package version 1.3.0). The tool surface (42 tools, parameter names, defaults) is stable within the 1.x line. Check [CHANGELOG](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/CHANGELOG.md) for additions.

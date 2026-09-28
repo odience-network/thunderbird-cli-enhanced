@@ -2,7 +2,7 @@
   "name": "thunderbird-cli-mcp",
   "version": "1.3.0",
   "private": true,
-  "description": "MCP server that gives Claude Desktop full access to your email through Mozilla Thunderbird. 12 high-level tools: search, read, compose, reply, attachments, folders.",
+  "description": "MCP server that gives Claude Desktop full access to your email, calendar, tasks and contacts through Mozilla Thunderbird. 42 tools: search, read, compose, reply, attachments, folders, contacts, calendar, tasks, notes and Fast Actions.",
   "type": "module",
   "bin": {
     "tb-mcp": "./src/server.js"

@@ -10,9 +10,9 @@ Four artifacts, one architecture. The three Node workspaces below are private an
 
 | Artifact | What | Where |
 |---|---|---|
-| `thunderbird-cli` | `tb` CLI (47 commands) | `cli/` → bin `tb` in `@odience-network/thunderbird-cli-enhanced` |
+| `thunderbird-cli` | `tb` CLI (74 commands: mail, contacts, calendar, tasks, notes, skills, Fast Actions) | `cli/` → bin `tb` in `@odience-network/thunderbird-cli-enhanced` |
 | `thunderbird-cli-bridge` | Stateless HTTP↔WS proxy daemon | `bridge/` → bin `tb-bridge` in `@odience-network/thunderbird-cli-enhanced` |
-| `thunderbird-cli-mcp` | MCP server (16 tools for Claude Desktop) | `mcp/` → bin `tb-mcp` in `@odience-network/thunderbird-cli-enhanced` |
+| `thunderbird-cli-mcp` | MCP server (42 tools for Claude Desktop) | `mcp/` → bin `tb-mcp` in `@odience-network/thunderbird-cli-enhanced` |
 | Thunderbird WebExtension | WS client inside Thunderbird | `extension/` → Mozilla-signed (unlisted) XPI in `dist/releases/` |
 
 ```
@@ -27,8 +27,8 @@ Everything localhost-only. Thunderbird holds credentials; no creds pass through 
 
 ```bash
 npm install                # installs workspace deps for cli/, bridge/, mcp/
-npm test                   # 46 CLI/bridge integration tests
-npm run test:mcp           # 34 MCP server tests
+npm test                   # CLI/bridge integration tests
+npm run test:mcp           # MCP server tests
 npm run bridge             # start bridge (needed for live tests; not for unit tests)
 ```
 
@@ -42,7 +42,7 @@ Node 20+ required. All three packages are ES modules (`"type": "module"`).
 - **CLI framework:** `commander.js`. Command definitions in `cli/src/cli.js`; HTTP client + formatters in `cli/src/client.js`.
 - **Bridge:** vanilla Node `http` + `ws`. Zero business logic — it's a UUID-correlated proxy. Don't add state.
 - **MCP server:** `@modelcontextprotocol/sdk`. Stdio transport. Reuses `cli/src/client.js` — don't re-implement the HTTP client in `mcp/`.
-- **Extension:** pure WebExtension (`manifest_version: 2`). No Experiment APIs. Compatible with Thunderbird 128+.
+- **Extension:** WebExtension (`manifest_version: 2`) on `messenger.*`, plus three vendored Experiment APIs (`calendar_calendars`, `calendar_items`, `calendar_tasks`) for calendar and tasks only — don't add more without discussing, each one forces ATN manual review. Compatible with Thunderbird 128.0 – 156.* (`strict_max_version` is required with Experiment APIs).
 
 ### Output format
 
@@ -53,7 +53,7 @@ By default every command outputs atomic JSON (`--output-version 2` / `TB_OUTPUT_
 { "ok": false, "error": "message", "code": "ERROR_CODE" }
 ```
 
-Error codes: `BRIDGE_UNREACHABLE`, `EXTENSION_DISCONNECTED`, `AUTH_REQUIRED`, `FORBIDDEN`, `TIMEOUT`, `NOT_FOUND`, `INVALID_ARGS`, `THUNDERBIRD_ERROR`, `EVENT_TIMEOUT`, `RECONNECT_TIMEOUT`. Don't invent new ones — pick an existing one or extend the union intentionally.
+Error codes: `BRIDGE_UNREACHABLE`, `EXTENSION_DISCONNECTED`, `AUTH_REQUIRED`, `FORBIDDEN`, `TIMEOUT`, `NOT_FOUND`, `INVALID_ARGS`, `THUNDERBIRD_ERROR`, `EVENT_TIMEOUT`, `RECONNECT_TIMEOUT`, plus `NO_ENGINE` / `ENGINE_FAILED` for `tb notes transcribe`. Don't invent new ones — pick an existing one or extend the union intentionally.
 
 ### Safety defaults (NEVER weaken)
 
@@ -128,7 +128,7 @@ Tagging `vX.Y.Z` fires `.github/workflows/release.yml`:
 3. Finds the signed XPI in `dist/releases/` (must be checked in)
 4. Creates the GitHub Release with both XPIs attached
 
-The signed XPI itself comes from `.github/workflows/sign-xpi.yml`: bumping `version` in `extension/manifest.json` on `main` runs `npm run verify`, signs through the addons.thunderbird.net API (`npm run sign:xpi`, secrets `MOZILLA_HUB_JWT_ISSUER` / `MOZILLA_HUB_JWT_SECRET`) and commits `dist/releases/<name>-<version>-tb.xpi`. Tag after that commit lands.
+The signed XPI itself comes from `.github/workflows/sign-xpi.yml`: bumping `version` in `extension/manifest.json` on `main` runs `npm run verify`, signs through the addons.thunderbird.net API (`npm run sign:xpi`, secrets `MOZILLA_HUB_JWT_ISSUER` / `MOZILLA_HUB_JWT_SECRET`) and commits `dist/releases/<name>-<version>-tb.xpi`. Tag after that commit lands. `release.yml` attaches whichever signed XPI is newest in `dist/releases/`, so while ATN's manual review is pending (as for 2.4.0 at v1.3.0) a release ships the older signed build next to the unsigned current one — say so in the release notes.
 
 npm publish is manual (`cd cli && npm publish`) — intentionally, so a release tag without publish is a no-op you can recover from.
 
@@ -139,7 +139,7 @@ npm publish is manual (`cd cli && npm publish`) — intentionally, so a release 
 | `SPEC.md` | Full technical specification — source of truth for tool surface |
 | `SECURITY.md` | Threat model, CLI defenses, agent patterns |
 | `docs/SETUP.md` | User install guide |
-| `docs/COMMANDS.md` | All 43 CLI commands reference |
+| `docs/COMMANDS.md` | All 74 CLI commands reference |
 | `docs/CLAUDE.md` | Claude Code–focused CLI quick-ref (end-user oriented) |
 | `docs/distribution-log.md` | Launch venue submission tracker |
 | `skills/thunderbird-cli/SKILL.md` | End-user Claude skill (separate from this file) |
@@ -152,7 +152,7 @@ Don't propose these without discussing first:
 - **Server-side filtering logic.** Thunderbird is source of truth; we don't reimplement IMAP filter semantics.
 - **Cloud deployment.** Bridge is localhost-only by design. No remote auth, no TLS, no tunnels.
 - **New credential flow.** We never touch user email credentials. If a feature needs OAuth, it doesn't belong here.
-- **Breaking the CLI ↔ MCP symmetry.** CLI is the superset (38 cmds); MCP is the curated 12-tool subset. When adding a bulk op, CLI-only is the correct choice — don't expose it as an MCP tool unless it's individually-scoped.
+- **Breaking the CLI ↔ MCP symmetry.** CLI is the superset (74 cmds); MCP is the curated 42-tool subset. When adding a bulk op, CLI-only is the correct choice — don't expose it as an MCP tool unless it's individually-scoped.
 
 ## Questions / weirdness
 

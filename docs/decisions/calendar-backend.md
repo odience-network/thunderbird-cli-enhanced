@@ -78,11 +78,12 @@ Unchanged mechanism, same as every other route: `extension/src/access-control.js
 
 - `extension/experiments/calendar/schema/calendar-calendars.json` + `extension/experiments/calendar/parent/ext-calendar-calendars.js` — vendored/trimmed `calendar.calendars.query` only, from upstream `main` at `b7f7cb3e76807903a785a03784d6e7df7b213f21`, plus the required `onShutdown` cache invalidation.
 - `extension/manifest.json` — `experiment_apis.calendar_calendars` entry.
-- `GET /calendars` — new ungated route: `extension/src/background.js` (dispatch) → `extension/src/access-control.js` (`UNGATED_GET`) → `cli/src/cli.js` (`tb calendars`) → `mcp/src/tools.js` (`calendar_list` tool). Returns `{ error: "calendar experiment not loaded" }` instead of throwing if the experiment failed to load.
+- `GET /calendars` — new ungated route: `extension/src/background.js` (dispatch) → `extension/src/access-control.js` (`UNGATED_GET`) → `cli/src/cli.js` (`tb calendars`; renamed to `tb calendar list` when calendar CRUD shipped in v1.3.0) → `mcp/src/tools.js` (`calendar_list` tool). Returns `{ error: "calendar experiment not loaded" }` instead of throwing if the experiment failed to load.
 - `scripts/lint.mjs` / `scripts/sign-xpi.mjs` / `.github/workflows/sign-xpi.yml` — the signing-pipeline fix described above.
 - Tests: `test/extension.test.mjs`, `test/access-control.test.mjs`, `test/sign-xpi.test.mjs` — all passing (mocked `messenger.calendar.calendars.query` for the WebExtension-facing surface; the signing-path fix has real subprocess/HTTP-mock coverage).
 - Verified: `npm run build:xpi` succeeds; `npm run lint` passes (tolerating only the one expected, scoped error).
 - **Verified live**, end-to-end, in an isolated Thunderbird 155.0.1 instance (throwaway profile, `--no-remote`, bridge on ports 17700/17701 to avoid this environment's other running Thunderbird+bridge, which belongs to an unrelated project and was left untouched):
+  (Output recorded at spike time; the command is now `tb calendar list`.)
   ```
   $ tb calendars
   {"ok":true,"data":[{"id":"d5836c5a-9458-4844-91fe-7e80d872d752","type":"storage",

@@ -2,6 +2,12 @@
 
 Status: draft, baseline established. Tracks issue ODIAA-2303 ("Initialize project").
 
+> **2026-09-28 — v1.3.0 released.** Phase 2 (calendar, contacts write, notes, tasks) and the
+> section 4 atbridge.ai feature set are shipped: calendar read + event CRUD + clashes
+> (ODIAA-2328), tasks + action items (ODIAA-2329), contacts write (#21), notes (#22) +
+> transcription (ODIAA-2331), deterministic skills (ODIAA-2332) and Fast Actions (ODIAA-2333).
+> Add-on 2.4.0 is awaiting ATN manual review. The sections below keep the original narrative.
+
 ## 1. Baseline
 
 `main` now starts from `vitalio-sh/thunderbird-cli` upstream `main` (commit `465613d`,
@@ -235,16 +241,19 @@ reviewable batches instead of one mega-merge.
 Surveyed https://atbridge.ai. Feature areas to reach parity with, beyond current mailbox-only
 CLI/extension/bridge:
 
-- **Calendar**: create/update/delete events, cross-calendar clash detection.
-- **Contacts**: search/create/update across all Thunderbird address books.
+- **Calendar**: create/update/delete events, cross-calendar clash detection. *(Shipped v1.3.0, ODIAA-2328.)*
+- **Contacts**: search/create/update across all Thunderbird address books. *(Shipped v1.3.0, #21.)*
 - **Notes**: local Markdown workspace; "Use as Context" (note → AI chat) and "Save to Notes"
   (AI reply → note); voice memo transcription; render note as HTML email draft.
-- **Tasks**: extract action items from an email into a checklist; create Thunderbird tasks.
-- **Fast Actions**: Email→Note, Email→Task, Email→Event, Email→Contact one-click conversions.
+  *(Shipped v1.3.0, #22; transcription ODIAA-2331.)*
+- **Tasks**: extract action items from an email into a checklist; create Thunderbird tasks. *(Shipped v1.3.0, ODIAA-2329.)*
+- **Fast Actions**: Email→Note, Email→Task, Email→Event, Email→Contact one-click conversions. *(Shipped v1.3.0, ODIAA-2333.)*
 - **Skills**: deterministic slash commands (`/today`, `/week`, `/clashes`, `/from`-style) that
   don't spend LLM tokens — maps well onto our existing MCP tool model.
+  *(Shipped v1.3.0 as `tb today`/`week`/`clashes`/`from` and `skill_*` MCP tools, ODIAA-2332.)*
 - **Security posture to match/exceed**: local-first bridge on 127.0.0.1, opt-in (off by
-  default) write access for AI agents, draft-only mode.
+  default) write access for AI agents, draft-only mode. *(Met: `contactsWrite`/`calendarWrite`/
+  `tasksWrite` all default off; compose defaults to draft.)*
 
 Not in scope to copy: their pricing/subscription mechanics — this project is open tooling,
 not a metered SaaS.
@@ -253,7 +262,7 @@ not a metered SaaS.
 
 <a href="diagrams/roadmap.html"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/roadmap-dark.png">
-  <img src="diagrams/roadmap.png" alt="Roadmap lifecycle: upstream → fork merges → mail today → calendar and contacts write → notes and tasks → atbridge parity; an extension stability pass runs alongside" width="800">
+  <img src="diagrams/roadmap.png" alt="Roadmap lifecycle: upstream → fork merges → mail → calendar and contacts write → notes, tasks, skills and Fast Actions, all shipped in v1.3.0; still planned: an extension stability pass and the remaining atbridge parity gaps" width="800">
 </picture></a>
 
 1. **Fork integration** (child issues per fork, section 3) — bring `main` up to the best
@@ -263,14 +272,18 @@ not a metered SaaS.
 2. **Calendar, Contacts, Notes, Tasks** — extend `extension`, `bridge`, `cli`, and `mcp`
    surfaces to cover the atbridge.ai-equivalent feature list in section 4, reusing the
    existing mailbox architecture and access-policy model from the `reinhardullrich` fork.
-   **Status:** not started (ODIAA-2306); contacts are read-only today.
+   **Status:** shipped in v1.3.0 (2026-09-28) — calendar read + event CRUD + clashes
+   (ODIAA-2328), tasks + action items (ODIAA-2329), contacts write (#21), notes (#22) +
+   transcription (ODIAA-2331), plus deterministic skills (ODIAA-2332) and Fast Actions
+   (ODIAA-2333). Originally tracked as ODIAA-2306.
 3. **Extension stability pass** — audit `extension/` against the hardening commits already
    identified (reconnect/backoff, IPC queue, lifecycle fixes) and add regression coverage.
    **Status:** in progress — folder-info cache and MCP concurrency tests shipped in #8.
 4. **Signed extension build pipeline** — GitHub Actions workflow (and a local pre-push
    equivalent) that builds, lints, tests, and produces a signed Thunderbird XPI, committed
    to `dist/releases/` per the existing `.gitignore` carve-out. **Status:** shipped
-   (`sign-xpi.yml`, #5 and #7; ODIAA-2308).
+   (`sign-xpi.yml`, #5 and #7; ODIAA-2308). Only 2.1.0 is ATN-signed so far; 2.4.0 is
+   pending ATN manual review (Experiment APIs).
 
 ## 6. Open questions for the CEO / board
 

@@ -10,7 +10,7 @@
 [![Thunderbird](https://img.shields.io/badge/thunderbird-128%2B-blue)](https://www.thunderbird.net)
 [![MCP](https://img.shields.io/badge/MCP-compatible-purple)](https://modelcontextprotocol.io)
 
-This is a maintained fork of [vitalio-sh/thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli). It integrates fixes and features from the community forks listed under [Why this fork](#why-this-fork) and adds an access policy, a signed-XPI release pipeline, and draft editing.
+This is a maintained fork of [vitalio-sh/thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli). It integrates fixes and features from the community forks listed under [Why this fork](#why-this-fork) and adds an access policy, a signed-XPI release pipeline, draft editing, and (since 1.3.0) calendar, tasks, notes and one-click Fast Actions.
 
 <p align="center">
   <img src="assets/demo.gif" alt="thunderbird-cli demo — Claude answering an email-overview question via MCP" width="700">
@@ -23,15 +23,18 @@ IMAP libraries force you to manage credentials, OAuth flows, and sync state — 
 ## Features
 
 - 🔐 **Zero credential exposure** — all IMAP/SMTP stays in Thunderbird
-- 🤖 **Claude Desktop ready** — 16 MCP tools, one-line config
-- 📨 **43 CLI commands** — read, search, compose, reply, edit drafts, bulk ops, folder CRUD, attachments, contacts (read/write)
-- 🛡️ **Access policy** — one policy baked into the add-on gates every write/send route for CLI, MCP and raw bridge calls; deletion is off by default and unknown routes fail closed ([docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
+- 🤖 **Claude Desktop ready** — 42 MCP tools, one-line config
+- 📨 **74 CLI commands** — read, search, compose, reply, edit drafts, bulk ops, folder CRUD, attachments, contacts (read/write)
+- 📅 **Calendar & tasks** — list calendars and events, create/update/delete events, cross-calendar clash detection, task CRUD, and deterministic action-item extraction from an email (needs add-on 2.4.0)
+- ⚡ **Fast Actions & skills** — one-click Email → Note / Task / Event / Contact (CLI, MCP and Thunderbird's context menu); `tb today`/`week`/`clashes`/`from` render compact Markdown without spending LLM tokens
+- 📝 **Notes workspace** — local Markdown notes ("Use as Context", "Save to Notes", render to a draft) and local voice-memo transcription (`tb notes transcribe`, whisper.cpp / faster-whisper, nothing leaves the machine)
+- 🛡️ **Access policy** — one policy baked into the add-on gates every write/send route for CLI, MCP and raw bridge calls; deletion and contact/calendar/task writes (`contactsWrite`, `calendarWrite`, `tasksWrite`) are off by default and unknown routes fail closed ([docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md))
 - ✉️ **Safe by default** — compose/reply/forward/edit save as drafts; permanent delete requires `--confirm`
 - 🚀 **Bridge auto-start** — the CLI and MCP server start the bridge daemon on first use
 - 🎯 **Token-optimized** — `--fields` selection, `--compact` mode, `--max-body` truncation, `-f json|compact|table`, opt-in leaner output with `--output-version 2`
 - ⚡ **Fast on large folders** — server-side full-text query, sort (TB 148+), indexed `--unread`/`--flagged` plus date/size/tag filtering, `--subject`/`--from` search
 - 🏠 **Localhost-only** — no cloud, no telemetry, nothing leaves your machine
-- ✅ **Thunderbird 128+** — Mozilla-signed XPI built and signed by CI ([dist/releases/](dist/releases/))
+- ✅ **Thunderbird 128+** — Mozilla-signed XPI built and signed by CI ([dist/releases/](dist/releases/); add-on 2.4.0 is awaiting ATN review, see [Quick Start](#quick-start))
 - 🧪 **Tested** — `npm run test:all` runs the CLI/bridge, bridge security, extension, access-control, signing and MCP suites
 
 ## Quick Start
@@ -57,7 +60,7 @@ cd thunderbird-cli-enhanced
 
 Then:
 
-1. Install the signed extension from [`dist/releases/`](dist/releases/): Thunderbird → Add-ons → ⚙ → **Install Add-on From File…** → the `*-tb.xpi` file. The signed 2.1.0 build predates the rename and still shows as "Thunderbird AI Bridge" in the Add-ons Manager.
+1. Install the signed extension from [`dist/releases/`](dist/releases/): Thunderbird → Add-ons → ⚙ → **Install Add-on From File…** → the `*-tb.xpi` file. The only ATN-signed build is 2.1.0 (`thunderbird_ai_bridge-2.1.0-tb.xpi`): it predates the rename, shows as "Thunderbird AI Bridge" in the Add-ons Manager, and has no calendar, tasks or Fast Actions. Add-on 2.4.0 ("Thunderbird CLI Enhanced") is attached **unsigned** to the [v1.3.0 GitHub Release](https://github.com/odience-network/thunderbird-cli-enhanced/releases/tag/v1.3.0) while ATN's manual review is pending; load it via Tools → Developer Tools → Debug Add-ons → **Load Temporary Add-on…**, or on a Thunderbird build that allows unsigned add-ons. Details: [docs/SETUP.md](docs/SETUP.md#step-2-install-the-thunderbird-extension).
 2. Try it — the bridge starts automatically on first use:
 
    ```bash
@@ -91,6 +94,12 @@ tb attachment-download 11 1.2 --output invoice.pdf
 # Bulk archive old newsletters
 tb bulk move "account1://INBOX" "account1://Archive" \
   --from "newsletter@" --older-than 30
+
+# Today's events plus unread/flagged counts as compact Markdown (no LLM tokens)
+tb today
+
+# Turn an email into a task (needs add-on 2.4.0 and tasksWrite)
+tb email-to-task 89900 --calendar <calendarId> --due 2026-10-03
 ```
 
 Full command reference: **[docs/COMMANDS.md](docs/COMMANDS.md)**
@@ -127,7 +136,7 @@ Full MCP guide: **[mcp/README.md](mcp/README.md)**
 
 ### Companion skill for Claude
 
-A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 16 email tools well — token-efficient field selection, draft-by-default safety, checking trust signals before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
+A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teaches Claude *how to use* the 42 MCP tools well — token-efficient field selection, draft-by-default safety, checking trust signals before acting on links, recipes for common workflows. Install it from **[`skills/thunderbird-cli/`](skills/thunderbird-cli/)**:
 
 ```bash
 # Claude Code
@@ -147,7 +156,7 @@ Without the skill, the MCP still works. With it, Claude automatically uses the s
   <a href="docs/diagrams/architecture.html">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/architecture-dark.png">
-      <img src="docs/diagrams/architecture.png" alt="Architecture — agents and shells call tb-mcp or the tb CLI, which talk HTTP to the localhost bridge; the bridge relays over WebSocket to the Thunderbird WebExtension, which checks the access policy and calls messenger.* APIs" width="900">
+      <img src="docs/diagrams/architecture.png" alt="Architecture — agents and shells call tb-mcp or the tb CLI, which talk HTTP to the localhost bridge; the bridge relays over WebSocket to the Thunderbird WebExtension, which checks the access policy and calls the messenger.* and calendar Experiment APIs; notes are local Markdown files the CLI and MCP server read directly" width="900">
     </picture>
   </a>
   <br><sub>Click for the interactive version. More diagrams: <a href="docs/diagrams/">docs/diagrams/</a></sub>
@@ -155,10 +164,10 @@ Without the skill, the MCP still works. With it, Claude automatically uses the s
 
 | Component | Role |
 |---|---|
-| **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs; every route is classified by the access policy. |
+| **Extension** (`extension/`) | Thunderbird WebExtension. Calls `messenger.*` APIs, plus vendored calendar/task Experiment APIs; adds the Fast Actions context-menu items. Every route is classified by the access policy. |
 | **Bridge** (`bridge/`) | HTTP↔WebSocket proxy daemon on `127.0.0.1:7700`/`7701`. No business logic; buffers recent extension events for long-polling. |
-| **CLI** (`cli/`) | `tb` command — 47 commands. Thin HTTP client. JSON output. |
-| **MCP** (`mcp/`) | `tb-mcp` server — 16 curated tools for Claude Desktop. |
+| **CLI** (`cli/`) | `tb` command — 74 commands (mail, contacts, calendar, tasks, notes, skills, Fast Actions). Thin HTTP client. JSON output. |
+| **MCP** (`mcp/`) | `tb-mcp` server — 42 curated tools for Claude Desktop. |
 
 Thunderbird is the source of truth. The CLI never caches or stores email data.
 
@@ -199,14 +208,23 @@ Upstream baseline is [vitalio-sh/thunderbird-cli@`465613d`](https://github.com/v
 
 ## Roadmap
 
+Shipped in [1.3.0](CHANGELOG.md#130--2026-09-28), toward feature parity with [atbridge.ai](https://atbridge.ai):
+
+- Calendar read, event CRUD and cross-calendar clash detection (`tb calendar list`/`events`/`create`/`update`/`delete`/`clashes`, gated by `calendarWrite`), via chrome-privileged Experiment APIs since Thunderbird's WebExtension model has no calendar access — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) for the tradeoffs, including the ATN manual-review requirement this adds to every signed release that touches it.
+- Task CRUD (`tb tasks`, gated by `tasksWrite`) and deterministic action-item extraction (`tb action-items`).
+- Contacts write (`tb contacts create`/`update`, gated by `contactsWrite`).
+- Notes workspace and local voice-memo transcription (`tb notes`, `tb notes transcribe`).
+- Deterministic skills (`tb today`/`week`/`clashes`/`from`) and one-click Fast Actions (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, plus matching context-menu items in Thunderbird).
+
 Planned, **not on `main`**:
 
-- Calendar events CRUD, cross-calendar clash detection, task CRUD, and deterministic action-item extraction from email, toward feature parity with [atbridge.ai](https://atbridge.ai). A read-only calendar-listing spike (`tb calendars`) landed first, using a chrome-privileged Experiment API since Thunderbird's WebExtension model has no calendar access; event CRUD and clash detection (`tb calendar events`/`create`/`update`/`delete`/`clashes`, gated by `calendarWrite`) and task CRUD (`tb tasks`, gated by `tasksWrite`) plus action-item extraction (`tb action-items`) landed next, followed by one-click Fast Actions (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, plus matching context-menu items in Thunderbird) that compose those routes without a new access switch — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) for the tradeoffs, including the ATN manual-review requirement this adds to every signed release that touches it.
 - Extension stability pass: audit against the known reconnect/backoff and lifecycle fixes, with regression tests.
+- Remaining atbridge.ai parity items from [docs/PLAN.md §4](docs/PLAN.md#4-feature-parity-target-atbridgeai) not covered above.
+- ATN signing of add-on 2.4.0 (manual review pending; until then 2.4.0 ships unsigned).
 
 <a href="docs/diagrams/roadmap.html"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/roadmap-dark.png">
-  <img src="docs/diagrams/roadmap.png" alt="Roadmap lifecycle: upstream → fork merges → mail today → calendar and contacts write → notes and tasks → atbridge parity; an extension stability pass runs alongside" width="800">
+  <img src="docs/diagrams/roadmap.png" alt="Roadmap lifecycle: upstream → fork merges → mail → calendar and contacts write → notes, tasks, skills and Fast Actions, all shipped in v1.3.0; still planned: an extension stability pass and the remaining atbridge parity gaps" width="800">
 </picture></a>
 
 Details and status: [docs/PLAN.md](docs/PLAN.md).
@@ -229,7 +247,7 @@ The niche: **you already trust Thunderbird with your credentials and account sta
 | Doc | What's inside |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | Installation, background service, Docker, troubleshooting |
-| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 43 CLI commands |
+| [docs/COMMANDS.md](docs/COMMANDS.md) | Full reference for all 74 CLI commands |
 | [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md) | The access policy: switches, defaults, how to change them |
 | [docs/diagrams/](docs/diagrams/) | Architecture, search sequence, access control, release and roadmap diagrams |
 | [docs/CLAUDE.md](docs/CLAUDE.md) | AI-agent-focused quick reference + security rules |

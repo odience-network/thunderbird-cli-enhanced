@@ -4,7 +4,7 @@
 >
 > This is a [Claude Skill](https://agentskills.io) that teaches Claude how to drive the [`tb-mcp`](../../mcp/) server effectively — handling token-efficient field selection, draft-by-default safety, trust metadata, and common email workflows across all the user's Thunderbird accounts.
 
-Use it alongside the MCP server: the MCP gives Claude the capability (12 email tools), this skill gives Claude the recipes for using them well.
+Use it alongside the MCP server: the MCP gives Claude the capability (42 tools across email, contacts, notes, tasks, calendar, skills and Fast Actions), this skill gives Claude the recipes for using them well.
 
 ---
 
@@ -44,7 +44,7 @@ Skills are supported on the API via the Code Execution Tool beta. See Anthropic'
 The skill itself is just instructions — it needs the MCP server to do anything. Before enabling, set up the full stack:
 
 1. **Install Thunderbird 128+** with your email accounts configured (normal Thunderbird install).
-2. **Install the signed WebExtension** from [`dist/releases/`](https://github.com/odience-network/thunderbird-cli-enhanced/tree/main/dist/releases) → *Install Add-on From File…* in Thunderbird.
+2. **Install the WebExtension** → *Install Add-on From File…* in Thunderbird. The signed XPI in [`dist/releases/`](https://github.com/odience-network/thunderbird-cli-enhanced/tree/main/dist/releases) is 2.1.0 (no calendar/tasks/Fast Actions); for the full v1.3.0 surface use the unsigned 2.4.0 XPI from the [v1.3.0 release](https://github.com/odience-network/thunderbird-cli-enhanced/releases/tag/v1.3.0) until signed 2.4.0 clears ATN review.
 3. **Install the CLI, bridge and MCP server:** `npm i -g @odience-network/thunderbird-cli-enhanced`, or from a clone with `./setup.sh` (or `.\setup.ps1`), linking `tb-bridge` and `tb-mcp` when asked. The bridge auto-starts on first use.
 4. **Configure the MCP server** in `claude_desktop_config.json` (or equivalent):
    ```json
@@ -65,11 +65,13 @@ Full setup: <https://github.com/odience-network/thunderbird-cli-enhanced/blob/ma
 ## What it covers
 
 - Token-efficient field selection (`fields=["id","author","subject","date"]` cuts a search response by ~15×)
-- Draft-by-default safety on `email_compose` / `email_reply` / `email_forward`
+- Draft-by-default safety on `email_compose` / `email_reply` / `email_forward` / `email_edit` (and `note_to_draft`, which never sends)
+- `contactsWrite` / `calendarWrite` / `tasksWrite` gating (all off by default) for contact, event and task writes, including the Fast Actions
 - Explicit `confirm: true` gate for permanent delete, folder delete, and bulk delete
 - Trust signals (junk flag, `Authentication-Results` in raw headers, contacts lookup)
 - Prompt-injection defense — treating message bodies as untrusted input
-- Recipes for the seven most common email workflows (stats, search, read, reply, compose, attachment download, bulk archive)
+- Recipes for the most common workflows (stats, search, read, reply, compose, attachment download, bulk archive, notes, action items → tasks, Fast Actions)
+- Deterministic `skill_today` / `skill_week` / `skill_clashes` / `skill_from` glances, passed through as-is
 - Troubleshooting common errors: `BRIDGE_UNREACHABLE`, `EXTENSION_DISCONNECTED`, `TIMEOUT`, `NOT_FOUND`
 
 ## When the skill triggers
@@ -83,7 +85,7 @@ The YAML `description` teaches Claude to auto-load the skill on queries like:
 - *"Archive everything from newsletter@ older than 30 days"*
 - *"Download the PDF from message 245"*
 
-…and does NOT trigger on calendar/contacts-only work.
+…and does NOT trigger on calendars/contacts that live outside Thunderbird.
 
 ---
 

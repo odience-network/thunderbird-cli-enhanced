@@ -21,7 +21,7 @@
 │       ┌────────────────────┬──────────────────────┐         │
 │       ↕                    ↕                      ↕         │
 │  tb CLI (Node)      tb-mcp Server          Direct HTTP      │
-│  (75 commands)      (42 MCP tools)         (curl, scripts)  │
+│  (74 commands)      (42 MCP tools)         (curl, scripts)  │
 │       ↕                    ↕                                │
 │  AI Agent           Claude Desktop                          │
 │  (Claude Code)      (stdio MCP transport)                   │
@@ -40,7 +40,7 @@
 | **Thunderbird** | Host | Source of truth. Stores all emails, syncs IMAP, renders UI for human oversight |
 | **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Checks every request against the build-time access policy (`access-control.js`, see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)), then translates it into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
-| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 75 commands. Auto-starts bridge daemon if not running. Zero state |
+| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 74 commands. Auto-starts bridge daemon if not running. Zero state |
 | **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 42 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
 
 ### Request flow
@@ -71,14 +71,15 @@ More diagrams (architecture, access control, release, roadmap): [docs/diagrams/]
 | 120 – 127 | ⚠️ May work but untested |
 | **128 ESR** | ✅ Primary target (current LTS) |
 | 129 – 148 | ✅ Supported |
-| **149+ (Nebula)** | ✅ Tested and working |
+| **149 – 156 (Nebula)** | ✅ Tested and working |
+| > 156 | ⛔ Blocked by `strict_max_version` until re-tested |
 
 Key API dependencies by version:
 - TB 120: `messenger.folders.get()`, `folders.query()`
 - TB 121: `messenger.messages.createTag()`, auto-pagination
 - TB 128: All APIs stable in ESR
 
-Our manifest specifies `"strict_min_version": "128.0"`.
+Our manifest specifies `"strict_min_version": "128.0"` and `"strict_max_version": "156.*"` (add-on ID `thunderbird-cli-enhanced@odience.net`, version 2.4.0 as of v1.3.0).
 Manifest format: `manifest_version: 2` (MV2). MV3 migration planned for future.
 
 ---
@@ -879,7 +880,7 @@ The bridge is spawned as a detached process (`child.unref()`) so it outlives the
 
 ### Extension Implementation Notes
 
-1. **Pure WebExtension** — manifest_version 2, no experiment_apis
+1. **WebExtension + calendar Experiments** — manifest_version 2; mail uses stock `messenger.*` APIs, calendar/tasks use the vendored `calendar_calendars`, `calendar_items` and `calendar_tasks` Experiment APIs
 2. **messenger.* API** — uses Thunderbird's native WebExtension APIs
 3. **Auto-reconnect** — reconnects to bridge WebSocket with backoff (3s, 6s, 12s, then every 15s) if disconnected; retries immediately when the user returns from idle
 4. **No state** — extension is stateless; all state lives in Thunderbird's mail store
@@ -1051,8 +1052,8 @@ Note: Extension development cannot happen in Docker. Edit `extension/src/backgro
 - [x] Config file support (~/.config/thunderbird-cli/config.json)
 - [x] Environment variable overrides
 - [x] `--timeout` flag
-- [ ] npm publish
-- [ ] GitHub release with setup instructions
+- [x] npm publish (`@odience-network/thunderbird-cli-enhanced`, with provenance)
+- [x] GitHub release with setup instructions (v1.3.0)
 - [x] CLAUDE.md for agent integration
 
 ### Phase 6: Fork integration (Thunderbird CLI Enhanced)
@@ -1066,8 +1067,11 @@ Note: Extension development cannot happen in Docker. Edit `extension/src/backgro
 - [x] Opt-in v2 output format, `--output-version 2` (#19)
 - [x] Calendar read-only spike (`tb calendar list`, Experiment API) — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) (ODIAA-2327)
 - [x] Calendar event CRUD + cross-calendar clash detection (`tb calendar events`/`create`/`update`/`delete`/`clashes`), gated by `calendarWrite` (ODIAA-2328)
-- [x] Contacts write (`contactsWrite`), Notes (`tb notes`)
+- [x] Contacts write (`contactsWrite`) (#21), Notes (`tb notes`) (#22)
 - [x] Tasks CRUD (`tasksWrite`) + deterministic action-item extraction (`tb tasks`, `tb action-items`) (ODIAA-2329)
+- [x] Local notes transcription (`tb notes transcribe`, whisper.cpp / faster-whisper) (ODIAA-2331)
+- [x] Deterministic skills (`tb today`/`week`/`clashes`/`from`, `skill_*` MCP tools) (ODIAA-2332)
+- [x] Fast Actions (`tb email-to-note`/`-task`/`-event`/`-contact`, context-menu items) (ODIAA-2333)
 
 ---
 
@@ -1330,7 +1334,7 @@ Claude Desktop ──stdio JSON-RPC──> tb-mcp ──HTTP──> Bridge ─�
 The MCP server:
 - Has **no state** — every tool call is independent
 - **Reuses** `cli/src/client.js` for HTTP calls (no code duplication)
-- Exposes **41 high-level tools** rather than all CLI commands
+- Exposes **42 high-level tools** rather than all CLI commands
 - Defaults to **safe behavior** (compose/reply/forward/edit → draft, not send)
 
 ### Tool Catalog
@@ -1339,7 +1343,6 @@ The 42 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 
 | MCP Tool | Maps to CLI commands |
 |----------|---------------------|
-| `calendar_list` | `tb calendars` |
 | `email_stats` | `tb stats` |
 | `email_search` | `tb search` |
 | `email_list` | `tb list` |
@@ -1389,7 +1392,7 @@ local notes workspace directly.
 
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (75 commands) | MCP (42 tools) |
+| | CLI (74 commands) | MCP (42 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |
@@ -1402,14 +1405,14 @@ The MCP catalog is intentionally tight to keep the LLM's tool list focused and p
 
 ### Distribution
 
-The MCP server is published to npm as `thunderbird-cli-mcp` with a `tb-mcp` binary. Users add it to their Claude Desktop config:
+The MCP server ships in the npm package `@odience-network/thunderbird-cli-enhanced` as the `tb-mcp` binary (alongside `tb` and `tb-bridge`). Users add it to their Claude Desktop config:
 
 ```json
 {
   "mcpServers": {
     "thunderbird": {
       "command": "npx",
-      "args": ["-y", "thunderbird-cli-mcp"]
+      "args": ["-y", "-p", "@odience-network/thunderbird-cli-enhanced", "tb-mcp"]
     }
   }
 }
