@@ -319,6 +319,37 @@ tb action-items <messageId>   # deterministic (no LLM) extraction of candidate a
                                # from a message body, rendered as a Markdown checklist
 ```
 
+## Fast Actions
+
+One-click Email → Note / Task / Event / Contact (ODIAA-2333). Each command reuses
+the same route (and access switch) as its underlying resource — there is no
+bypass for these composite commands.
+
+```bash
+tb address-books # list address books
+
+tb email-to-note <messageId> [--name <name>] [--append]
+# save a message to the local notes workspace (no access switch — notes are local-only)
+
+tb email-to-task <messageId> --calendar <calendarId> [--due <date>] [--all-day] [--priority <n>]
+# create a task from deterministic action-item extraction (requires tasksWrite)
+
+tb email-to-event <messageId> --calendar <calendarId>
+# create a calendar event via deterministic date/time/location parsing (requires calendarWrite)
+# falls back to a draft event (status TENTATIVE) when no date/time could be detected —
+# review and correct it before relying on it
+
+tb email-to-contact <messageId> --book <bookId>
+# add the message's sender as a contact, deduped by email address (requires contactsWrite)
+
+tb notes listen [--timeout <ms>] [--name <name>] [--append]
+# waits for a "Save to Notes" context-menu click in Thunderbird, then saves the note.
+# Thunderbird can't write to the local filesystem, so the extension pushes a
+# note-save-requested event over the bridge and this command is the CLI-side
+# listener that turns it into a note; run it (or the equivalent MCP tool,
+# notes_listen_once) before clicking "Save to Notes" in Thunderbird.
+```
+
 ## Bulk Operations
 
 ```bash

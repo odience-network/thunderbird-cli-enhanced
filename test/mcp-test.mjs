@@ -131,7 +131,7 @@ function handle({ method, path, body }) {
   if (path?.match(/\/raw$/)) return { raw: "From: a@b.com\nSubject: Test\n\nBody" };
   if (path?.match(/\/headers$/)) return { id: 1, subject: "Test", author: "a@b.com" };
   if (path?.match(/\/full$/))
-    return { id: 1, subject: "Test", parts: { text: "Hello", html: "<p>Hi</p>", attachments: [] } };
+    return { id: 1, subject: "Test", author: "a@b.com", date: "2026-04-01", parts: { text: "Hello", html: "<p>Hi</p>", attachments: [] } };
   if (path?.match(/\/check-download$/))
     return { id: 1, downloadState: "full", size: 100, hasBody: true };
   if (path?.match(/\/thread$/)) return { thread: [{ id: 1, subject: "Test" }], count: 1 };
@@ -164,9 +164,29 @@ function handle({ method, path, body }) {
   if (path === "/stats")
     return { totalAccounts: 1, totalUnread: 5, totalMessages: 100, accounts: [] };
   if (path === "/sync") return { success: true, synced: body?.all ? "all" : body?.folderId };
-  if (path === "/contacts/search") return [{ id: "c1", name: "John", email: "j@e.com", emails: ["j@e.com"], book: "P", bookId: "ab1" }];
+  if (path === "/contacts/search") {
+    // "a@b.com" (the mock message sender) is treated as not-yet-a-contact, for the
+    // email_to_contact dedupe test; every other query matches the fixture contact.
+    if (body?.query === "a@b.com") return [];
+    return [{ id: "c1", name: "John", email: "j@e.com", emails: ["j@e.com"], book: "P", bookId: "ab1" }];
+  }
   if (path === "/contacts/create") return { id: "c2", book: "P", bookId: "ab1", properties: body?.properties || {} };
   if (path === "/contacts/update") return { id: body?.id, properties: body?.properties || {} };
+  if (path === "/addressbooks" && method === "GET") return [{ id: "ab1", name: "Personal" }];
+  if (path === "/tasks/create")
+    return { id: "t1", calendarId: body?.calendarId, title: body?.title, description: body?.description, source: body?.source };
+  if (path?.match(/\/event-draft$/) && method === "POST")
+    return {
+      title: "Test",
+      description: "Hello",
+      start: "2026-01-02T15:00:00.000Z",
+      end: "2026-01-02T16:00:00.000Z",
+      allDay: false,
+      location: "Somewhere",
+      needsReview: false,
+    };
+  if (path?.match(/\/action-items$/) && method === "POST")
+    return { items: [{ text: "Please review the attached doc", checked: false, dueHint: null }], markdown: "- [ ] Please review the attached doc" };
   return { error: `Not found: ${method} ${path}` };
 }
 
@@ -194,6 +214,25 @@ async function startBridge() {
       if (req.url === "/bridge/status") {
         res.writeHead(200);
         res.end(JSON.stringify({ bridge: "running", extension: "connected" }));
+        return;
+      }
+      // Bridge-local event feed, mirroring bridge.js's /bridge/events — not routed to
+      // the mock extension. Answers a "note-save-requested" wait immediately.
+      if (req.url.startsWith("/bridge/events")) {
+        const url = new URL(req.url, "http://127.0.0.1");
+        if (url.searchParams.get("wait") === "note-save-requested") {
+          res.writeHead(200);
+          res.end(JSON.stringify({
+            event: {
+              name: "note-save-requested",
+              receivedAt: Date.now(),
+              data: { subject: "Lunch Friday", author: "a@b.com", date: "2026-04-01", body: "Let's grab lunch.", messageId: 5 },
+            },
+          }));
+          return;
+        }
+        res.writeHead(200);
+        res.end(JSON.stringify({ events: [] }));
         return;
       }
       let b = "";
@@ -361,7 +400,7 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 31 tools", toolList, (r) => Array.isArray(r) && r.length === 31);
+test("tools/list returns 37 tools", toolList, (r) => Array.isArray(r) && r.length === 37);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
@@ -695,6 +734,43 @@ test(
   (r) => r.success === true && r.action === "draft_opened"
 );
 
+console.log("\n\x1b[1mFast actions\x1b[0m");
+test(
+  "address_book_list",
+  await client.callTool("address_book_list", {}),
+  (r) => Array.isArray(r) && r[0]?.id === "ab1"
+);
+test(
+  "email_to_note saves a note from a message",
+  await client.callTool("email_to_note", { messageId: "1" }),
+  (r) => r.name === "test" && r.title === "Test"
+);
+test(
+  "email_to_task creates a task from action-item extraction",
+  await client.callTool("email_to_task", { messageId: "1", calendarId: "cal1" }),
+  (r) => r.calendarId === "cal1" && r.title === "Please review the attached doc" && r.source === "1"
+);
+test(
+  "email_to_event creates a calendar event from the parsed draft",
+  await client.callTool("email_to_event", { messageId: "1", calendarId: "cal1" }),
+  (r) => r.id === "ev2" && r.calendarId === "cal1" && r.title === "Test" && r.needsReview === false
+);
+test(
+  "email_to_contact adds the sender as a new contact when not already present",
+  await client.callTool("email_to_contact", { messageId: "1", book: "ab1" }),
+  (r) => r.deduped === false && r.properties?.PrimaryEmail === "a@b.com"
+);
+test(
+  "email_to_contact requires messageId and book",
+  await client.callTool("email_to_contact", { messageId: "1" }),
+  (r) => typeof r.error === "string"
+);
+test(
+  "notes_listen_once saves the pushed note",
+  await client.callTool("notes_listen_once", { timeoutMs: 5000 }),
+  (r) => r.name === "lunch-friday" && r.title === "Lunch Friday"
+);
+
 const resourceList = await client.listResources();
 test(
   "resources/list includes the notes workspace",
@@ -726,7 +802,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 31 && r.toolsBCount === 31
+  (r) => r.toolsACount === 37 && r.toolsBCount === 37
 );
 clientA.close();
 clientB.close();

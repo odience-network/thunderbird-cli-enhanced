@@ -473,6 +473,26 @@ console.log("\n\x1b[1mAction items route\x1b[0m");
     result.markdown === "- [ ] Please review the attached doc by Friday (by Friday)");
 }
 
+// ─── Address books: new route, ungated read-only (ODIAA-2333) ───────────
+
+console.log("\n\x1b[1mAddress books route\x1b[0m");
+{
+  const { handle } = load();
+  const books = await handle("GET", "/addressbooks");
+  test("GET /addressbooks is ungated with the default (all-closed) policy",
+    Array.isArray(books) && books[0]?.id === "ab1");
+}
+
+// ─── Event draft: new route, ungated (deterministic, read-only) (ODIAA-2333) ──
+
+console.log("\n\x1b[1mEvent draft route\x1b[0m");
+{
+  const { handle } = load();
+  const draft = await handle("POST", "/messages/1/event-draft", {});
+  test("POST /messages/:id/event-draft is ungated with the default (all-closed) policy",
+    typeof draft.title === "string" && typeof draft.start === "string");
+}
+
 console.log(`\n\x1b[1m${"─".repeat(40)}\x1b[0m`);
 console.log(`\x1b[1m${passed} passed, ${failed} failed, ${passed + failed} total\x1b[0m\n`);
 process.exit(failed > 0 ? 1 : 0);

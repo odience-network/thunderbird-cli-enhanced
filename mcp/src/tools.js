@@ -1034,4 +1034,180 @@ export const tools = [
       return await api("POST", "/calendar/clashes", { start: args.start, end: args.end });
     },
   },
+
+  // ─── 31. Address books (ODIAA-2333) ────────────────────────────────
+  {
+    name: "address_book_list",
+    description: "List address books (id and name). Used to pick a target book for contact_create / email_to_contact.",
+    inputSchema: { type: "object", properties: {} },
+    handler: async (args, api) => await api("GET", "/addressbooks"),
+  },
+
+  // ─── 32. Fast actions: email to note (ODIAA-2333) ──────────────────
+  {
+    name: "email_to_note",
+    description: "Save an email to the local notes workspace (\"Save to Notes\" fast action). Purely local once the message body is fetched — no access switch required.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message id to save" },
+        name: { type: "string", description: "Note name (defaults to a slug of the subject)" },
+        append: { type: "boolean", description: "Append to an existing note instead of overwriting" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (args, api) => {
+      if (!args.messageId) return { error: "messageId is required" };
+      const msg = await api("GET", `/messages/${args.messageId}/full`);
+      const name = args.name || slugify(msg.subject) || `message-${args.messageId}`;
+      const body = [
+        `**From:** ${msg.author || "unknown"}`,
+        `**Date:** ${msg.date || "unknown"}`,
+        "",
+        msg.parts?.text || msg.parts?.html || "(no body)",
+      ].join("\n");
+      const opts = { title: msg.subject, source: String(args.messageId) };
+      return args.append ? appendNote(name, body, opts) : saveNote(name, body, opts);
+    },
+  },
+
+  // ─── 33. Fast actions: email to task (ODIAA-2333) ──────────────────
+  {
+    name: "email_to_task",
+    description: "Create a task from an email, using action-item extraction for the title/description (\"Create Task\" fast action). Requires the tasksWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message id to create a task from" },
+        calendarId: { type: "string", description: "Target calendar" },
+        due: { type: "string", description: "Due date (ISO date/time, or YYYY-MM-DD if allDay)" },
+        allDay: { type: "boolean", description: "All-day due date" },
+        priority: { type: "integer", description: "0-9; 1-4 high, 5 normal, 6-9 low, per RFC 5545" },
+      },
+      required: ["messageId", "calendarId"],
+    },
+    handler: async (args, api) => {
+      if (!args.messageId || !args.calendarId) return { error: "messageId and calendarId required" };
+      const msg = await api("GET", `/messages/${args.messageId}/full`);
+      const extracted = await api("POST", `/messages/${args.messageId}/action-items`, {});
+      const properties = {
+        title: extracted.items?.[0]?.text || msg.subject || `Task from message ${args.messageId}`,
+        source: String(args.messageId),
+      };
+      if (extracted.markdown) properties.description = extracted.markdown;
+      if (args.due) properties.due = args.due;
+      if (args.allDay) properties.allDay = true;
+      if (args.priority !== undefined) properties.priority = args.priority;
+      return await api("POST", "/tasks/create", { calendarId: args.calendarId, ...properties });
+    },
+  },
+
+  // ─── 34. Fast actions: email to event (ODIAA-2333) ─────────────────
+  {
+    name: "email_to_event",
+    description: "Create a calendar event from an email via deterministic (no LLM) date/time/location parsing (\"Create Event\" fast action). When no date/time is found, falls back to a placeholder draft with status TENTATIVE for the user to edit. Requires the calendarWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message id to create an event from" },
+        calendarId: { type: "string", description: "Target calendar" },
+      },
+      required: ["messageId", "calendarId"],
+    },
+    handler: async (args, api) => {
+      if (!args.messageId || !args.calendarId) return { error: "messageId and calendarId required" };
+      const draft = await api("POST", `/messages/${args.messageId}/event-draft`, {});
+      const properties = {
+        title: draft.title,
+        description: draft.description,
+        start: draft.start,
+        end: draft.end,
+        allDay: draft.allDay,
+        status: draft.needsReview ? "TENTATIVE" : "CONFIRMED",
+      };
+      if (draft.location) properties.location = draft.location;
+      const created = await api("POST", "/calendar/events/create", { calendarId: args.calendarId, ...properties });
+      return { ...created, needsReview: draft.needsReview };
+    },
+  },
+
+  // ─── 35. Fast actions: email to contact (ODIAA-2333) ───────────────
+  {
+    name: "email_to_contact",
+    description: "Add an email's sender as a contact, deduped by email address (\"Add Sender to Contacts\" fast action). Requires the contactsWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message id whose sender should be added" },
+        book: { type: "string", description: "Target address book, by id or name" },
+      },
+      required: ["messageId", "book"],
+    },
+    handler: async (args, api) => {
+      if (!args.messageId || !args.book) return { error: "messageId and book required" };
+      const msg = await api("GET", `/messages/${args.messageId}/full`);
+      const { name, email } = parseSenderAuthor(msg.author);
+      if (!email) return { error: "could not extract a sender email address from this message" };
+      const existing = await api("POST", "/contacts/search", { query: email, book: args.book });
+      if (existing.length > 0) return { ...existing[0], deduped: true };
+      const properties = { PrimaryEmail: email };
+      if (name) properties.DisplayName = name;
+      const created = await api("POST", "/contacts/create", { book: args.book, properties });
+      return { ...created, deduped: false };
+    },
+  },
+
+  // ─── 36. Fast actions: notes listen-once (ODIAA-2333) ──────────────
+  {
+    name: "notes_listen_once",
+    description: "Wait for a 'Save to Notes' click in Thunderbird, then save the resulting note. Long-polls the bridge event feed, so this call blocks until either a request arrives or the timeout elapses.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        timeoutMs: { type: "integer", description: "How long to wait for a pending request, in ms (default 120000)" },
+        name: { type: "string", description: "Note name (defaults to a slug of the subject)" },
+        append: { type: "boolean", description: "Append to an existing note instead of overwriting" },
+      },
+    },
+    handler: async (args, api) => {
+      const timeout = args.timeoutMs || 120000;
+      const since = Date.now() - 1000;
+      let eventResp;
+      try {
+        eventResp = await api("GET", `/bridge/events?wait=note-save-requested&since=${since}&timeout=${timeout}`, null, timeout + 5000);
+      } catch (err) {
+        if (err.code === "EVENT_TIMEOUT" || err.code === "TIMEOUT") {
+          return { error: "no 'Save to Notes' request received before the timeout" };
+        }
+        throw err;
+      }
+      const payload = eventResp.event?.data || {};
+      const name = args.name || slugify(payload.subject) || `message-${payload.messageId || "unknown"}`;
+      const body = [
+        `**From:** ${payload.author || "unknown"}`,
+        `**Date:** ${payload.date || "unknown"}`,
+        "",
+        payload.body || "(no body)",
+      ].join("\n");
+      const opts = { title: payload.subject, source: payload.messageId ? String(payload.messageId) : undefined };
+      return args.append ? appendNote(name, body, opts) : saveNote(name, body, opts);
+    },
+  },
 ];
+
+function slugify(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+// Parses a WebExtension "author" header (e.g. `"Jane Doe" <jane@x.com>`) into name/email.
+function parseSenderAuthor(author) {
+  const str = String(author || "");
+  const m = str.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1].trim() || null, email: m[2].trim() };
+  const emailOnly = str.match(/[^\s<>]+@[^\s<>]+/);
+  return { name: null, email: emailOnly ? emailOnly[0] : null };
+}

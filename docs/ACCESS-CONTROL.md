@@ -30,9 +30,12 @@ closed instead of shipping unrestricted.
 
 With a switch off, the route returns `FORBIDDEN: '<key>' is disabled by the add-on access
 policy ...` before touching the mailbox. Routes with no switch at all (search, list, read,
-stats, sync, `POST /extension/reload`, ...) are always available — the policy only gates
-operations that create, mutate, or send. Bridge-local endpoints (`/bridge/status`,
-`/bridge/events`) never reach the add-on, so the policy doesn't apply to them.
+stats, sync, `GET /addressbooks`, `POST /messages/:id/action-items`, `POST
+/messages/:id/event-draft`, `POST /extension/reload`, ...) are always available — the policy
+only gates operations that create, mutate, or send. The last two are deterministic,
+non-mutating text extraction (candidate action items / an event draft parsed from the message
+body), same as read routes. Bridge-local endpoints (`/bridge/status`, `/bridge/events`) never
+reach the add-on, so the policy doesn't apply to them.
 
 `delete` and `folderDelete` default off: the board decided (ODIAA-2304) that deletion stays
 gated rather than removed from the extension entirely. Every write switch that predates
@@ -78,3 +81,10 @@ build. Without `--access-config`, the source defaults above are used.
   bridge authentication (`TB_AUTH_TOKEN`) or OS-level protections.
 - Previously installed or signed XPIs predate this policy and still allow everything; install a
   new build to get it.
+- The Fast Actions (`tb email-to-*`, the equivalent MCP tools, and the "Save to Notes"/"Create
+  Task"/"Create Event"/"Add Sender to Contacts" context-menu items — ODIAA-2333) are composites
+  over existing routes and introduce no new write switch: `email-to-task`/"Create Task" and
+  `email-to-event`/"Create Event" are gated by `tasksWrite`/`calendarWrite` at `/tasks/create`
+  and `/calendar/events/create` respectively, `email-to-contact`/"Add Sender to Contacts" by
+  `contactsWrite` at `/contacts/create`, and `email-to-note`/"Save to Notes" needs no switch
+  because it never mutates Thunderbird state — it only writes to the local notes workspace.
