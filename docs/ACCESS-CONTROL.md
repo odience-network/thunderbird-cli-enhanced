@@ -12,7 +12,7 @@ closed instead of shipping unrestricted.
 | Key | Default | What it allows |
 |---|---|---|
 | `downloadAttachments` | `true` | Downloading attachment content (`tb attachment-download`, MCP `email_attachments operation=download`) |
-| `compose` | `true` | Creating a draft via `tb compose`/`tb reply`/`tb forward`, or editing one via `tb edit` |
+| `compose` | `true` | Creating a draft via `tb compose`/`tb reply`/`tb forward`/`tb notes to-draft`, or editing one via `tb edit` |
 | `send` | `true` | Sending immediately with `--send` (requires `compose: true`) |
 | `move` | `true` | `tb move`, `tb bulk move` |
 | `copy` | `true` | `tb copy` |
@@ -79,7 +79,8 @@ build. Without `--access-config`, the source defaults above are used.
   explicit user approval for consequential actions (see `skills/thunderbird-cli/SKILL.md`).
 - This is add-on-level policy, not authentication or transport security — it does not replace
   bridge authentication (`TB_AUTH_TOKEN`) or OS-level protections.
-- Previously installed or signed XPIs predate this policy and still allow everything; install a
+- Previously installed or signed XPIs (including the ATN-signed 2.1.0 in `dist/releases/`)
+  predate this policy and still allow everything; install a
   new build to get it.
 - The Fast Actions (`tb email-to-*`, the equivalent MCP tools, and the "Save to Notes"/"Create
   Task"/"Create Event"/"Add Sender to Contacts" context-menu items — ODIAA-2333) are composites

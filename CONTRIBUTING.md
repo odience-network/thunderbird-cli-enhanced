@@ -18,10 +18,10 @@ thunderbird-cli-enhanced/
 
 The four runtime components are intentionally separated:
 
-- **extension** — runs inside Thunderbird, calls `messenger.*` APIs, talks to bridge over WebSocket
+- **extension** — runs inside Thunderbird, calls `messenger.*` APIs (plus vendored calendar/task Experiment APIs), talks to bridge over WebSocket
 - **bridge** — stateless HTTP↔WS proxy, no business logic
-- **cli** — thin HTTP client, parses args, formats JSON output
-- **mcp** — MCP server, exposes 16 curated tools to Claude Desktop and other MCP clients
+- **cli** — thin HTTP client, parses args, formats JSON output (74 commands; the notes workspace and local transcription run in `cli/` itself)
+- **mcp** — MCP server, exposes 42 curated tools to Claude Desktop and other MCP clients
 
 ## Local development
 
@@ -52,11 +52,13 @@ node cli/src/cli.js stats
 npm test                     # CLI/bridge integration (mock bridge)
 npm run test:bridge-auth     # bridge TB_AUTH_TOKEN enforcement (real bridge process)
 npm run test:bridge-security # bridge browser-origin defenses (real bridge process)
-npm run test:extension       # background script, thread utils, access policy (mocked messenger API)
+npm run test:extension       # background script, thread utils, access policy, action items, calendar clashes (mocked messenger API)
 npm run test:sign            # XPI signing script (mock ATN API)
 npm run test:docs            # docs/COMMANDS.md and README match `tb --help`; diagrams are complete
+npm run test:notes           # notes workspace and transcription (stubbed STT engine)
+npm run test:skills          # deterministic skills (today/week/clashes/from)
 npm run test:mcp             # MCP server integration (spawns server)
-npm run test:all             # all of the above + MCP concurrency
+npm run test:all             # all of the above + MCP concurrency + npm pack check
 npm run verify               # everything CI runs: build XPI, lint, all test suites
 ```
 

@@ -115,7 +115,7 @@
       "id": "handler",
       "type": "backend",
       "label": "Handler",
-      "sublabel": "messenger.* call",
+      "sublabel": "mail / PIM call",
       "stage": 4,
       "row": 0,
       "tag": "allowed",
@@ -128,7 +128,7 @@
       "sublabel": "off / unclassified",
       "stage": 4,
       "row": 2,
-      "tag": "no mail access",
+      "tag": "no data access",
       "width": 136
     }
   ],
@@ -199,7 +199,7 @@
       "dot": "emerald",
       "title": "Always available",
       "items": [
-        "Read routes (search, list, read, stats, sync) have no switch",
+        "Read routes (search, list, read, calendar/task/contact lists) have no switch",
         "tb access shows the loaded policy"
       ]
     },
@@ -207,8 +207,8 @@
       "dot": "amber",
       "title": "Switches",
       "items": [
-        "compose, send, move, copy, archive, mark, tag, folder ops default on",
-        "delete and folderDelete default off (ODIAA-2304)"
+        "16 switches; mail writes (compose, send, move, tag, folder ops, ...) default on",
+        "delete, folderDelete, contactsWrite, calendarWrite, tasksWrite default off"
       ]
     },
     {

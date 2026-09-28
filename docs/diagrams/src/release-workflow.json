@@ -3,7 +3,7 @@
   "diagram_type": "workflow",
   "meta": {
     "title": "Signed XPI release workflow",
-    "subtitle": "sign-xpi.yml gets the add-on approved by addons.thunderbird.net; release.yml publishes it",
+    "subtitle": "sign-xpi.yml gets the add-on approved by addons.thunderbird.net; release.yml publishes it to GitHub and npm",
     "quality_profile": "showcase",
     "views": [
       {
@@ -26,7 +26,7 @@
           "tag",
           "release"
         ],
-        "note": "A version tag attaches the committed signed XPI to a GitHub Release."
+        "note": "A version tag attaches the highest committed signed XPI (plus the unsigned build) to a GitHub Release, then publishes the npm package."
       },
       {
         "id": "failures",
@@ -38,7 +38,7 @@
           "resume",
           "commit"
         ],
-        "note": "A red gate stops the run; a slow ATN review is resumed by re-running."
+        "note": "A red gate stops the run; an ATN manual review (Experiment APIs) is resumed by re-running."
       }
     ]
   },
@@ -141,7 +141,7 @@
       "col": 3,
       "type": "security",
       "label": "ATN review",
-      "sublabel": "validate + sign",
+      "sublabel": "validate + manual review",
       "tag": "polled",
       "width": 140
     },
@@ -170,7 +170,7 @@
       "col": 5,
       "type": "cloud",
       "label": "GitHub Release",
-      "sublabel": "tests + signed XPI",
+      "sublabel": "XPIs, then npm (OIDC)",
       "width": 140
     },
     {
@@ -245,7 +245,7 @@
       "id": "review-resume",
       "from": "review",
       "to": "resume",
-      "label": "timeout",
+      "label": "still in review",
       "variant": "security",
       "role": "error"
     }
@@ -256,7 +256,8 @@
       "title": "Gate",
       "items": [
         "Same gate as the pre-push hook: npm run verify",
-        "Signing needs MOZILLA_HUB_JWT_* repository secrets"
+        "Signing needs MOZILLA_HUB_JWT_* repository secrets",
+        "Experiment APIs (calendar_*) need an ATN manual review"
       ]
     },
     {
@@ -272,7 +273,8 @@
       "title": "Publish",
       "items": [
         "release.yml fails if no *-tb.xpi is committed",
-        "Unsigned build is attached alongside for reference"
+        "Attaches the highest signed *-tb.xpi plus the unsigned build",
+        "npm trusted publishing (OIDC) on Node 22, no stored token"
       ]
     }
   ]

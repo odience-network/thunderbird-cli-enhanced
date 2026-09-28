@@ -11,7 +11,9 @@ Part of [thunderbird-cli-enhanced](https://github.com/odience-network/thunderbir
 
 ## What it does
 
-Exposes 13 email management tools to Claude Desktop:
+Exposes 42 tools to Claude Desktop (and any other MCP client):
+
+**Email (14)**
 
 | Tool | Description |
 |---|---|
@@ -28,8 +30,67 @@ Exposes 13 email management tools to Claude Desktop:
 | `email_archive` | Archive, move, or delete messages |
 | `email_attachments` | List + download attachments (base64) |
 | `email_folders` | List folders, get info, trigger sync |
+| `email_action_items` | Extract candidate action items from a message as a Markdown checklist (deterministic, no LLM) |
 
-**Safe defaults:** compose/reply/forward/edit all default to **draft mode**. Claude must explicitly pass `mode: "send"` to actually send anything. Permanent delete requires `confirm: true`.
+**Contacts (4)**
+
+| Tool | Description |
+|---|---|
+| `contact_search` | Search or list contacts across all address books |
+| `address_book_list` | List address books (id, name) — pick a target for `contact_create` / `email_to_contact` |
+| `contact_create` | Create a contact (requires `contactsWrite`) |
+| `contact_update` | Update contact properties by id (requires `contactsWrite`) |
+
+**Notes (7)** — local Markdown workspace, no Thunderbird round-trip except where noted
+
+| Tool | Description |
+|---|---|
+| `note_list` | List notes (title, created, source message, size) |
+| `note_read` | Read a note's Markdown body and metadata ("Use as Context") |
+| `note_save` | Save/overwrite a note ("Save to Notes") |
+| `note_append` | Append to a note, creating it if missing |
+| `note_transcribe` | Transcribe a local audio file with a local STT engine (whisper.cpp / faster-whisper) into a note |
+| `note_to_draft` | Render a note to HTML and open it as a new email draft (default: draft) |
+| `notes_listen_once` | Wait for a "Save to Notes" click in Thunderbird, then save the note |
+
+**Tasks (3)**
+
+| Tool | Description |
+|---|---|
+| `task_list` | List calendar tasks (VTODO), per calendar or by completion state |
+| `task_create` | Create a task (requires `tasksWrite`) |
+| `task_update` | Update task properties by id (requires `tasksWrite`) |
+
+**Calendar (6)**
+
+| Tool | Description |
+|---|---|
+| `calendar_list` | List calendars (id, name, type, read-only/enabled, color) |
+| `calendar_events` | List events in a date range; recurring events expanded |
+| `calendar_event_create` | Create an event (requires `calendarWrite`) |
+| `calendar_event_update` | Update event properties by id (requires `calendarWrite`) |
+| `calendar_event_delete` | Delete an event by id (requires `calendarWrite`) |
+| `calendar_clashes` | Detect overlapping events across all calendars (DST- and all-day-aware) |
+
+**Skills (4)** — deterministic, return ready-to-show Markdown
+
+| Tool | Description |
+|---|---|
+| `skill_today` | Today's events plus unread/flagged counts |
+| `skill_week` | Next 7 days of events, grouped by day |
+| `skill_clashes` | Overlapping events in the next N days (default 7) |
+| `skill_from` | Recent mail from a sender address or domain, grouped into threads |
+
+**Fast Actions (4)**
+
+| Tool | Description |
+|---|---|
+| `email_to_note` | Save an email to the notes workspace (no access switch) |
+| `email_to_task` | Create a task from an email via action-item extraction (requires `tasksWrite`) |
+| `email_to_event` | Create an event from an email via deterministic date/time/location parsing (requires `calendarWrite`) |
+| `email_to_contact` | Add the sender as a contact, deduped by address (requires `contactsWrite`) |
+
+**Safe defaults:** compose/reply/forward/edit all default to **draft mode**. Claude must explicitly pass `mode: "send"` to actually send anything; `note_to_draft` has no send mode at all. Permanent delete requires `confirm: true`, and `delete` is refused unless the add-on was built with `delete: true`. Contact, calendar and task writes are gated behind the `contactsWrite`, `calendarWrite` and `tasksWrite` access switches, all **off** by default — see [ACCESS-CONTROL.md](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/ACCESS-CONTROL.md). Calendar and task tools need Thunderbird's calendar Experiment APIs, which ship in add-on 2.4.0+.
 
 ## Architecture
 
@@ -127,6 +188,9 @@ Then in Claude Desktop config:
 |---|---|
 | macOS | `~/Library/Application Support/Claude/claude_desktop_config.json` |
 | Windows | `%APPDATA%\Claude\claude_desktop_config.json` |
+| Linux | `~/.config/Claude/claude_desktop_config.json` |
+
+After editing, **restart Claude Desktop**. You should see "thunderbird" in the MCP servers list when you click the tool icon.
 
 ## Recommended: also install the companion skill
 
@@ -154,9 +218,6 @@ cd skills && zip -r thunderbird-cli.zip thunderbird-cli
 Full skill docs: [`skills/thunderbird-cli/SKILL.md`](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/skills/thunderbird-cli/SKILL.md).
 
 Skipping the skill is fine — the MCP still works — but with it, Claude's defaults get noticeably safer (never-auto-send, junk-excluded, truncated bodies) without the user having to re-prompt.
-| Linux | `~/.config/Claude/claude_desktop_config.json` |
-
-After editing, **restart Claude Desktop**. You should see "thunderbird" in the MCP servers list when you click the tool icon.
 
 ## Configuration
 
@@ -204,7 +265,8 @@ Once configured, try these in Claude Desktop:
 ## Safety
 
 - **Compose/reply/forward default to draft mode.** Claude cannot send emails without explicitly requesting `mode: "send"`.
-- **Permanent delete is gated** behind `confirm: true`.
+- **Permanent delete is gated** behind `confirm: true`, and refused outright unless the add-on was built with `delete: true`.
+- **Contact, calendar and task writes are off by default** (`contactsWrite`, `calendarWrite`, `tasksWrite` access switches).
 - **Search excludes junk/spam by default** to prevent prompt injection from adversarial emails.
 - **All traffic stays on localhost.** Bridge listens on `127.0.0.1` only.
 - **No credentials are exposed.** Thunderbird handles all IMAP/SMTP — your passwords never leave its config.
@@ -236,7 +298,7 @@ See [SECURITY.md](https://github.com/odience-network/thunderbird-cli-enhanced/bl
 git clone https://github.com/odience-network/thunderbird-cli-enhanced
 cd thunderbird-cli-enhanced
 npm install
-npm run test:mcp    # 34 integration tests against mock bridge
+npm run test:mcp    # integration tests against a mock bridge
 ```
 
 ## License

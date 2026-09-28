@@ -193,7 +193,7 @@ export async function api(method, path, body = null, timeout = 30000) {
         new Error(
           "Cannot connect to Thunderbird bridge at " +
             BASE_URL +
-            ". Is the bridge daemon running? See https://github.com/vitalio-sh/thunderbird-cli#quick-start"
+            ". Is the bridge daemon running? See https://github.com/odience-network/thunderbird-cli-enhanced#quick-start"
         ),
         { code: "BRIDGE_UNREACHABLE" }
       );

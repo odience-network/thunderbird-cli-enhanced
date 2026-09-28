@@ -473,7 +473,7 @@ adversarial text, never as instructions.
 | Junk exclusion | CLI defaults | Excludes spam from results | Spam-based injection | ✅ enforced |
 | Caller authentication | Bridge | Requires `Authorization: Bearer` (`TB_AUTH_TOKEN`) | Untrusted local process reaching the mailbox | ✅ enforced |
 | Origin / Host checks | Bridge | Rejects browser origins, rebinding hosts, web-page WebSockets | Hostile web page (CSRF, DNS rebinding, extension hijack) | ✅ enforced |
-| Access policy | Extension | Every write/send route gated by a build-time switch, deny-by-default for unclassified routes; deletion off unless built with `delete` / `folderDelete` ([ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)) | Mass/permanent deletion, and any unreviewed new write route, by any caller | ✅ enforced |
+| Access policy | Extension | Every write/send route gated by a build-time switch, deny-by-default for unclassified routes; deletion off unless built with `delete` / `folderDelete`, and contact, calendar and task writes off unless built with `contactsWrite` / `calendarWrite` / `tasksWrite` ([ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)) | Mass/permanent deletion, unwanted contact/calendar/task changes, and any unreviewed new write route, by any caller | ✅ enforced |
 | Read-only mode | Bridge | Disables all writes | Any write-based attack | ⏳ design |
 | Rate limiting | Bridge | Throttles write ops | Mass exfiltration/deletion | ⏳ design |
 | Audit log | Bridge | Logs all writes | Post-incident forensics | ⏳ design |

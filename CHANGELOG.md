@@ -16,9 +16,9 @@ Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN f
 
 ### Added
 - Calendars and events: `tb calendar list|events|create|update|delete|clashes` and MCP `calendar_list`/`calendar_events`/`calendar_event_create`/`calendar_event_update`/`calendar_event_delete`/`calendar_clashes`, backed by vendored `calendar_calendars` and events-only `calendar_items` Experiment APIs (see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md)). Clash detection across calendars is a pure function (`extension/src/calendar-clash.js`). Writes are gated by `calendarWrite`. (ODIAA-2328)
-- Tasks: `tb tasks list|create|update` and MCP `task_list`/`task_create`/`task_update` through a vendored `calendar_tasks` Experiment API, with writes gated by `tasksWrite`. `tb action-items <messageId>` turns an email body into a Markdown checklist with a deterministic (no LLM) extractor. (ODIAA-2329)
+- Tasks: `tb tasks list|create|update` and MCP `task_list`/`task_create`/`task_update` through a vendored `calendar_tasks` Experiment API, with writes gated by `tasksWrite`. `tb action-items <messageId>` (MCP `email_action_items`) turns an email body into a Markdown checklist with a deterministic (no LLM) extractor. (ODIAA-2329)
 - Deterministic skills: `tb today`/`week`/`clashes`/`from` and MCP `skill_today`/`skill_week`/`skill_clashes`/`skill_from` render compact Markdown from existing read-only endpoints; CLI and MCP output are byte-identical. (ODIAA-2332)
-- Fast Actions: one-click Email → Note / Task / Event / Contact (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, matching MCP tools, and context-menu items in Thunderbird's message list/display). `email-to-event` uses a new deterministic (no LLM) date/time/location parser (`extension/src/email-event-parse.js`) and falls back to a tentative draft event when it can't detect one. `email-to-contact` dedupes by sender email. Two new ungated routes (`GET /addressbooks`, `POST /messages/:id/event-draft`); no new access switch — writes are gated by the existing `tasksWrite`/`calendarWrite`/`contactsWrite` switches. (ODIAA-2333)
+- Fast Actions: one-click Email → Note / Task / Event / Contact (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, matching MCP tools, and context-menu items in Thunderbird's message list/display). "Save to Notes" hands the message to a waiting `tb notes listen` / MCP `notes_listen_once`, and `tb address-books` / MCP `address_book_list` lists the address books `email-to-contact` can write to. `email-to-event` uses a new deterministic (no LLM) date/time/location parser (`extension/src/email-event-parse.js`) and falls back to a tentative draft event when it can't detect one. `email-to-contact` dedupes by sender email. Two new ungated routes (`GET /addressbooks`, `POST /messages/:id/event-draft`); no new access switch — writes are gated by the existing `tasksWrite`/`calendarWrite`/`contactsWrite` switches. (ODIAA-2333)
 - **`tb notes transcribe <audioFile>`** / MCP `note_transcribe` — voice memo transcription into
   Notes. Local-first: at runtime it detects a locally-installed speech-to-text engine —
   [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli` on PATH, or
@@ -33,7 +33,7 @@ Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN f
   stubbed engine (`test/fixtures/stub-*.mjs`). (ODIAA-2331)
 
 ### Changed
-- Extension 2.4.0 declares `strict_max_version: "155.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.
+- Extension 2.4.0 declares `strict_max_version: "156.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.
 - Release and sign-xpi workflows build on Node 22 (was Node 20, past end of life). The package still declares `engines.node >= 18`.
 
 ## [1.2.1] — 2026-09-27

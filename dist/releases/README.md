@@ -7,6 +7,13 @@ This directory contains **ATN-signed** Thunderbird extension builds. These are t
 | File | Version | Signed by | Date |
 |---|---|---|---|
 | `thunderbird_ai_bridge-2.1.0-tb.xpi` | 2.1.0 (`thunderbird-cli-enhanced@odience.net`) | addons.thunderbird.net, unlisted | 2026-09-27 |
+| `thunderbird_cli_enhanced-2.4.0-tb.xpi` (not yet here) | 2.4.0 (`thunderbird-cli-enhanced@odience.net`) | pending ATN manual review | — |
+
+2.1.0 predates the rename, so Thunderbird's Add-ons Manager shows it as "Thunderbird AI Bridge",
+and it has no calendar, tasks or Fast Actions. 2.4.0 ("Thunderbird CLI Enhanced", the v1.3.0
+add-on) passed ATN automated validation and awaits manual review because of its calendar
+Experiment APIs; until it lands here, the unsigned 2.4.0 XPI is attached to the v1.3.0 GitHub
+Release.
 
 ## Why these are in git
 
