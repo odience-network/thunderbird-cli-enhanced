@@ -26,22 +26,26 @@ closed instead of shipping unrestricted.
 | `folderDelete` | `false` | `tb folder-delete` (removes the folder and potentially its contents) |
 | `contactsWrite` | `false` | `tb contacts create`/`tb contacts update`, MCP `contact_create`/`contact_update` |
 | `calendarWrite` | `false` | `tb calendar create`/`update`/`delete`, MCP `calendar_event_create`/`calendar_event_update`/`calendar_event_delete` |
+| `tasksWrite` | `false` | `tb tasks create`/`tb tasks update`, MCP `task_create`/`task_update` |
 
 With a switch off, the route returns `FORBIDDEN: '<key>' is disabled by the add-on access
 policy ...` before touching the mailbox. Routes with no switch at all (search, list, read,
-stats, sync, `POST /extension/reload`, ...) are always available — the policy only gates
-operations that create, mutate, or send. Bridge-local endpoints (`/bridge/status`,
-`/bridge/events`) never reach the add-on, so the policy doesn't apply to them.
+stats, sync, `GET /addressbooks`, `POST /messages/:id/action-items`, `POST
+/messages/:id/event-draft`, `POST /extension/reload`, ...) are always available — the policy
+only gates operations that create, mutate, or send. The last two are deterministic,
+non-mutating text extraction (candidate action items / an event draft parsed from the message
+body), same as read routes. Bridge-local endpoints (`/bridge/status`, `/bridge/events`) never
+reach the add-on, so the policy doesn't apply to them.
 
 `delete` and `folderDelete` default off: the board decided (ODIAA-2304) that deletion stays
 gated rather than removed from the extension entirely. Every write switch that predates
 ODIAA-2306 defaults on, so an unmodified install behaves exactly as before this policy
 existed; operators who want a more restrictive posture set the switches they want to disable
-in their config file. `contactsWrite` and `calendarWrite` are the exception: like
-`delete`/`folderDelete`, new *write* switches default off (opt-in), matching atbridge's
+in their config file. `contactsWrite`, `calendarWrite`, and `tasksWrite` are the exception:
+like `delete`/`folderDelete`, new *write* switches default off (opt-in), matching atbridge's
 off-by-default write posture — enable them explicitly to let `tb contacts create`/`tb
-contacts update` or `tb calendar create`/`update`/`delete` (or the equivalent MCP tools)
-mutate an address book or calendar.
+contacts update`, `tb calendar create`/`update`/`delete`, or `tb tasks create`/`tb tasks
+update` (or the equivalent MCP tools) mutate an address book, a calendar, or a task.
 
 ## How a request is checked
 
@@ -77,3 +81,10 @@ build. Without `--access-config`, the source defaults above are used.
   bridge authentication (`TB_AUTH_TOKEN`) or OS-level protections.
 - Previously installed or signed XPIs predate this policy and still allow everything; install a
   new build to get it.
+- The Fast Actions (`tb email-to-*`, the equivalent MCP tools, and the "Save to Notes"/"Create
+  Task"/"Create Event"/"Add Sender to Contacts" context-menu items — ODIAA-2333) are composites
+  over existing routes and introduce no new write switch: `email-to-task`/"Create Task" and
+  `email-to-event`/"Create Event" are gated by `tasksWrite`/`calendarWrite` at `/tasks/create`
+  and `/calendar/events/create` respectively, `email-to-contact`/"Add Sender to Contacts" by
+  `contactsWrite` at `/contacts/create`, and `email-to-note`/"Save to Notes" needs no switch
+  because it never mutates Thunderbird state — it only writes to the local notes workspace.

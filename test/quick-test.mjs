@@ -64,6 +64,9 @@ function handle({ method, path, body }) {
   if (path === "/contacts/update") return { id: body?.id, properties: body?.properties || {} };
   if (path === "/contacts" && method === "GET") return [{ id: "c1", name: "John", email: "j@e.com", book: "P" }];
   if (path?.match(/^\/contacts\/[^/]+$/)) return { id: "c1", properties: { DisplayName: "John" } };
+  if (path === "/addressbooks" && method === "GET") return [{ id: "ab1", name: "Personal" }];
+  if (path?.match(/\/action-items$/) && method === "POST") return { items: [{ text: "Please review the attached doc", checked: false, dueHint: null }], markdown: "- [ ] Please review the attached doc" };
+  if (path?.match(/\/event-draft$/) && method === "POST") return { title: "T", description: "Hello", start: "2026-01-02T15:00:00.000Z", end: "2026-01-02T16:00:00.000Z", allDay: false, location: "Somewhere", needsReview: false };
   if (path === "/calendars" && method === "GET") return [{ id: "cal1", type: "storage", name: "Home", url: "moz-storage-calendar://cal1", readOnly: false, enabled: true, color: null }];
   if (path === "/calendar/events/list") return [{ id: "ev1", calendarId: "cal1", title: "Standup", start: "2026-01-15T10:00:00Z", end: "2026-01-15T10:30:00Z", allDay: false, status: "CONFIRMED", transparency: "OPAQUE" }];
   if (path === "/calendar/events/create") return { id: "ev2", calendarId: body?.calendarId, title: body?.title, start: body?.start, end: body?.end };
@@ -265,6 +268,15 @@ test("POST /contacts/create",
 test("POST /contacts/update",
   await httpCall("POST", "/contacts/update", { id: "c1", properties: { LastName: "Doe" } }),
   r => r.id === "c1" && r.properties.LastName === "Doe");
+test("GET /addressbooks", await httpCall("GET", "/addressbooks"), r => Array.isArray(r) && r[0].id === "ab1");
+
+console.log("\n\x1b[1mFast Actions\x1b[0m");
+test("POST /messages/1/action-items",
+  await httpCall("POST", "/messages/1/action-items", {}),
+  r => r.items?.[0]?.text === "Please review the attached doc");
+test("POST /messages/1/event-draft",
+  await httpCall("POST", "/messages/1/event-draft", {}),
+  r => r.title === "T" && r.allDay === false && r.needsReview === false);
 
 console.log("\n\x1b[1mCalendar\x1b[0m");
 test("GET /calendars", await httpCall("GET", "/calendars"), r => Array.isArray(r) && r[0].id === "cal1");

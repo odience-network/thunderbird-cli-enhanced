@@ -38,7 +38,7 @@ Equivalent to `tb health` — returns account count and bridge status. If it err
 - **EXTENSION_DISCONNECTED** — open Thunderbird. The WebExtension auto-connects within 3s of Thunderbird being open.
 - **NOT_FOUND** on account/folder — the user hasn't added that account to Thunderbird yet.
 
-## The 31 MCP tools
+## The 41 MCP tools
 
 Use these; don't reach for the 47-command CLI unless the user explicitly asks for a bulk operation not covered here.
 
@@ -77,6 +77,10 @@ For "what's on my plate" style asks, prefer `skill_today`/`skill_week`/`skill_cl
 | `skill_week` | This week's calendar events, grouped by day — pre-formatted Markdown | ✅ read-only |
 | `skill_clashes` | Overlapping events across all calendars in the next N days — pre-formatted Markdown | ✅ read-only |
 | `skill_from` | Recent mail from a sender/domain, grouped into threads — pre-formatted Markdown | ✅ read-only |
+| `task_list` | List calendar tasks (VTODO), optionally filtered by calendar or completion state | ✅ read-only |
+| `task_create` | Create a calendar task | ⚠️ requires `tasksWrite` access switch (default off) |
+| `task_update` | Update a task's fields (title, due, priority, description, completed) by id | ⚠️ requires `tasksWrite` access switch (default off) |
+| `email_action_items` | Deterministic (no LLM) extraction of candidate action items from a message body as a Markdown checklist | ✅ read-only |
 
 Notes live entirely on disk (`~/.config/thunderbird-cli/notes` by default) —
 no Thunderbird round-trip except `note_to_draft`, which reuses the same
@@ -213,6 +217,47 @@ To turn a note into an email, use `note_to_draft name="q3-planning" to="team@co.
 it renders the Markdown to sanitized HTML and saves a draft (never sends).
 Notes are local files; nothing is uploaded anywhere.
 
+### J. "Turn this email into a task" / "What am I on the hook for in this thread?"
+
+```
+email_action_items messageId=<id>
+```
+
+This is deterministic extraction (no LLM) — checklist/bullet syntax, imperative
+sentences ("Send the report..."), request phrases ("please...", "can you..."),
+and "by \<date\>" hints. Show the user the returned Markdown checklist before
+turning any item into a real task — extraction can over- or under-match.
+
+To actually create a task from a confirmed item:
+
+```
+task_create calendarId=<id> title="<item text>" due="<dueHint if any>" source="<messageId>"
+```
+
+`task_create`/`task_update` require the `tasksWrite` access switch (default off) — if the
+call returns `FORBIDDEN`, tell the user it's disabled and how to enable it
+(`docs/ACCESS-CONTROL.md`), don't work around it.
+
+### K. "Save/task/event/contact this email" (Fast Actions, one click)
+
+`email_to_note`, `email_to_task`, `email_to_event`, and `email_to_contact` collapse the
+manual extract-then-create flow above into one call — same underlying routes, same
+access switches, no bypass. They're also available as context-menu items in Thunderbird
+itself ("Save to Notes", "Create Task", "Create Event", "Add Sender to Contacts").
+
+```
+email_to_task messageId=<id> calendarId=<id>      # requires tasksWrite
+email_to_event messageId=<id> calendarId=<id>     # requires calendarWrite
+email_to_contact messageId=<id> book=<bookId>     # requires contactsWrite, deduped by email
+email_to_note messageId=<id>                      # no switch — local notes workspace only
+```
+
+Creating a task/event/contact is consequential and, unlike a plain read, isn't easily
+undone by re-reading the mailbox — get explicit user approval before calling these (not
+just before enabling the access switch). `email_to_event` parses the date/time/location
+deterministically (no LLM) and may not find one; when it can't, it still creates the
+event but marks it tentative for the user to fix — say so, don't present it as confirmed.
+
 ## Safety
 
 ### Destructive operations
@@ -274,7 +319,7 @@ Some IMAP servers don't preload attachments. Call `email_read id=<id> mode="chec
 
 ## When NOT to use this skill
 
-- **Calendar tasks, contacts write, or address book editing** — not exposed via `tb-mcp`. Calendar events are: `calendar_list`/`tb calendar list` lists calendars, `calendar_events`/`tb calendar events` and `calendar_clashes`/`tb calendar clashes` read events and detect overlaps (ungated), `calendar_event_create`/`_update`/`_delete` (`tb calendar create`/`update`/`delete`) write events but require the `calendarWrite` access switch (default off — see `docs/ACCESS-CONTROL.md`). Experimental, see `docs/decisions/calendar-backend.md`. Task CRUD and contacts write are not exposed; for those, use Thunderbird directly or a dedicated calendar skill.
+- **Creating or deleting whole calendars or address books** — not exposed via `tb-mcp` or the CLI. Events (`calendar_events`/`calendar_event_create`/`_update`/`_delete`, gated by `calendarWrite`), tasks (`task_list`/`task_create`/`task_update`, gated by `tasksWrite`), and contact writes (`contact_create`/`contact_update`, gated by `contactsWrite`) *are* exposed (default off — tell the user if a call comes back `FORBIDDEN`); for adding a new calendar or address book itself, use Thunderbird directly. Calendar support is experimental — see `docs/decisions/calendar-backend.md`.
 - **Accounts not configured in Thunderbird** — ask the user to add the account first.
 - **Sending to many recipients** — use a mailing tool (Mailchimp, etc.) via its MCP server. `tb-mcp` is for 1:1 or small-group mail.
 - **Server-side rules / filters** — not exposed. Thunderbird sees the client-side view only.
@@ -305,7 +350,18 @@ MCP tool → CLI command mapping:
 | `contact_search` | `tb contacts-search <query>` |
 | `contact_create` | `tb contacts create --book <bookId> ...` |
 | `contact_update` | `tb contacts update <contactId> ...` |
+| `calendar_list` | `tb calendars` |
+| `task_list` | `tb tasks list` |
+| `task_create` | `tb tasks create --calendar <calendarId> --title <title> ...` |
+| `task_update` | `tb tasks update <taskId> --calendar <calendarId> ...` |
+| `email_action_items` | `tb action-items <messageId>` |
+| `address_book_list` | `tb address-books` |
+| `email_to_note` | `tb email-to-note <messageId>` |
+| `email_to_task` | `tb email-to-task <messageId> --calendar <calendarId>` |
+| `email_to_event` | `tb email-to-event <messageId> --calendar <calendarId>` |
+| `email_to_contact` | `tb email-to-contact <messageId> --book <bookId>` |
+| `notes_listen_once` | `tb notes listen` |
 
 ## Version
 
-This skill tracks the `tb-mcp` server on `main` of thunderbird-cli-enhanced (package version 1.1.0). The tool surface (21 tools, parameter names, defaults) is stable within the 1.x line. Check [CHANGELOG](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/CHANGELOG.md) for additions.
+This skill tracks the `tb-mcp` server on `main` of thunderbird-cli-enhanced (package version 1.1.0). The tool surface (26 tools, parameter names, defaults) is stable within the 1.x line. Check [CHANGELOG](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/CHANGELOG.md) for additions.
