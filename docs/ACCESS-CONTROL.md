@@ -25,6 +25,7 @@ closed instead of shipping unrestricted.
 | `folderRename` | `true` | Renaming a folder |
 | `folderDelete` | `false` | `tb folder-delete` (removes the folder and potentially its contents) |
 | `contactsWrite` | `false` | `tb contacts create`/`tb contacts update`, MCP `contact_create`/`contact_update` |
+| `calendarWrite` | `false` | `tb calendar create`/`update`/`delete`, MCP `calendar_event_create`/`calendar_event_update`/`calendar_event_delete` |
 | `tasksWrite` | `false` | `tb tasks create`/`tb tasks update`, MCP `task_create`/`task_update` |
 
 With a switch off, the route returns `FORBIDDEN: '<key>' is disabled by the add-on access
@@ -37,11 +38,11 @@ operations that create, mutate, or send. Bridge-local endpoints (`/bridge/status
 gated rather than removed from the extension entirely. Every write switch that predates
 ODIAA-2306 defaults on, so an unmodified install behaves exactly as before this policy
 existed; operators who want a more restrictive posture set the switches they want to disable
-in their config file. `contactsWrite` and `tasksWrite` are the exception: like
-`delete`/`folderDelete`, new *write* switches default off (opt-in), matching atbridge's
+in their config file. `contactsWrite`, `calendarWrite`, and `tasksWrite` are the exception:
+like `delete`/`folderDelete`, new *write* switches default off (opt-in), matching atbridge's
 off-by-default write posture — enable them explicitly to let `tb contacts create`/`tb
-contacts update` or `tb tasks create`/`tb tasks update` (or the equivalent MCP tools) mutate
-an address book or a task.
+contacts update`, `tb calendar create`/`update`/`delete`, or `tb tasks create`/`tb tasks
+update` (or the equivalent MCP tools) mutate an address book, a calendar, or a task.
 
 ## How a request is checked
 

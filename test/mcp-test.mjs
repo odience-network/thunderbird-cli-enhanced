@@ -31,6 +31,28 @@ function handle({ method, path, body }) {
   if (path === "/health") return { status: "ok", version: "2.0.0", thunderbird: true };
   if (path === "/calendars" && method === "GET")
     return [{ id: "cal1", type: "storage", name: "Home", url: "moz-storage-calendar://cal1", readOnly: false, enabled: true, color: "#3366CC" }];
+  if (path === "/calendar/events/list")
+    return [
+      { id: "ev1", calendarId: "cal1", title: "Standup", start: "2026-01-15T10:00:00Z", end: "2026-01-15T10:30:00Z", allDay: false, status: "CONFIRMED", transparency: "OPAQUE" },
+    ];
+  if (path === "/calendar/events/create")
+    return { id: "ev2", calendarId: body?.calendarId, title: body?.title, start: body?.start, end: body?.end };
+  if (path === "/calendar/events/update")
+    return { id: body?.id, calendarId: body?.calendarId, title: body?.title };
+  if (path === "/calendar/events/delete") return { id: body?.id, calendarId: body?.calendarId };
+  if (path === "/calendar/clashes")
+    return {
+      clashes: [
+        {
+          start: "2026-01-15T10:00:00Z",
+          end: "2026-01-15T11:00:00Z",
+          events: [
+            { id: "ev1", title: "Standup" },
+            { id: "ev3", title: "Overlap" },
+          ],
+        },
+      ],
+    };
   if (path === "/accounts" && method === "GET")
     return [
       {
@@ -339,7 +361,7 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 26 tools", toolList, (r) => Array.isArray(r) && r.length === 26);
+test("tools/list returns 31 tools", toolList, (r) => Array.isArray(r) && r.length === 31);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
@@ -584,6 +606,48 @@ test(
   (r) => r.error === "contactId required"
 );
 
+console.log("\n\x1b[1mCalendar\x1b[0m");
+test(
+  "calendar_events",
+  await client.callTool("calendar_events", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" }),
+  (r) => Array.isArray(r) && r[0]?.id === "ev1"
+);
+test(
+  "calendar_events requires start and end",
+  await client.callTool("calendar_events", { start: "2026-01-15T00:00:00Z" }),
+  (r) => r.error === "start and end required"
+);
+test(
+  "calendar_event_create",
+  await client.callTool("calendar_event_create", { calendarId: "cal1", title: "Sync", start: "2026-01-15T10:00:00Z", end: "2026-01-15T11:00:00Z" }),
+  (r) => r.id === "ev2" && r.title === "Sync"
+);
+test(
+  "calendar_event_create requires title/start/end",
+  await client.callTool("calendar_event_create", { calendarId: "cal1" }),
+  (r) => r.error === "title, start, and end required"
+);
+test(
+  "calendar_event_update",
+  await client.callTool("calendar_event_update", { calendarId: "cal1", eventId: "ev1", title: "Renamed" }),
+  (r) => r.id === "ev1" && r.title === "Renamed"
+);
+test(
+  "calendar_event_update requires at least one property",
+  await client.callTool("calendar_event_update", { calendarId: "cal1", eventId: "ev1" }),
+  (r) => r.error === "at least one event property required"
+);
+test(
+  "calendar_event_delete",
+  await client.callTool("calendar_event_delete", { calendarId: "cal1", eventId: "ev1" }),
+  (r) => r.id === "ev1" && r.calendarId === "cal1"
+);
+test(
+  "calendar_clashes",
+  await client.callTool("calendar_clashes", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" }),
+  (r) => Array.isArray(r.clashes) && r.clashes[0]?.events?.length === 2
+);
+
 console.log("\n\x1b[1mNotes\x1b[0m");
 test(
   "note_list starts empty",
@@ -662,7 +726,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 26 && r.toolsBCount === 26
+  (r) => r.toolsACount === 31 && r.toolsBCount === 31
 );
 clientA.close();
 clientB.close();

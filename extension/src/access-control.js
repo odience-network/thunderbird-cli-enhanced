@@ -25,6 +25,7 @@ const ACCESS_DEFAULTS = Object.freeze({
   folderRename: true,
   folderDelete: false,
   contactsWrite: false,
+  calendarWrite: false,
   tasksWrite: false,
 });
 
@@ -57,7 +58,7 @@ const UNGATED_GET = /^\/(health|access|accounts(?:\/[^/]+(?:\/folders)?)?|identi
 const UNGATED_POST = new Set([
   "/folders/info", "/messages/search", "/messages/list", "/messages/read-batch",
   "/messages/fetch", "/stats", "/recent", "/contacts/search", "/sync", "/sync/status",
-  "/bulk/fetch", "/extension/reload", "/tasks/list",
+  "/bulk/fetch", "/extension/reload", "/calendar/events/list", "/calendar/clashes", "/tasks/list",
 ]);
 
 // POST routes with one fixed policy switch each.
@@ -74,6 +75,9 @@ const WRITE_PATHS = Object.freeze({
   "/folders/delete": "folderDelete",
   "/contacts/create": "contactsWrite",
   "/contacts/update": "contactsWrite",
+  "/calendar/events/create": "calendarWrite",
+  "/calendar/events/update": "calendarWrite",
+  "/calendar/events/delete": "calendarWrite",
   "/tasks/create": "tasksWrite",
   "/tasks/update": "tasksWrite",
 });

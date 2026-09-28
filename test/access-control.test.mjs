@@ -28,6 +28,7 @@ function load(config) {
     messagesCopy: [], messagesArchive: [], tagsCreated: [], foldersCreated: [],
     foldersRenamed: [], composeSent: [], composeSaved: [],
     contactsCreated: [], contactsUpdated: [],
+    calendarEventsCreated: [], calendarEventsUpdated: [], calendarEventsDeleted: [],
     tasksCreated: [], tasksUpdated: [],
   };
   const messenger = {
@@ -63,6 +64,21 @@ function load(config) {
           const task = { id, calendarId, ...properties };
           calls.tasksUpdated.push(task);
           return task;
+        },
+      },
+      items: {
+        query: async () => [{ id: "ev1", calendarId: "cal1", title: "Standup", start: "2026-01-15T10:00:00Z", end: "2026-01-15T10:30:00Z", allDay: false, status: "CONFIRMED", transparency: "OPAQUE" }],
+        create: async (calendarId, properties) => {
+          calls.calendarEventsCreated.push({ calendarId, properties });
+          return { id: "ev2", calendarId, ...properties };
+        },
+        update: async (calendarId, id, properties) => {
+          calls.calendarEventsUpdated.push({ calendarId, id, properties });
+          return { id, calendarId, ...properties };
+        },
+        remove: async (calendarId, id) => {
+          calls.calendarEventsDeleted.push({ calendarId, id });
+          return { id, calendarId };
         },
       },
     },
@@ -230,6 +246,39 @@ console.log("\n\x1b[1mTasks write policy\x1b[0m");
   const updated = await handle("POST", "/tasks/update", { calendarId: "cal1", id: "t1", completed: true });
   test("task update allowed with tasksWrite=true",
     updated.id === "t1" && updated.completed === true && calls.tasksUpdated.length === 1);
+}
+
+// ─── Calendar write: new switch, default closed like delete/folderDelete/contactsWrite ───
+
+console.log("\n\x1b[1mCalendar write policy\x1b[0m");
+{
+  const { calls, handle } = load();
+  const access = await handle("GET", "/access");
+  test("GET /access reports calendarWrite off", access.policy.calendarWrite === false);
+  test("calendar event create refused by default",
+    await rejects(handle("POST", "/calendar/events/create", { calendarId: "cal1", title: "New", start: "2026-01-15T10:00:00Z", end: "2026-01-15T11:00:00Z" }), /^FORBIDDEN: 'calendarWrite'/));
+  test("calendar event update refused by default",
+    await rejects(handle("POST", "/calendar/events/update", { calendarId: "cal1", id: "ev1", title: "Renamed" }), /^FORBIDDEN: 'calendarWrite'/));
+  test("calendar event delete refused by default",
+    await rejects(handle("POST", "/calendar/events/delete", { calendarId: "cal1", id: "ev1" }), /^FORBIDDEN: 'calendarWrite'/));
+  test("no calendar event side effect was made",
+    calls.calendarEventsCreated.length === 0 && calls.calendarEventsUpdated.length === 0 && calls.calendarEventsDeleted.length === 0);
+  test("calendar events list still works (ungated)",
+    Array.isArray(await handle("POST", "/calendar/events/list", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" })));
+  test("calendar clashes still works (ungated)",
+    Array.isArray((await handle("POST", "/calendar/clashes", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" })).clashes));
+}
+{
+  const { calls, handle } = load({ calendarWrite: true });
+  const created = await handle("POST", "/calendar/events/create", { calendarId: "cal1", title: "New", start: "2026-01-15T10:00:00Z", end: "2026-01-15T11:00:00Z" });
+  test("calendar event create allowed with calendarWrite=true",
+    created.calendarId === "cal1" && created.title === "New" && calls.calendarEventsCreated.length === 1);
+  const updated = await handle("POST", "/calendar/events/update", { calendarId: "cal1", id: "ev1", title: "Renamed" });
+  test("calendar event update allowed with calendarWrite=true",
+    updated.id === "ev1" && updated.title === "Renamed" && calls.calendarEventsUpdated.length === 1);
+  const deleted = await handle("POST", "/calendar/events/delete", { calendarId: "cal1", id: "ev1" });
+  test("calendar event delete allowed with calendarWrite=true",
+    deleted.id === "ev1" && calls.calendarEventsDeleted.length === 1);
 }
 
 // ─── New switches: default open (unmodified install behaves as before this policy) ──

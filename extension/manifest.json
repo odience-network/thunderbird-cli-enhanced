@@ -1,14 +1,14 @@
 {
   "manifest_version": 2,
   "name": "Thunderbird CLI Enhanced",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Connects Thunderbird to CLI agents via WebSocket bridge",
   "author": "thunderbird-cli-enhanced",
   "browser_specific_settings": {
     "gecko": {
       "id": "thunderbird-cli-enhanced@odience.net",
       "strict_min_version": "128.0",
-      "strict_max_version": "155.*"
+      "strict_max_version": "156.*"
     }
   },
   "icons": {
@@ -42,7 +42,7 @@
     "tabs"
   ],
   "background": {
-    "scripts": ["src/access-config.js", "src/access-control.js", "src/thread-utils.js", "src/action-items.js", "src/background.js"]
+    "scripts": ["src/access-config.js", "src/access-control.js", "src/thread-utils.js", "src/action-items.js", "src/calendar-clash.js", "src/background.js"]
   },
   "experiment_apis": {
     "calendar_calendars": {
@@ -51,6 +51,14 @@
         "scopes": ["addon_parent"],
         "script": "experiments/calendar/parent/ext-calendar-calendars.js",
         "paths": [["calendar", "calendars"]]
+      }
+    },
+    "calendar_items": {
+      "schema": "experiments/calendar/schema/calendar-items.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "experiments/calendar/parent/ext-calendar-items.js",
+        "paths": [["calendar", "items"]]
       }
     },
     "calendar_tasks": {

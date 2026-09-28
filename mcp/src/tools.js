@@ -18,7 +18,7 @@ export const tools = [
   {
     name: "calendar_list",
     description:
-      "List calendars registered in Thunderbird (id, name, type, url, read-only/enabled state, color). Requires the calendar Experiment API to be built into the add-on — see docs/decisions/calendar-backend.md. Read-only; there is no calendar write support yet.",
+      "List calendars registered in Thunderbird (id, name, type, url, read-only/enabled state, color). Requires the calendar Experiment API to be built into the add-on — see docs/decisions/calendar-backend.md. For events within a calendar, see calendar_events/calendar_event_create/calendar_event_update/calendar_event_delete.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -910,6 +910,128 @@ export const tools = [
     handler: async (args, api) => {
       if (!args.messageId) return { error: "messageId is required" };
       return await api("POST", `/messages/${args.messageId}/action-items`, {});
+    },
+  },
+
+  // ─── 26. Calendar: events list (ODIAA-2328) ───────────────────────
+  {
+    name: "calendar_events",
+    description:
+      "List calendar events in a date range, optionally scoped to one calendar. Recurring events are expanded into individual occurrences. Requires the calendar Experiment API — see docs/decisions/calendar-backend.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        start: { type: "string", description: "Range start (ISO date/time)" },
+        end: { type: "string", description: "Range end (ISO date/time)" },
+        calendarId: { type: "string", description: "Optional: limit to one calendar" },
+      },
+      required: ["start", "end"],
+    },
+    handler: async (args, api) => {
+      if (!args.start || !args.end) return { error: "start and end required" };
+      const body = { start: args.start, end: args.end };
+      if (args.calendarId) body.calendarId = args.calendarId;
+      return await api("POST", "/calendar/events/list", body);
+    },
+  },
+
+  // ─── 27. Calendar: event create (ODIAA-2328) ──────────────────────
+  {
+    name: "calendar_event_create",
+    description:
+      "Create a calendar event. Requires the calendarWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        calendarId: { type: "string", description: "Target calendar id" },
+        title: { type: "string", description: "Event title" },
+        start: { type: "string", description: "Start (ISO date/time, or YYYY-MM-DD if allDay)" },
+        end: { type: "string", description: "End (ISO date/time, or YYYY-MM-DD if allDay)" },
+        allDay: { type: "boolean", description: "All-day event" },
+        location: { type: "string", description: "Location" },
+        description: { type: "string", description: "Description" },
+      },
+      required: ["calendarId", "title", "start", "end"],
+    },
+    handler: async (args, api) => {
+      if (!args.calendarId) return { error: "calendarId required" };
+      if (!args.title || !args.start || !args.end) return { error: "title, start, and end required" };
+      const properties = { title: args.title, start: args.start, end: args.end };
+      if (args.allDay) properties.allDay = true;
+      if (args.location) properties.location = args.location;
+      if (args.description) properties.description = args.description;
+      return await api("POST", "/calendar/events/create", { calendarId: args.calendarId, ...properties });
+    },
+  },
+
+  // ─── 28. Calendar: event update (ODIAA-2328) ──────────────────────
+  {
+    name: "calendar_event_update",
+    description:
+      "Update properties on an existing calendar event by id. Only the properties you provide are changed. Requires the calendarWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        calendarId: { type: "string", description: "Calendar the event belongs to" },
+        eventId: { type: "string", description: "Event id to update" },
+        title: { type: "string", description: "Event title" },
+        start: { type: "string", description: "Start (ISO date/time, or YYYY-MM-DD if allDay)" },
+        end: { type: "string", description: "End (ISO date/time, or YYYY-MM-DD if allDay)" },
+        allDay: { type: "boolean", description: "All-day event" },
+        location: { type: "string", description: "Location" },
+        description: { type: "string", description: "Description" },
+      },
+      required: ["calendarId", "eventId"],
+    },
+    handler: async (args, api) => {
+      if (!args.calendarId || !args.eventId) return { error: "calendarId and eventId required" };
+      const properties = {};
+      if (args.title !== undefined) properties.title = args.title;
+      if (args.start !== undefined) properties.start = args.start;
+      if (args.end !== undefined) properties.end = args.end;
+      if (args.allDay !== undefined) properties.allDay = args.allDay;
+      if (args.location !== undefined) properties.location = args.location;
+      if (args.description !== undefined) properties.description = args.description;
+      if (Object.keys(properties).length === 0) return { error: "at least one event property required" };
+      return await api("POST", "/calendar/events/update", { calendarId: args.calendarId, id: args.eventId, ...properties });
+    },
+  },
+
+  // ─── 29. Calendar: event delete (ODIAA-2328) ──────────────────────
+  {
+    name: "calendar_event_delete",
+    description:
+      "Delete a calendar event by id. Requires the calendarWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        calendarId: { type: "string", description: "Calendar the event belongs to" },
+        eventId: { type: "string", description: "Event id to delete" },
+      },
+      required: ["calendarId", "eventId"],
+    },
+    handler: async (args, api) => {
+      if (!args.calendarId || !args.eventId) return { error: "calendarId and eventId required" };
+      return await api("POST", "/calendar/events/delete", { calendarId: args.calendarId, id: args.eventId });
+    },
+  },
+
+  // ─── 30. Calendar: clashes (ODIAA-2328) ────────────────────────────
+  {
+    name: "calendar_clashes",
+    description:
+      "Detect overlapping ('clashing') events across all calendars in a date range. Ignores cancelled and free/transparent events; DST- and all-day-aware. Returns groups of mutually overlapping events.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        start: { type: "string", description: "Range start (ISO date/time)" },
+        end: { type: "string", description: "Range end (ISO date/time)" },
+      },
+      required: ["start", "end"],
+    },
+    handler: async (args, api) => {
+      if (!args.start || !args.end) return { error: "start and end required" };
+      return await api("POST", "/calendar/clashes", { start: args.start, end: args.end });
     },
   },
 ];
