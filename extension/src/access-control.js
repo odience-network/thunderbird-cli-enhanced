@@ -26,6 +26,7 @@ const ACCESS_DEFAULTS = Object.freeze({
   folderDelete: false,
   contactsWrite: false,
   calendarWrite: false,
+  tasksWrite: false,
 });
 
 function normalizeAccessPolicy(config) {
@@ -57,7 +58,7 @@ const UNGATED_GET = /^\/(health|access|accounts(?:\/[^/]+(?:\/folders)?)?|identi
 const UNGATED_POST = new Set([
   "/folders/info", "/messages/search", "/messages/list", "/messages/read-batch",
   "/messages/fetch", "/stats", "/recent", "/contacts/search", "/sync", "/sync/status",
-  "/bulk/fetch", "/extension/reload", "/calendar/events/list", "/calendar/clashes",
+  "/bulk/fetch", "/extension/reload", "/calendar/events/list", "/calendar/clashes", "/tasks/list",
 ]);
 
 // POST routes with one fixed policy switch each.
@@ -77,6 +78,8 @@ const WRITE_PATHS = Object.freeze({
   "/calendar/events/create": "calendarWrite",
   "/calendar/events/update": "calendarWrite",
   "/calendar/events/delete": "calendarWrite",
+  "/tasks/create": "tasksWrite",
+  "/tasks/update": "tasksWrite",
 });
 
 function enforceAccess(method, path, body, policy = ACCESS_POLICY) {
@@ -95,6 +98,11 @@ function enforceAccess(method, path, body, policy = ACCESS_POLICY) {
   // Attachment content download, distinct from the (ungated) attachment listing.
   if (method === "POST" && /^\/messages\/\d+\/attachment$/.test(path)) {
     return requireAccess("downloadAttachments");
+  }
+
+  // Deterministic, read-only extraction — no mutation, so no policy switch needed.
+  if (method === "POST" && /^\/messages\/\d+\/action-items$/.test(path)) {
+    return;
   }
 
   if (method === "POST" && (path === "/compose" || path === "/compose/edit" || path === "/reply" || path === "/forward")) {

@@ -39,7 +39,7 @@
     "test:mcp-concurrency": "node mcp/test/test_concurrency.mjs",
     "test:bridge-auth": "node test/bridge-auth.mjs",
     "test:bridge-security": "node test/bridge-security.mjs",
-    "test:extension": "node test/thread-utils.test.mjs && node test/extension.test.mjs && node test/access-control.test.mjs && node test/draft-routing-test.mjs && node test/calendar-clash.test.mjs",
+    "test:extension": "node test/thread-utils.test.mjs && node test/action-items.test.mjs && node test/extension.test.mjs && node test/access-control.test.mjs && node test/draft-routing-test.mjs && node test/calendar-clash.test.mjs",
     "test:draft": "node test/draft-routing-test.mjs",
     "test:sign": "node test/sign-xpi.test.mjs",
     "test:docs": "node test/docs.test.mjs",

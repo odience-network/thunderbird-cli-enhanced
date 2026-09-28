@@ -618,6 +618,17 @@ async function handleRequest({ method, path, body }) {
     return { thread, count: thread.length };
   }
 
+  // Deterministic (no LLM) candidate action-item extraction — see extension/src/action-items.js
+  // (pure function, unit tested independently of this bridge).
+  const actionItemsMatch = path.match(/^\/messages\/(\d+)\/action-items$/);
+  if (actionItemsMatch && method === "POST") {
+    const msgId = parseInt(actionItemsMatch[1]);
+    const full = await messenger.messages.getFull(msgId);
+    const text = extractParts(full).text || "";
+    const items = extractActionItems(text);
+    return { items, markdown: actionItemsToMarkdown(items) };
+  }
+
   // Read message (default — must be AFTER all /messages/:id/* sub-routes)
   const msgMatch = path.match(/^\/messages\/(\d+)$/);
   if (msgMatch && method === "GET") {
@@ -970,6 +981,37 @@ async function handleRequest({ method, path, body }) {
     }
     const calendars = await messenger.calendar.calendars.query({});
     return calendars;
+  }
+
+  // ─── Tasks (ODIAA-2329, VTODO through the calendar_tasks Experiment API) ────
+  // Requires the calendar_tasks Experiment API (manifest experiment_apis, see
+  // extension/experiments/calendar/) to have loaded successfully.
+
+  if (path === "/tasks/list" && method === "POST") {
+    if (!messenger.calendar?.tasks?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, completed } = body || {};
+    return await messenger.calendar.tasks.query({ calendarId, completed });
+  }
+
+  if (path === "/tasks/create" && method === "POST") {
+    if (!messenger.calendar?.tasks?.create) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, ...properties } = body || {};
+    if (!calendarId) return { error: "calendarId is required" };
+    if (!properties.title) return { error: "title is required" };
+    return await messenger.calendar.tasks.create(calendarId, properties);
+  }
+
+  if (path === "/tasks/update" && method === "POST") {
+    if (!messenger.calendar?.tasks?.update) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, id, ...properties } = body || {};
+    if (!calendarId || !id) return { error: "calendarId and id are required" };
+    return await messenger.calendar.tasks.update(calendarId, id, properties);
   }
 
   // ─── Calendar events (ODIAA-2328) ────────────────────────────────

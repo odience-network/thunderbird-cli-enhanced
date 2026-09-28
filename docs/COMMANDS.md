@@ -279,7 +279,7 @@ tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [
 
 Experimental (see `docs/decisions/calendar-backend.md`). Calendar listing and event reads are
 ungated; `create`/`update`/`delete` require the `calendarWrite` access switch (default `false`,
-see `docs/ACCESS-CONTROL.md`). Task CRUD is not yet implemented.
+see `docs/ACCESS-CONTROL.md`).
 
 ```bash
 tb calendar list                          # list calendars
@@ -295,6 +295,28 @@ tb calendar delete <eventId> --calendar <calendarId>
                                            # delete an event (requires calendarWrite)
 tb calendar clashes --start <date> --end <date>
                                            # find overlapping events across all calendars
+```
+
+## Tasks
+
+Calendar tasks (VTODO), through the vendored `calendar.tasks` Experiment API (see
+`docs/decisions/calendar-backend.md`).
+
+```bash
+tb tasks list [--calendar <calendarId>] [--completed] [--pending]  # list tasks
+
+# Requires tasksWrite access switch (default off, see docs/ACCESS-CONTROL.md)
+tb tasks create --calendar <calendarId> --title <title> [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>]
+tb tasks update <taskId> --calendar <calendarId> [--title <title>] [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>] [--completed] [--pending]
+```
+
+## Action Items
+
+```bash
+tb action-items <messageId>   # deterministic (no LLM) extraction of candidate action items
+                               # from a message body, rendered as a Markdown checklist
 ```
 
 ## Bulk Operations

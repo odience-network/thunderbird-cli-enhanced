@@ -809,7 +809,111 @@ export const tools = [
     },
   },
 
-  // ─── Calendar events + clashes (ODIAA-2328) ─────────────────────
+  // ─── 22. Tasks: list (ODIAA-2329) ─────────────────────────────────
+  {
+    name: "task_list",
+    description:
+      "List calendar tasks (VTODO), optionally scoped to one calendar or filtered by completion state. Requires the calendar Experiment API — see docs/decisions/calendar-backend.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        calendarId: { type: "string", description: "Optional: limit to one calendar" },
+        completed: { type: "boolean", description: "Optional: true for completed tasks only, false for pending only" },
+      },
+    },
+    handler: async (args, api) => {
+      const body = {};
+      if (args.calendarId) body.calendarId = args.calendarId;
+      if (args.completed !== undefined) body.completed = args.completed;
+      return await api("POST", "/tasks/list", body);
+    },
+  },
+
+  // ─── 23. Tasks: create (ODIAA-2329) ───────────────────────────────
+  {
+    name: "task_create",
+    description:
+      "Create a calendar task (VTODO). Requires the tasksWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        calendarId: { type: "string", description: "Target calendar" },
+        title: { type: "string", description: "Task title" },
+        due: { type: "string", description: "Due date (ISO date/time, or YYYY-MM-DD if allDay)" },
+        allDay: { type: "boolean", description: "All-day due date" },
+        priority: { type: "integer", description: "0-9; 1-4 high, 5 normal, 6-9 low, per RFC 5545" },
+        description: { type: "string", description: "Task description" },
+        source: { type: "string", description: "Message id this task was created from, if any" },
+      },
+      required: ["calendarId", "title"],
+    },
+    handler: async (args, api) => {
+      if (!args.calendarId) return { error: "calendarId is required" };
+      if (!args.title) return { error: "title is required" };
+      const properties = { title: args.title };
+      if (args.due !== undefined) properties.due = args.due;
+      if (args.allDay !== undefined) properties.allDay = args.allDay;
+      if (args.priority !== undefined) properties.priority = args.priority;
+      if (args.description !== undefined) properties.description = args.description;
+      if (args.source !== undefined) properties.source = args.source;
+      return await api("POST", "/tasks/create", { calendarId: args.calendarId, ...properties });
+    },
+  },
+
+  // ─── 24. Tasks: update (ODIAA-2329) ───────────────────────────────
+  {
+    name: "task_update",
+    description:
+      "Update properties on an existing calendar task by id. Only the properties you provide are changed. Requires the tasksWrite access switch to be enabled (disabled by default) — see docs/ACCESS-CONTROL.md.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        calendarId: { type: "string", description: "Calendar the task belongs to" },
+        taskId: { type: "string", description: "Task id to update" },
+        title: { type: "string", description: "Task title" },
+        due: { type: "string", description: "Due date (ISO date/time, or YYYY-MM-DD if allDay)" },
+        allDay: { type: "boolean", description: "All-day due date" },
+        priority: { type: "integer", description: "0-9; 1-4 high, 5 normal, 6-9 low, per RFC 5545" },
+        description: { type: "string", description: "Task description" },
+        source: { type: "string", description: "Message id this task was created from, if any" },
+        completed: { type: "boolean", description: "Mark completed (true) or not completed (false)" },
+      },
+      required: ["calendarId", "taskId"],
+    },
+    handler: async (args, api) => {
+      if (!args.calendarId || !args.taskId) return { error: "calendarId and taskId are required" };
+      const properties = {};
+      if (args.title !== undefined) properties.title = args.title;
+      if (args.due !== undefined) properties.due = args.due;
+      if (args.allDay !== undefined) properties.allDay = args.allDay;
+      if (args.priority !== undefined) properties.priority = args.priority;
+      if (args.description !== undefined) properties.description = args.description;
+      if (args.source !== undefined) properties.source = args.source;
+      if (args.completed !== undefined) properties.completed = args.completed;
+      if (Object.keys(properties).length === 0) return { error: "at least one task property is required" };
+      return await api("POST", "/tasks/update", { calendarId: args.calendarId, id: args.taskId, ...properties });
+    },
+  },
+
+  // ─── 25. Email: action items (ODIAA-2329) ─────────────────────────
+  {
+    name: "email_action_items",
+    description:
+      "Extract candidate action items from a message body as a Markdown checklist. Deterministic (no LLM) — looks for imperative lines, bullets/checklists, and 'please/can you' request phrasing, plus 'by <date>' due-date hints. Returns both the structured items and the rendered Markdown.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string", description: "Message id to extract action items from" },
+      },
+      required: ["messageId"],
+    },
+    handler: async (args, api) => {
+      if (!args.messageId) return { error: "messageId is required" };
+      return await api("POST", `/messages/${args.messageId}/action-items`, {});
+    },
+  },
+
+  // ─── 26. Calendar: events list (ODIAA-2328) ───────────────────────
   {
     name: "calendar_events",
     description:
@@ -831,6 +935,7 @@ export const tools = [
     },
   },
 
+  // ─── 27. Calendar: event create (ODIAA-2328) ──────────────────────
   {
     name: "calendar_event_create",
     description:
@@ -859,6 +964,7 @@ export const tools = [
     },
   },
 
+  // ─── 28. Calendar: event update (ODIAA-2328) ──────────────────────
   {
     name: "calendar_event_update",
     description:
@@ -891,6 +997,7 @@ export const tools = [
     },
   },
 
+  // ─── 29. Calendar: event delete (ODIAA-2328) ──────────────────────
   {
     name: "calendar_event_delete",
     description:
@@ -909,6 +1016,7 @@ export const tools = [
     },
   },
 
+  // ─── 30. Calendar: clashes (ODIAA-2328) ────────────────────────────
   {
     name: "calendar_clashes",
     description:
