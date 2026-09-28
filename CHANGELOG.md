@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Read-only `tb calendars` / `calendar_list` / `GET /calendars`, backed by a vendored `calendar_calendars` Experiment API. See [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md).
+- Fast Actions: one-click Email → Note / Task / Event / Contact (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, matching MCP tools, and context-menu items in Thunderbird's message list/display). `email-to-event` uses a new deterministic (no LLM) date/time/location parser (`extension/src/email-event-parse.js`) and falls back to a tentative draft event when it can't detect one. `email-to-contact` dedupes by sender email. Two new ungated routes (`GET /addressbooks`, `POST /messages/:id/event-draft`); no new access switch — writes are gated by the existing `tasksWrite`/`calendarWrite`/`contactsWrite` switches. (ODIAA-2333)
 
 ### Changed
 - Extension 2.2.0 declares `strict_max_version: "155.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.

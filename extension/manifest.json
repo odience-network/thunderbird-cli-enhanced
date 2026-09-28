@@ -39,10 +39,12 @@
     "messagesImport",
     "accountsFolders",
     "idle",
-    "tabs"
+    "tabs",
+    "menus",
+    "notifications"
   ],
   "background": {
-    "scripts": ["src/access-config.js", "src/access-control.js", "src/thread-utils.js", "src/action-items.js", "src/calendar-clash.js", "src/background.js"]
+    "scripts": ["src/access-config.js", "src/access-control.js", "src/thread-utils.js", "src/action-items.js", "src/email-event-parse.js", "src/calendar-clash.js", "src/background.js"]
   },
   "experiment_apis": {
     "calendar_calendars": {

@@ -38,7 +38,7 @@ Equivalent to `tb health` — returns account count and bridge status. If it err
 - **EXTENSION_DISCONNECTED** — open Thunderbird. The WebExtension auto-connects within 3s of Thunderbird being open.
 - **NOT_FOUND** on account/folder — the user hasn't added that account to Thunderbird yet.
 
-## The 31 MCP tools
+## The 37 MCP tools
 
 Use these; don't reach for the CLI unless the user explicitly asks for a bulk operation not covered here.
 
@@ -232,6 +232,26 @@ task_create calendarId=<id> title="<item text>" due="<dueHint if any>" source="<
 call returns `FORBIDDEN`, tell the user it's disabled and how to enable it
 (`docs/ACCESS-CONTROL.md`), don't work around it.
 
+### K. "Save/task/event/contact this email" (Fast Actions, one click)
+
+`email_to_note`, `email_to_task`, `email_to_event`, and `email_to_contact` collapse the
+manual extract-then-create flow above into one call — same underlying routes, same
+access switches, no bypass. They're also available as context-menu items in Thunderbird
+itself ("Save to Notes", "Create Task", "Create Event", "Add Sender to Contacts").
+
+```
+email_to_task messageId=<id> calendarId=<id>      # requires tasksWrite
+email_to_event messageId=<id> calendarId=<id>     # requires calendarWrite
+email_to_contact messageId=<id> book=<bookId>     # requires contactsWrite, deduped by email
+email_to_note messageId=<id>                      # no switch — local notes workspace only
+```
+
+Creating a task/event/contact is consequential and, unlike a plain read, isn't easily
+undone by re-reading the mailbox — get explicit user approval before calling these (not
+just before enabling the access switch). `email_to_event` parses the date/time/location
+deterministically (no LLM) and may not find one; when it can't, it still creates the
+event but marks it tentative for the user to fix — say so, don't present it as confirmed.
+
 ## Safety
 
 ### Destructive operations
@@ -329,6 +349,12 @@ MCP tool → CLI command mapping:
 | `task_create` | `tb tasks create --calendar <calendarId> --title <title> ...` |
 | `task_update` | `tb tasks update <taskId> --calendar <calendarId> ...` |
 | `email_action_items` | `tb action-items <messageId>` |
+| `address_book_list` | `tb address-books` |
+| `email_to_note` | `tb email-to-note <messageId>` |
+| `email_to_task` | `tb email-to-task <messageId> --calendar <calendarId>` |
+| `email_to_event` | `tb email-to-event <messageId> --calendar <calendarId>` |
+| `email_to_contact` | `tb email-to-contact <messageId> --book <bookId>` |
+| `notes_listen_once` | `tb notes listen` |
 
 ## Version
 

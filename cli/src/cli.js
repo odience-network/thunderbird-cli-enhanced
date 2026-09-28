@@ -1515,6 +1515,163 @@ program
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
+// ─── Fast Actions (ODIAA-2333, one-click Email→Note/Task/Event/Contact) ─────
+
+function slugify(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+// Parses a WebExtension "author" header (e.g. `"Jane Doe" <jane@x.com>`) into name/email.
+function parseSenderAuthor(author) {
+  const str = String(author || "");
+  const m = str.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1].trim() || null, email: m[2].trim() };
+  const emailOnly = str.match(/[^\s<>]+@[^\s<>]+/);
+  return { name: null, email: emailOnly ? emailOnly[0] : null };
+}
+
+program
+  .command("address-books")
+  .description("List address books")
+  .action(run(async () => {
+    const g = program.opts();
+    const data = await api("GET", "/addressbooks", null, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+program
+  .command("email-to-note <messageId>")
+  .description("Save an email to the local notes workspace")
+  .option("--name <name>", "note name (defaults to a slug of the subject)")
+  .option("--append", "append to an existing note instead of overwriting")
+  .action(run(async (messageId, opts) => {
+    const g = program.opts();
+    const msg = await api("GET", `/messages/${messageId}/full`, null, getTimeout(g));
+    const name = opts.name || slugify(msg.subject) || `message-${messageId}`;
+    const body = [
+      `**From:** ${msg.author || "unknown"}`,
+      `**Date:** ${msg.date || "unknown"}`,
+      "",
+      msg.parts?.text || msg.parts?.html || "(no body)",
+    ].join("\n");
+    const result = opts.append
+      ? appendNote(name, body, { title: msg.subject, source: String(messageId) })
+      : saveNote(name, body, { title: msg.subject, source: String(messageId) });
+    output(result, getFormat(g), getOutputOpts(g));
+  }));
+
+program
+  .command("email-to-task <messageId>")
+  .description("Create a task from an email, using action-item extraction (requires tasksWrite)")
+  .requiredOption("--calendar <calendarId>", "target calendar")
+  .option("--due <date>", "due date (ISO date/time, or YYYY-MM-DD with --all-day)")
+  .option("--all-day", "all-day due date")
+  .option("--priority <n>", "priority 0-9 (1-4 high, 5 normal, 6-9 low)")
+  .action(run(async (messageId, opts) => {
+    const g = program.opts();
+    const msg = await api("GET", `/messages/${messageId}/full`, null, getTimeout(g));
+    const extracted = await api("POST", `/messages/${messageId}/action-items`, {}, getTimeout(g));
+    const properties = {
+      title: extracted.items?.[0]?.text || msg.subject || `Task from message ${messageId}`,
+      source: String(messageId),
+    };
+    if (extracted.markdown) properties.description = extracted.markdown;
+    if (opts.due) properties.due = opts.due;
+    if (opts.allDay) properties.allDay = true;
+    if (opts.priority !== undefined) properties.priority = parseInt(opts.priority, 10);
+    const data = await api("POST", "/tasks/create", { calendarId: opts.calendar, ...properties }, getTimeout(g));
+    output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+program
+  .command("email-to-event <messageId>")
+  .description("Create a calendar event from an email via deterministic date/time/location parsing (requires calendarWrite)")
+  .requiredOption("--calendar <calendarId>", "target calendar")
+  .action(run(async (messageId, opts) => {
+    const g = program.opts();
+    const draft = await api("POST", `/messages/${messageId}/event-draft`, {}, getTimeout(g));
+    const properties = {
+      title: draft.title,
+      description: draft.description,
+      start: draft.start,
+      end: draft.end,
+      allDay: draft.allDay,
+      // No date/time was detected — flagged as tentative so the user reviews it before it's treated as confirmed.
+      status: draft.needsReview ? "TENTATIVE" : "CONFIRMED",
+    };
+    if (draft.location) properties.location = draft.location;
+    const data = await api("POST", "/calendar/events/create", { calendarId: opts.calendar, ...properties }, getTimeout(g));
+    output({ ...data, needsReview: draft.needsReview }, getFormat(g), getOutputOpts(g));
+  }));
+
+program
+  .command("email-to-contact <messageId>")
+  .description("Add an email's sender as a contact, deduped by email address (requires contactsWrite)")
+  .requiredOption("--book <bookId>", "target address book, by id or name")
+  .action(run(async (messageId, opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    const outOpts = getOutputOpts(g);
+    const msg = await api("GET", `/messages/${messageId}/full`, null, getTimeout(g));
+    const { name, email } = parseSenderAuthor(msg.author);
+    if (!email) {
+      outputError({ message: "Could not extract a sender email address from this message", code: "INVALID_ARGS" }, fmt, outOpts);
+      return;
+    }
+    const existing = await api("POST", "/contacts/search", { query: email, book: opts.book }, getTimeout(g));
+    if (existing.length > 0) {
+      output({ ...existing[0], deduped: true }, fmt, outOpts);
+      return;
+    }
+    const properties = { PrimaryEmail: email };
+    if (name) properties.DisplayName = name;
+    const data = await api("POST", "/contacts/create", { book: opts.book, properties }, getTimeout(g));
+    output({ ...data, deduped: false }, fmt, outOpts);
+  }));
+
+notes
+  .command("listen")
+  .description("Wait for a 'Save to Notes' click, save the note")
+  .option("--timeout <ms>", "how long to wait for a pending request", "120000")
+  .option("--name <name>", "note name (defaults to a slug of the subject)")
+  .option("--append", "append to an existing note instead of overwriting")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const fmt = getFormat(g);
+    const outOpts = getOutputOpts(g);
+    const timeout = parseInt(opts.timeout) || 120000;
+    // 1s buffer guards against clock skew between the CLI and bridge processes.
+    const since = Date.now() - 1000;
+    let eventResp;
+    try {
+      eventResp = await api(
+        "GET",
+        `/bridge/events?wait=note-save-requested&since=${since}&timeout=${timeout}`,
+        null,
+        timeout + 5000
+      );
+    } catch (err) {
+      if (err.code !== "EVENT_TIMEOUT" && err.code !== "TIMEOUT") throw err;
+      outputError({ message: "No 'Save to Notes' request received before the timeout", code: "TIMEOUT" }, fmt, outOpts);
+      return;
+    }
+    const payload = eventResp.event?.data || {};
+    const name = opts.name || slugify(payload.subject) || `message-${payload.messageId || "unknown"}`;
+    const body = [
+      `**From:** ${payload.author || "unknown"}`,
+      `**Date:** ${payload.date || "unknown"}`,
+      "",
+      payload.body || "(no body)",
+    ].join("\n");
+    const noteOpts = { title: payload.subject, source: payload.messageId ? String(payload.messageId) : undefined };
+    const result = opts.append ? appendNote(name, body, noteOpts) : saveNote(name, body, noteOpts);
+    output(result, fmt, outOpts);
+  }));
+
 // ─── Parse & Run ──────────────────────────────────────────────────────
 
 program.parseAsync(process.argv).catch(err => {

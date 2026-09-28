@@ -54,7 +54,7 @@ function accessPermissions(policy, permissions) {
 }
 
 // GET routes, and POST routes that only read, never need a policy switch.
-const UNGATED_GET = /^\/(health|access|accounts(?:\/[^/]+(?:\/folders)?)?|identities|tags|stats|contacts(?:\/[^/]+)?|calendars|messages\/\d+(?:\/(raw|headers|full|check-download|download-status|attachments|thread))?)$/;
+const UNGATED_GET = /^\/(health|access|accounts(?:\/[^/]+(?:\/folders)?)?|identities|tags|stats|contacts(?:\/[^/]+)?|addressbooks|calendars|messages\/\d+(?:\/(raw|headers|full|check-download|download-status|attachments|thread))?)$/;
 const UNGATED_POST = new Set([
   "/folders/info", "/messages/search", "/messages/list", "/messages/read-batch",
   "/messages/fetch", "/stats", "/recent", "/contacts/search", "/sync", "/sync/status",
@@ -101,7 +101,7 @@ function enforceAccess(method, path, body, policy = ACCESS_POLICY) {
   }
 
   // Deterministic, read-only extraction — no mutation, so no policy switch needed.
-  if (method === "POST" && /^\/messages\/\d+\/action-items$/.test(path)) {
+  if (method === "POST" && /^\/messages\/\d+\/(action-items|event-draft)$/.test(path)) {
     return;
   }
 
