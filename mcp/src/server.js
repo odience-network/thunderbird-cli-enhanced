@@ -129,6 +129,20 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 // ─── Start ─────────────────────────────────────────────────────────
 
 async function main() {
+  const args = process.argv.slice(2);
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(version);
+    return;
+  }
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(`Usage: tb-mcp
+
+MCP server (stdio) for Mozilla Thunderbird, ${tools.length} tools. Talks to tb-bridge.
+
+Environment: TB_BRIDGE_HOST (default 127.0.0.1), TB_BRIDGE_PORT (default 7700),
+TB_AUTH_TOKEN (only if the bridge requires it).`);
+    return;
+  }
   const transport = new StdioServerTransport();
   await server.connect(transport);
   // Log to stderr — stdout is reserved for MCP JSON-RPC protocol

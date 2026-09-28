@@ -12,10 +12,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
@@ -23,10 +23,20 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check tag matches package version
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "v$PKG_VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+
       - name: Run tests
         run: |
           npm test
           npm run test:mcp
+          npm run test:pack
+          npm run test:pack-smoke
 
       - name: Build unsigned XPI
         run: npm run build:xpi
@@ -54,7 +64,7 @@ jobs:
           echo "Found unsigned XPI: $UNSIGNED_XPI"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: v${{ steps.version.outputs.version }}
           draft: false
@@ -86,3 +96,44 @@ jobs:
           files: |
             ${{ steps.xpi.outputs.signed }}
             ${{ steps.xpi.outputs.unsigned }}
+
+  # Publishes @odience-network/thunderbird-cli-enhanced to npmjs, only after the
+  # tests above passed. Auth is npm trusted publishing (OIDC, no stored token).
+  # The `npm` environment can require a reviewer before this job runs.
+  # Rollback: docs/RELEASING.md.
+  npm-publish:
+    needs: release
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # No NODE_AUTH_TOKEN: npm swaps the OIDC token for a publish token itself.
+      # No cache either: a poisoned cache must never run next to the OIDC token.
+      - name: Use Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      # Trusted publishing needs npm >= 11.5.1.
+      - name: Upgrade npm
+        run: npm install -g npm@11
+
+      - name: Publish
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm, nothing to publish."
+            exit 0
+          fi
+          # Pre-releases (1.2.0-rc.1) go to the `next` dist-tag, never `latest`.
+          TAG=latest
+          case "$VERSION" in *-*) TAG=next ;; esac
+          npm publish --provenance --access public --tag "$TAG"

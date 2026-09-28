@@ -1,13 +1,13 @@
 # thunderbird-cli MCP Server
 
-[![npm version](https://img.shields.io/npm/v/thunderbird-cli-mcp.svg)](https://www.npmjs.com/package/thunderbird-cli-mcp)
+[![npm version](https://img.shields.io/npm/v/@odience-network/thunderbird-cli-enhanced.svg)](https://www.npmjs.com/package/@odience-network/thunderbird-cli-enhanced)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **MCP server that gives Claude Desktop full access to your email through Mozilla Thunderbird.**
 
 Read, search, compose, reply, and manage 22+ email accounts and 250K+ messages from any MCP-compatible client. All credentials stay in Thunderbird — nothing leaves your machine.
 
-Part of the [thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli) project.
+Part of [thunderbird-cli-enhanced](https://github.com/odience-network/thunderbird-cli-enhanced), a maintained fork of [thunderbird-cli](https://github.com/vitalio-sh/thunderbird-cli). `tb-mcp` ships in the npm package `@odience-network/thunderbird-cli-enhanced` together with `tb` and `tb-bridge`.
 
 ## What it does
 
@@ -49,7 +49,7 @@ You need three things:
 2. **The thunderbird-cli bridge daemon** — the MCP server auto-starts it if not running (~25s on first call, instant thereafter)
 3. **The thunderbird-cli WebExtension** loaded in Thunderbird
 
-See the [main repo setup guide](https://github.com/vitalio-sh/thunderbird-cli/blob/main/docs/SETUP.md) for installing the bridge and extension.
+See the [main repo setup guide](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/SETUP.md) for installing the bridge and extension.
 
 ## Installation
 
@@ -62,16 +62,30 @@ Add to your Claude Desktop config (no installation step needed — npx fetches i
   "mcpServers": {
     "thunderbird": {
       "command": "npx",
-      "args": ["-y", "thunderbird-cli-mcp"]
+      "args": ["-y", "-p", "@odience-network/thunderbird-cli-enhanced", "tb-mcp"]
     }
   }
 }
 ```
 
+The package holds three commands, so `-p` names the package and `tb-mcp` picks the one to run.
+
+For Claude Code:
+
+```bash
+claude mcp add thunderbird -- npx -y -p @odience-network/thunderbird-cli-enhanced tb-mcp
+```
+
 ### Option B: Global install
 
 ```bash
-npm install -g thunderbird-cli-mcp
+npm install -g @odience-network/thunderbird-cli-enhanced   # tb, tb-bridge and tb-mcp
+```
+
+Coming from upstream's `thunderbird-cli-mcp`? Uninstall it first, since it installs the same `tb-mcp` command:
+
+```bash
+npm uninstall -g thunderbird-cli-mcp thunderbird-cli thunderbird-cli-bridge
 ```
 
 Then in Claude Desktop config:
@@ -89,8 +103,8 @@ Then in Claude Desktop config:
 ### Option C: From source
 
 ```bash
-git clone https://github.com/vitalio-sh/thunderbird-cli
-cd thunderbird-cli
+git clone https://github.com/odience-network/thunderbird-cli-enhanced
+cd thunderbird-cli-enhanced
 npm install
 ```
 
@@ -101,7 +115,7 @@ Then in Claude Desktop config:
   "mcpServers": {
     "thunderbird": {
       "command": "node",
-      "args": ["/absolute/path/to/thunderbird-cli/mcp/src/server.js"]
+      "args": ["/absolute/path/to/thunderbird-cli-enhanced/mcp/src/server.js"]
     }
   }
 }
@@ -118,10 +132,16 @@ Then in Claude Desktop config:
 
 The MCP server gives Claude *access* to the email tools. The companion [Claude Skill](https://agentskills.io) teaches Claude *how to use them well* — token-efficient `fields` selection, draft-by-default safety, trust-metadata checks, recipes for common workflows.
 
-One command on Claude Code:
+One command on Claude Code, from a source checkout:
 
 ```bash
 cp -r skills/thunderbird-cli ~/.claude/skills/
+```
+
+The npm package ships the skill too:
+
+```bash
+cp -r "$(npm root -g)/@odience-network/thunderbird-cli-enhanced/skills/thunderbird-cli" ~/.claude/skills/
 ```
 
 On Claude.ai, zip and upload at **Settings → Capabilities → Skills**:
@@ -131,7 +151,7 @@ cd skills && zip -r thunderbird-cli.zip thunderbird-cli
 # upload thunderbird-cli.zip
 ```
 
-Full skill docs: [`skills/thunderbird-cli/SKILL.md`](https://github.com/vitalio-sh/thunderbird-cli/blob/main/skills/thunderbird-cli/SKILL.md).
+Full skill docs: [`skills/thunderbird-cli/SKILL.md`](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/skills/thunderbird-cli/SKILL.md).
 
 Skipping the skill is fine — the MCP still works — but with it, Claude's defaults get noticeably safer (never-auto-send, junk-excluded, truncated bodies) without the user having to re-prompt.
 | Linux | `~/.config/Claude/claude_desktop_config.json` |
@@ -155,7 +175,7 @@ Example with custom bridge host:
   "mcpServers": {
     "thunderbird": {
       "command": "npx",
-      "args": ["-y", "thunderbird-cli-mcp"],
+      "args": ["-y", "-p", "@odience-network/thunderbird-cli-enhanced", "tb-mcp"],
       "env": {
         "TB_BRIDGE_HOST": "127.0.0.1",
         "TB_BRIDGE_PORT": "7700"
@@ -189,7 +209,7 @@ Once configured, try these in Claude Desktop:
 - **All traffic stays on localhost.** Bridge listens on `127.0.0.1` only.
 - **No credentials are exposed.** Thunderbird handles all IMAP/SMTP — your passwords never leave its config.
 
-See [SECURITY.md](https://github.com/vitalio-sh/thunderbird-cli/blob/main/SECURITY.md) for the full threat model and prompt-injection defenses.
+See [SECURITY.md](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/SECURITY.md) for the full threat model and prompt-injection defenses.
 
 ## Troubleshooting
 
@@ -213,12 +233,12 @@ See [SECURITY.md](https://github.com/vitalio-sh/thunderbird-cli/blob/main/SECURI
 ## Development
 
 ```bash
-git clone https://github.com/vitalio-sh/thunderbird-cli
-cd thunderbird-cli
+git clone https://github.com/odience-network/thunderbird-cli-enhanced
+cd thunderbird-cli-enhanced
 npm install
 npm run test:mcp    # 34 integration tests against mock bridge
 ```
 
 ## License
 
-MIT — see [LICENSE](https://github.com/vitalio-sh/thunderbird-cli/blob/main/LICENSE)
+MIT — see [LICENSE](https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/LICENSE)

@@ -3,6 +3,8 @@
 > Give Claude (and other AI agents) full access to your email through Mozilla Thunderbird, with an installation-wide access policy that decides what they may change.
 
 [![tests](https://github.com/odience-network/thunderbird-cli-enhanced/actions/workflows/test.yml/badge.svg)](https://github.com/odience-network/thunderbird-cli-enhanced/actions/workflows/test.yml)
+
+[![npm](https://img.shields.io/npm/v/@odience-network/thunderbird-cli-enhanced.svg)](https://www.npmjs.com/package/@odience-network/thunderbird-cli-enhanced)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org)
 [![Thunderbird](https://img.shields.io/badge/thunderbird-128%2B-blue)](https://www.thunderbird.net)
@@ -34,7 +36,16 @@ IMAP libraries force you to manage credentials, OAuth flows, and sync state — 
 
 ## Quick Start
 
-The npm packages `thunderbird-cli`, `thunderbird-cli-bridge` and `thunderbird-cli-mcp` are published by upstream and do not contain this fork's changes. Install from source:
+Install the CLI, bridge and MCP server from npm (Node.js 20+):
+
+```bash
+npm i -g @odience-network/thunderbird-cli-enhanced   # gives you tb, tb-bridge and tb-mcp
+```
+
+> **Coming from upstream `thunderbird-cli`?** The unscoped npm packages `thunderbird-cli`, `thunderbird-cli-bridge` and `thunderbird-cli-mcp` are upstream's and don't contain this fork's changes. They install the same `tb`, `tb-bridge` and `tb-mcp` commands, so remove them first:
+> `npm uninstall -g thunderbird-cli thunderbird-cli-bridge thunderbird-cli-mcp` (and `npm unlink -g` any source checkouts you linked).
+
+Or install from source, which links the same three commands:
 
 ```bash
 git clone https://github.com/odience-network/thunderbird-cli-enhanced
@@ -44,7 +55,7 @@ cd thunderbird-cli-enhanced
 .\setup.ps1      # Windows (PowerShell)
 ```
 
-The setup script installs dependencies, links `tb`, and optionally links `tb-bridge` and `tb-mcp`. Then:
+Then:
 
 1. Install the signed extension from [`dist/releases/`](dist/releases/): Thunderbird → Add-ons → ⚙ → **Install Add-on From File…** → the `*-tb.xpi` file. The signed 2.1.0 build predates the rename and still shows as "Thunderbird AI Bridge" in the Add-ons Manager.
 2. Try it — the bridge starts automatically on first use:
@@ -86,16 +97,23 @@ Full command reference: **[docs/COMMANDS.md](docs/COMMANDS.md)**
 
 ## Use with Claude Desktop
 
-With `tb-mcp` linked by the setup script, add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS). `npx` fetches the package on demand, no global install needed:
 
 ```json
 {
   "mcpServers": {
     "thunderbird": {
-      "command": "tb-mcp"
+      "command": "npx",
+      "args": ["-y", "-p", "@odience-network/thunderbird-cli-enhanced", "tb-mcp"]
     }
   }
 }
+```
+
+With a global install (`npm i -g`) or the setup script, `"command": "tb-mcp"` with no `args` works too. For Claude Code:
+
+```bash
+claude mcp add thunderbird -- npx -y -p @odience-network/thunderbird-cli-enhanced tb-mcp
 ```
 
 Restart Claude Desktop. Now ask:
@@ -114,6 +132,8 @@ A [Claude Skill](https://agentskills.io) ships alongside the MCP server. It teac
 ```bash
 # Claude Code
 cp -r skills/thunderbird-cli ~/.claude/skills/
+# ...or from the npm install
+cp -r "$(npm root -g)/@odience-network/thunderbird-cli-enhanced/skills/thunderbird-cli" ~/.claude/skills/
 
 # Claude.ai — zip and upload via Settings → Capabilities → Skills
 cd skills && zip -r thunderbird-cli.zip thunderbird-cli
@@ -181,7 +201,7 @@ Upstream baseline is [vitalio-sh/thunderbird-cli@`465613d`](https://github.com/v
 
 Planned, **not on `main`**:
 
-- Calendar, contacts write, notes and tasks, toward feature parity with [atbridge.ai](https://atbridge.ai).
+- Calendar events CRUD, cross-calendar clash detection, task CRUD, and deterministic action-item extraction from email, toward feature parity with [atbridge.ai](https://atbridge.ai). A read-only calendar-listing spike (`tb calendars`) landed first, using a chrome-privileged Experiment API since Thunderbird's WebExtension model has no calendar access; event CRUD and clash detection (`tb calendar events`/`create`/`update`/`delete`/`clashes`, gated by `calendarWrite`) and task CRUD (`tb tasks`, gated by `tasksWrite`) plus action-item extraction (`tb action-items`) landed next, followed by one-click Fast Actions (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, plus matching context-menu items in Thunderbird) that compose those routes without a new access switch — see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md) for the tradeoffs, including the ATN manual-review requirement this adds to every signed release that touches it.
 - Extension stability pass: audit against the known reconnect/backoff and lifecycle fixes, with regression tests.
 
 <a href="docs/diagrams/roadmap.html"><picture>
@@ -220,6 +240,7 @@ The niche: **you already trust Thunderbird with your credentials and account sta
 | [docs/PLAN.md](docs/PLAN.md) | Fork integration plan and roadmap status |
 | [SECURITY.md](SECURITY.md) | Threat model, prompt-injection defenses |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup, tests, diagram builds, PR process |
+| [docs/RELEASING.md](docs/RELEASING.md) | Cutting a release, npm publishing, rollback |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## Contributing

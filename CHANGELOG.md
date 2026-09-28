@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Read-only `tb calendars` / `calendar_list` / `GET /calendars`, backed by a vendored `calendar_calendars` Experiment API. See [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md).
+- Fast Actions: one-click Email → Note / Task / Event / Contact (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, matching MCP tools, and context-menu items in Thunderbird's message list/display). `email-to-event` uses a new deterministic (no LLM) date/time/location parser (`extension/src/email-event-parse.js`) and falls back to a tentative draft event when it can't detect one. `email-to-contact` dedupes by sender email. Two new ungated routes (`GET /addressbooks`, `POST /messages/:id/event-draft`); no new access switch — writes are gated by the existing `tasksWrite`/`calendarWrite`/`contactsWrite` switches. (ODIAA-2333)
+
+### Changed
+- Extension 2.2.0 declares `strict_max_version: "155.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.
+
+## [1.2.1] — 2026-09-27
+
+### Changed
+- npm releases are published with trusted publishing (OIDC) and provenance; the release workflow no longer reads an `NPM_TOKEN` secret. No code changes: the CLI, bridge and MCP server are identical to 1.2.0, and the attached add-on is still the signed 2.1.0 XPI (ID `thunderbird-cli-enhanced@odience.net`).
+
+## [1.2.0] — 2026-09-27
+
+First release of the fork on npm as `@odience-network/thunderbird-cli-enhanced`.
+
 ### Security
 - Message and folder deletion are now **disabled by default** by a build-time add-on access policy (`delete`, `folderDelete`, both `false`). Delete routes return `FORBIDDEN` before any side effect, and the `messagesDelete` permission is only requested when `delete` is enabled. Re-enable with `npm run build:xpi -- --access-config access.local.json` — see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md). `GET /access` reports the loaded policy. Moving to Trash is unaffected.
 - The build-time access policy now covers every write/send route, not just deletion: `downloadAttachments`, `compose`, `send`, `move`, `copy`, `archive`, `mark`, `tag`, `tagCreate`, `folderCreate`, `folderRename` (all default `true`, unchanged behavior for existing installs), alongside the existing `delete`/`folderDelete` (default `false`). A route with no policy classification is refused (deny-by-default) instead of silently allowed. New `tb access` command and bridge `FORBIDDEN` → HTTP 403 mapping. See [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md).
 
 ### Changed
+- MCP registry metadata moves to the fork's namespace: `server.json` and `package.json` `mcpName` are `io.github.odience-network/thunderbird-cli-enhanced`, and the npm identifier is `@odience-network/thunderbird-cli-enhanced`. The Dockerfile installs the scoped package.
 - The extension's add-on ID is now `thunderbird-cli-enhanced@odience.net` (was `thunderbird-ai@extension`,
   which belongs to the upstream author's addons.thunderbird.net account and can't be signed by this fork).
   Thunderbird treats it as a separate add-on: remove the old "Thunderbird AI Bridge" before installing.
@@ -22,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `email_archive`) to preserve the old behavior.
 
 ### Added
+- **npm package `@odience-network/thunderbird-cli-enhanced`** — one package with all three commands (`tb`, `tb-bridge`, `tb-mcp`): `npm i -g @odience-network/thunderbird-cli-enhanced`, or `npx -y -p @odience-network/thunderbird-cli-enhanced tb-mcp` in an MCP client config. The `cli/`, `bridge/` and `mcp/` workspaces are now `private` so nothing is published under upstream's unscoped names. The release workflow publishes it on `v*` tags after the tests, with npm provenance (see [docs/RELEASING.md](docs/RELEASING.md)). Migrating from upstream's `thunderbird-cli*` packages: uninstall them first, they install the same command names ([docs/SETUP.md](docs/SETUP.md#migrating-from-upstream-thunderbird-cli)).
+- `tb-bridge --help` / `--version` and `tb-mcp --help` / `--version`.
+- `npm run test:pack` (also in CI) checks the `npm pack` file list (no tests, extension sources, XPIs, `node_modules` or secrets), that the workspaces stay private, and that versions and MCP registry names agree; `npm run test:pack-smoke` installs the packed tarball into a temp prefix and runs all three bins, including an MCP `initialize` + `tools/list`.
 - **Notes** — a local Markdown workspace, independent of any Thunderbird account or mailbox. Plain
   `.md` files (optional `---` front matter for title/created/source) live in `notesDir`
   (config key or `TB_NOTES_DIR`, default `~/.config/thunderbird-cli/notes`); filenames are
@@ -73,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ATN approval and checks the download against ATN's published sha256.
 
 ### Fixed
+- `tb-bridge` run through a symlink (the bin of an `npm i -g` / `npm link` install) exited silently without starting: the run-directly check compared the symlink path with the module's real path. It now resolves symlinks first.
 - **`tb forward` (and `/compose` without `--from`) could file the draft into the wrong account.** Forward composed without an `identityId`, so Thunderbird fell back to the global default identity and filed the draft into *that* account's Drafts. Forward now resolves the identity from the source message's account, the same way reply already did.
 - `compose`/`reply`/`forward` in draft mode now **confirm the draft was written** and error instead of reporting `draft_saved` when Thunderbird returns no saved message. The response carries the draft's `messageId` and the `folder` it landed in.
 - A draft filed outside the account's real drafts folder — e.g. a Gmail account's bare `/Drafts` instead of `/[Gmail]/Drafts` — is reported with a `warning` naming both folders. It is deliberately **not** relocated: moving between a Gmail account's two drafts folders aborts server-side (NS error 0x80550021) and renumbers the message. Placement is judged against the *composing identity's* account, so a deliberate cross-account `--from` does not raise a false warning.

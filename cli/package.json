@@ -1,17 +1,11 @@
 {
   "name": "thunderbird-cli",
-  "version": "1.1.0",
+  "version": "1.2.1",
+  "private": true,
   "description": "Low-level CLI to manage Mozilla Thunderbird email from the shell. 41 commands for search, read, compose, reply, edit drafts, attachments, folders, bulk ops. Designed for AI agents.",
   "type": "module",
   "bin": {
     "tb": "./src/cli.js"
-  },
-  "files": [
-    "src/",
-    "README.md"
-  ],
-  "scripts": {
-    "prepublishOnly": "cd .. && npm test"
   },
   "engines": {
     "node": ">=18"

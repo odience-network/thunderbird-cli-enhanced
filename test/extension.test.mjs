@@ -55,7 +55,7 @@ function header(id, extra = {}) {
   };
 }
 
-const calls = { query: [], getRaw: [], update: [], sendMessage: [], saveMessage: [], tabsRemove: [] };
+const calls = { query: [], getRaw: [], update: [], sendMessage: [], saveMessage: [], tabsRemove: [], calendarQuery: [] };
 let inFlight = 0, maxInFlight = 0;
 const track = async (fn) => {
   inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
@@ -114,6 +114,16 @@ const messenger = {
   },
   tabs: {
     remove: async (tabId) => { calls.tabsRemove.push(tabId); composeTabs.delete(tabId); },
+  },
+  calendar: {
+    calendars: {
+      query: async (queryInfo) => {
+        calls.calendarQuery.push(queryInfo);
+        return [
+          { id: "cal1", type: "storage", name: "Home", url: "moz-storage-calendar://cal1", readOnly: false, enabled: true, color: "#3366CC" },
+        ];
+      },
+    },
   },
   messages: {
     get: (id) => track(async () => {
@@ -476,6 +486,13 @@ test("bulk fetch counts successes", fetched.fetched === 39 && fetched.total === 
 console.log("\n\x1b[1mAttachment\x1b[0m");
 const att = await handle("POST", "/messages/1/attachment", { partName: "1.2" });
 test("chunked base64 matches Node's encoder (100 KB, multi-chunk)", att.data === attachmentBytes.toString("base64"));
+
+// ─── Calendars (ODIAA-2327 proof, read-only) ─────────────────────────
+
+console.log("\n\x1b[1mCalendars\x1b[0m");
+const calendars = await handle("GET", "/calendars");
+test("GET /calendars is ungated and returns the mocked list", Array.isArray(calendars) && calendars[0]?.id === "cal1");
+test("GET /calendars calls calendar.calendars.query with no filter", calls.calendarQuery.length === 1 && Object.keys(calls.calendarQuery[0]).length === 0);
 
 console.log(`\n\x1b[1m${"─".repeat(40)}\x1b[0m`);
 console.log(`\x1b[1m${passed} passed, ${failed} failed, ${passed + failed} total\x1b[0m\n`);

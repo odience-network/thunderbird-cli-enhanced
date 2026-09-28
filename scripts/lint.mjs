@@ -6,7 +6,11 @@
  * Usage: npm run build:xpi && npm run lint
  *
  * addons-linter targets Firefox, so Thunderbird-only permissions (messagesRead, …)
- * show up as warnings; only errors fail the lint.
+ * show up as warnings; only errors fail the lint. It also flags `experiment_apis` as
+ * MANIFEST_FIELD_PRIVILEGED because that manifest key is normally reserved for Mozilla's
+ * Firefox privileged-extension tier — that tier doesn't apply to Thunderbird, whose ATN
+ * signing accepts Experiment APIs (with manual review; see docs/decisions/calendar-backend.md),
+ * so this one error code is tolerated when it points at /experiment_apis specifically.
  */
 
 import { execFileSync } from "child_process";
@@ -46,12 +50,36 @@ if (!existsSync(xpiPath)) {
   console.error(`✗ ${relative(REPO_ROOT, xpiPath)} not found — run \`npm run build:xpi\` first`);
   process.exit(1);
 }
+function tolerated(error) {
+  return error.code === "MANIFEST_FIELD_PRIVILEGED" && error.instancePath === "/experiment_apis";
+}
+
+// addons-linter exits non-zero whenever it finds any error, tolerated or not, so its JSON
+// report (on stdout either way) has to be parsed before deciding whether this is a real failure.
+let report;
 try {
-  execFileSync("npx", ["--yes", ADDONS_LINTER, "--output", "text", xpiPath], { stdio: "inherit" });
-  console.log(`✓ ${ADDONS_LINTER}: no errors in ${relative(REPO_ROOT, xpiPath)}`);
+  report = execFileSync("npx", ["--yes", ADDONS_LINTER, "--output", "json", xpiPath], { stdio: "pipe" });
+} catch (err) {
+  report = err.stdout;
+}
+let errors;
+try {
+  errors = JSON.parse(report.toString("utf-8")).errors;
 } catch {
   failed++;
-  console.error(`✗ ${ADDONS_LINTER} reported errors in ${relative(REPO_ROOT, xpiPath)}`);
+  console.error(`✗ ${ADDONS_LINTER} failed to run`);
+}
+if (errors) {
+  const blocking = errors.filter((e) => !tolerated(e));
+  for (const e of errors) {
+    console.log(`${tolerated(e) ? "⚠ (tolerated)" : "✗"} ${e.code} ${e.instancePath}: ${e.message}`);
+  }
+  if (blocking.length) {
+    failed++;
+    console.error(`✗ ${ADDONS_LINTER} reported ${blocking.length} error(s) in ${relative(REPO_ROOT, xpiPath)}`);
+  } else {
+    console.log(`✓ ${ADDONS_LINTER}: no blocking errors in ${relative(REPO_ROOT, xpiPath)}`);
+  }
 }
 
 process.exit(failed ? 1 : 0);

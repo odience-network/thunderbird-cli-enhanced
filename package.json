@@ -1,26 +1,50 @@
 {
-  "name": "thunderbird-cli",
-  "version": "1.1.0",
-  "description": "Low-level CLI + MCP server for AI agents to manage Mozilla Thunderbird email accounts.",
+  "name": "@odience-network/thunderbird-cli-enhanced",
+  "mcpName": "io.github.odience-network/thunderbird-cli-enhanced",
+  "version": "1.2.1",
+  "description": "Thunderbird email for AI agents: the tb CLI, the tb-bridge daemon and the tb-mcp MCP server in one package. Enhanced fork of thunderbird-cli by Vitalii Ionov.",
   "type": "module",
-  "private": true,
   "workspaces": [
     "cli",
     "bridge",
     "mcp"
   ],
+  "bin": {
+    "tb": "cli/src/cli.js",
+    "tb-bridge": "bridge/bridge.js",
+    "tb-mcp": "mcp/src/server.js"
+  },
+  "files": [
+    "cli/src/",
+    "cli/package.json",
+    "cli/config.example.json",
+    "bridge/bridge.js",
+    "bridge/package.json",
+    "mcp/src/",
+    "mcp/package.json",
+    "skills/thunderbird-cli/",
+    "server.json",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "test": "node test/quick-test.mjs",
     "test:mcp": "node test/mcp-test.mjs",
     "test:mcp-concurrency": "node mcp/test/test_concurrency.mjs",
     "test:bridge-auth": "node test/bridge-auth.mjs",
     "test:bridge-security": "node test/bridge-security.mjs",
-    "test:extension": "node test/thread-utils.test.mjs && node test/extension.test.mjs && node test/access-control.test.mjs && node test/draft-routing-test.mjs",
+    "test:extension": "node test/thread-utils.test.mjs && node test/action-items.test.mjs && node test/extension.test.mjs && node test/access-control.test.mjs && node test/draft-routing-test.mjs && node test/calendar-clash.test.mjs",
     "test:draft": "node test/draft-routing-test.mjs",
     "test:sign": "node test/sign-xpi.test.mjs",
     "test:docs": "node test/docs.test.mjs",
     "test:notes": "node test/notes-test.mjs",
-    "test:all": "npm test && npm run test:bridge-auth && npm run test:bridge-security && npm run test:extension && npm run test:sign && npm run test:docs && npm run test:notes && npm run test:mcp && npm run test:mcp-concurrency",
+    "test:all": "npm test && npm run test:bridge-auth && npm run test:bridge-security && npm run test:extension && npm run test:sign && npm run test:docs && npm run test:notes && npm run test:mcp && npm run test:mcp-concurrency && npm run test:pack",
     "test:live-smoke": "node test/live-smoke.mjs",
     "test:live-attachment": "node test/live-attachment-smoke.mjs",
     "build:diagrams": "node scripts/build-diagrams.mjs",
@@ -29,7 +53,9 @@
     "bridge": "node bridge/bridge.js",
     "tb": "node cli/src/cli.js",
     "build:xpi": "node scripts/build-xpi.mjs",
-    "sign:xpi": "node scripts/sign-xpi.mjs"
+    "sign:xpi": "node scripts/sign-xpi.mjs",
+    "test:pack": "node test/pack.test.mjs",
+    "test:pack-smoke": "node test/pack-smoke.mjs"
   },
   "keywords": [
     "mcp",
@@ -52,13 +78,26 @@
     "privacy"
   ],
   "author": "Vitalii Ionov",
+  "contributors": [
+    "Odience Network (fork maintainers)"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/odience-network/thunderbird-cli-enhanced"
+    "url": "git+https://github.com/odience-network/thunderbird-cli-enhanced.git"
+  },
+  "homepage": "https://github.com/odience-network/thunderbird-cli-enhanced#readme",
+  "bugs": {
+    "url": "https://github.com/odience-network/thunderbird-cli-enhanced/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "commander": "^12.0.0",
+    "marked": "^18.0.0",
+    "sanitize-html": "^2.17.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
-    "adm-zip": "^0.6.1",
-    "ws": "^8.21.3"
+    "adm-zip": "^0.6.1"
   }
 }

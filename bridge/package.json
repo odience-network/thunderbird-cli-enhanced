@@ -1,18 +1,14 @@
 {
   "name": "thunderbird-cli-bridge",
-  "version": "1.1.0",
+  "version": "1.2.1",
+  "private": true,
   "description": "HTTP↔WebSocket bridge daemon between thunderbird-cli (or any HTTP client) and the Thunderbird WebExtension. Stateless proxy, localhost-only.",
   "type": "module",
   "bin": {
     "tb-bridge": "./bridge.js"
   },
-  "files": [
-    "bridge.js",
-    "README.md"
-  ],
   "scripts": {
-    "start": "node bridge.js",
-    "prepublishOnly": "cd .. && npm test"
+    "start": "node bridge.js"
   },
   "engines": {
     "node": ">=18"

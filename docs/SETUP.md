@@ -14,9 +14,36 @@ Docker/Devcontainer:
        ↕ http://host.docker.internal:7700
 ```
 
-Pure WebExtension. No Experiment APIs. Requires Thunderbird 128+.
+Almost entirely a plain WebExtension. Requires Thunderbird 128+. The one
+exception is calendar support (`tb calendar list`/`events`/`create`/`update`/`delete`/`clashes`,
+experimental — see [docs/decisions/calendar-backend.md](decisions/calendar-backend.md)), which
+needs a chrome-privileged Experiment API since Thunderbird's WebExtension
+permission model has no calendar access. Signed releases that include it need
+a human ATN reviewer, which can take days — see the decision doc for status.
 
-## Quick path: setup script
+## Quick path: npm
+
+```bash
+npm i -g @odience-network/thunderbird-cli-enhanced
+```
+
+This one package installs all three commands: `tb` (CLI), `tb-bridge` (bridge daemon) and `tb-mcp` (MCP server). Then install the extension (Step 2) and run `tb health`. Steps 1 and 3 below are only needed for a source install.
+
+To run the MCP server without a global install, point your MCP client at `npx -y -p @odience-network/thunderbird-cli-enhanced tb-mcp` (see [mcp/README.md](../mcp/README.md)).
+
+### Migrating from upstream `thunderbird-cli`
+
+The unscoped npm packages `thunderbird-cli`, `thunderbird-cli-bridge` and `thunderbird-cli-mcp` are published by upstream and don't include this fork's changes. They install the same `tb`, `tb-bridge` and `tb-mcp` command names, so remove them before installing this package, or npm refuses to overwrite the bins (or the wrong `tb` wins on your `PATH`):
+
+```bash
+npm uninstall -g thunderbird-cli thunderbird-cli-bridge thunderbird-cli-mcp
+which -a tb tb-bridge tb-mcp     # should print nothing (Windows: where tb)
+npm i -g @odience-network/thunderbird-cli-enhanced
+```
+
+If you linked a source checkout with `npm link` or the setup script, run `npm unlink -g thunderbird-cli thunderbird-cli-bridge thunderbird-cli-mcp` first. Stop any running bridge from the old install (`pm2 delete tb-bridge`, or kill the `bridge.js` process) so the new one can take port 7700. Your `~/.config/thunderbird-cli/` config and notes are shared and keep working.
+
+## Source install: setup script
 
 From a clone of [odience-network/thunderbird-cli-enhanced](https://github.com/odience-network/thunderbird-cli-enhanced):
 
@@ -27,11 +54,9 @@ From a clone of [odience-network/thunderbird-cli-enhanced](https://github.com/od
 
 The script checks that Node.js is installed, runs `npm install` at the repo root, links `tb` globally, and offers to link `tb-bridge` and `tb-mcp` too. Then install the extension (Step 2) and run `tb health`.
 
-The npm packages `thunderbird-cli`, `thunderbird-cli-bridge` and `thunderbird-cli-mcp` are published by upstream and don't include this fork's changes, so install from source.
-
 ## Step 1: Install & Start the Bridge
 
-The CLI and the MCP server start the bridge automatically when they can't reach it: they spawn `bridge/bridge.js` from the same checkout as a detached process, then wait up to about 15 s for it and about 10 s for the extension to connect. Start it yourself when you want it supervised or logged:
+The CLI and the MCP server start the bridge automatically when they can't reach it: they spawn `bridge/bridge.js` from the same install (npm package or checkout) as a detached process, then wait up to about 15 s for it and about 10 s for the extension to connect. Start it yourself when you want it supervised or logged:
 
 ```bash
 cd bridge
@@ -50,7 +75,8 @@ Keep this running. For background operation:
 ```bash
 # pm2
 npm install -g pm2
-pm2 start bridge/bridge.js --name tb-bridge
+pm2 start tb-bridge --name tb-bridge        # npm install
+pm2 start bridge/bridge.js --name tb-bridge # source checkout
 pm2 save
 
 # or simple background
@@ -92,6 +118,8 @@ When you reload after editing, click **Reload** next to the add-on in `about:deb
 The add-on carries one access policy, fixed at build time, that every caller goes through. Deleting messages and deleting folders are off by default; a disabled operation returns `FORBIDDEN`. Check the active policy with `tb access`. To change it, copy `access.example.json` to `access.local.json`, edit it, and install a build from `npm run build:xpi -- --access-config access.local.json`. See [ACCESS-CONTROL.md](ACCESS-CONTROL.md).
 
 ## Step 3: Install the CLI
+
+Already done if you installed from npm. From a source checkout:
 
 ```bash
 cd cli

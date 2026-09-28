@@ -1,0 +1,79 @@
+[
+  {
+    "namespace": "calendar.tasks",
+    "types": [
+      {
+        "id": "CalendarTask",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "calendarId": { "type": "string" },
+          "calendarName": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "due": { "type": "string", "optional": true, "description": "ISO 8601 date-time (UTC), or a plain YYYY-MM-DD date when allDay is true" },
+          "allDay": { "type": "boolean" },
+          "priority": { "type": "integer", "description": "0 (undefined) to 9 (lowest); 1-4 high, 5 normal, 6-9 low, per RFC 5545" },
+          "completed": { "type": "boolean" },
+          "completedDate": { "type": "string", "optional": true, "description": "ISO 8601 date-time (UTC); set when completed is true" },
+          "status": { "type": "string", "enum": ["NEEDS-ACTION", "IN-PROCESS", "COMPLETED", "CANCELLED"] },
+          "source": { "type": "string", "optional": true, "description": "Message id this task was created from, if any" }
+        }
+      },
+      {
+        "id": "CalendarTaskProperties",
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "optional": true },
+          "description": { "type": "string", "optional": true },
+          "due": { "type": "string", "optional": true },
+          "allDay": { "type": "boolean", "optional": true },
+          "priority": { "type": "integer", "optional": true },
+          "completed": { "type": "boolean", "optional": true },
+          "status": { "type": "string", "enum": ["NEEDS-ACTION", "IN-PROCESS", "COMPLETED", "CANCELLED"], "optional": true },
+          "source": { "type": "string", "optional": true }
+        }
+      }
+    ],
+    "functions": [
+      {
+        "name": "query",
+        "async": true,
+        "type": "function",
+        "description": "List tasks across one or all calendars, optionally filtered by completion state.",
+        "parameters": [
+          {
+            "type": "object",
+            "name": "queryInfo",
+            "optional": true,
+            "properties": {
+              "calendarId": { "type": "string", "optional": true, "description": "Limit to one calendar; all calendars if omitted" },
+              "completed": { "type": "boolean", "optional": true, "description": "Limit to completed or pending tasks; all tasks if omitted" }
+            }
+          }
+        ]
+      },
+      {
+        "name": "create",
+        "async": true,
+        "type": "function",
+        "description": "Create a task in a calendar.",
+        "parameters": [
+          { "type": "string", "name": "calendarId" },
+          { "$ref": "CalendarTaskProperties", "name": "properties" }
+        ]
+      },
+      {
+        "name": "update",
+        "async": true,
+        "type": "function",
+        "description": "Update the given fields of an existing task.",
+        "parameters": [
+          { "type": "string", "name": "calendarId" },
+          { "type": "string", "name": "id" },
+          { "$ref": "CalendarTaskProperties", "name": "properties" }
+        ]
+      }
+    ]
+  }
+]

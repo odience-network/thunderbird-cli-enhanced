@@ -191,6 +191,143 @@ if (typeof messenger !== "undefined" && messenger.idle?.onStateChanged) {
   });
 }
 
+// ─── Fast Actions: context menus (ODIAA-2333) ────────────────────────
+// One-click Email → Note / Task / Event / Contact. Thunderbird's "message_list"
+// context fires for a right-click both on a row in the message list and inside
+// the message display (reading pane / tab), which covers the two surfaces the
+// spec asks for with a single registration. Every write goes through
+// handleRequest() so it gets exactly the same access-control enforcement
+// (and default-off write switches) as the CLI/MCP surface — no new bypass.
+
+const FAST_ACTION_MENU_IDS = {
+  note: "tb-ai-fast-note",
+  task: "tb-ai-fast-task",
+  event: "tb-ai-fast-event",
+  contact: "tb-ai-fast-contact",
+};
+
+function pushEvent(name, data) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "event", name, data }));
+    return true;
+  }
+  return false;
+}
+
+function notifyFastAction(message) {
+  if (!messenger.notifications?.create) return;
+  messenger.notifications
+    .create({ type: "basic", iconUrl: "icons/icon-48.png", title: "Thunderbird CLI Enhanced", message })
+    .catch(() => {});
+}
+
+// Parses a WebExtension "author" header (e.g. `"Jane Doe" <jane@x.com>`) into name/email.
+// Mirrors cli/src/cli.js and mcp/src/tools.js, which parse the same header on their own
+// side of the bridge and so can't share this function with the extension's global scope.
+function parseSenderAuthor(author) {
+  const str = String(author || "");
+  const m = str.match(/^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1].trim() || null, email: m[2].trim() };
+  const emailOnly = str.match(/[^\s<>]+@[^\s<>]+/);
+  return { name: null, email: emailOnly ? emailOnly[0] : null };
+}
+
+async function pickDefaultCalendarId() {
+  if (!messenger.calendar?.calendars?.query) return null;
+  const calendars = await messenger.calendar.calendars.query({ readOnly: false, enabled: true });
+  return calendars?.[0]?.id || null;
+}
+
+async function pickDefaultAddressBookId() {
+  const books = await messenger.addressBooks.list();
+  return books?.[0]?.id || null;
+}
+
+async function handleFastActionClick(menuItemId, messageId) {
+  if (menuItemId === FAST_ACTION_MENU_IDS.note) {
+    const msg = await messenger.messages.get(messageId);
+    const full = await messenger.messages.getFull(messageId);
+    const text = extractParts(full).text || "";
+    const sent = pushEvent("note-save-requested", {
+      messageId, subject: msg.subject, author: msg.author, date: msg.date?.toISOString(), body: text,
+    });
+    notifyFastAction(sent
+      ? "Save to Notes: waiting for `tb notes listen` to pick this up."
+      : "Save to Notes: bridge is not connected.");
+    return;
+  }
+
+  if (menuItemId === FAST_ACTION_MENU_IDS.task) {
+    const calendarId = await pickDefaultCalendarId();
+    if (!calendarId) return notifyFastAction("Create Task: no writable calendar found.");
+    const msg = await messenger.messages.get(messageId);
+    const full = await messenger.messages.getFull(messageId);
+    const items = extractActionItems(extractParts(full).text || "");
+    const properties = {
+      title: items[0]?.text || msg.subject || `Task from message ${messageId}`,
+      source: String(messageId),
+    };
+    const markdown = actionItemsToMarkdown(items);
+    if (markdown) properties.description = markdown;
+    const result = await handleRequest({ method: "POST", path: "/tasks/create", body: { calendarId, ...properties } });
+    notifyFastAction(result?.error ? `Create Task: ${result.error}` : `Task created: ${properties.title}`);
+    return;
+  }
+
+  if (menuItemId === FAST_ACTION_MENU_IDS.event) {
+    const calendarId = await pickDefaultCalendarId();
+    if (!calendarId) return notifyFastAction("Create Event: no writable calendar found.");
+    const msg = await messenger.messages.get(messageId);
+    const full = await messenger.messages.getFull(messageId);
+    const draft = parseEventDraft({ subject: msg.subject, body: extractParts(full).text || "", date: msg.date?.toISOString() });
+    const properties = {
+      title: draft.title, description: draft.description, start: draft.start, end: draft.end,
+      allDay: draft.allDay, status: draft.needsReview ? "TENTATIVE" : "CONFIRMED",
+    };
+    if (draft.location) properties.location = draft.location;
+    const result = await handleRequest({ method: "POST", path: "/calendar/events/create", body: { calendarId, ...properties } });
+    notifyFastAction(result?.error
+      ? `Create Event: ${result.error}`
+      : draft.needsReview
+        ? `Event created as tentative (couldn't confirm date/time) — please review: ${properties.title}`
+        : `Event created: ${properties.title}`);
+    return;
+  }
+
+  if (menuItemId === FAST_ACTION_MENU_IDS.contact) {
+    const book = await pickDefaultAddressBookId();
+    if (!book) return notifyFastAction("Add Sender to Contacts: no address book found.");
+    const msg = await messenger.messages.get(messageId);
+    const { name, email } = parseSenderAuthor(msg.author);
+    if (!email) return notifyFastAction("Add Sender to Contacts: could not find a sender email address.");
+    const existing = await handleRequest({ method: "POST", path: "/contacts/search", body: { query: email, book } });
+    if (Array.isArray(existing) && existing.length > 0) {
+      return notifyFastAction(`Add Sender to Contacts: ${email} is already a contact.`);
+    }
+    const properties = { PrimaryEmail: email };
+    if (name) properties.DisplayName = name;
+    const result = await handleRequest({ method: "POST", path: "/contacts/create", body: { book, properties } });
+    notifyFastAction(result?.error ? `Add Sender to Contacts: ${result.error}` : `Contact added: ${name || email}`);
+    return;
+  }
+}
+
+if (typeof messenger !== "undefined" && messenger.menus?.create) {
+  messenger.menus.create({ id: FAST_ACTION_MENU_IDS.note, title: "Save to Notes", contexts: ["message_list"] });
+  messenger.menus.create({ id: FAST_ACTION_MENU_IDS.task, title: "Create Task", contexts: ["message_list"] });
+  messenger.menus.create({ id: FAST_ACTION_MENU_IDS.event, title: "Create Event", contexts: ["message_list"] });
+  messenger.menus.create({ id: FAST_ACTION_MENU_IDS.contact, title: "Add Sender to Contacts", contexts: ["message_list"] });
+
+  messenger.menus.onClicked.addListener((info) => {
+    const message = info.selectedMessages?.messages?.[0];
+    if (!message) return;
+    handleFastActionClick(info.menuItemId, message.id).catch((err) => {
+      console.log("[tb-ai] fast action failed:", err.message);
+      notifyFastAction(`Action failed: ${err.message}`);
+    });
+  });
+}
+
 // ─── Request Router ─────────────────────────────────────────────────
 
 async function handleRequest({ method, path, body }) {
@@ -618,6 +755,28 @@ async function handleRequest({ method, path, body }) {
     return { thread, count: thread.length };
   }
 
+  // Deterministic (no LLM) candidate action-item extraction — see extension/src/action-items.js
+  // (pure function, unit tested independently of this bridge).
+  const actionItemsMatch = path.match(/^\/messages\/(\d+)\/action-items$/);
+  if (actionItemsMatch && method === "POST") {
+    const msgId = parseInt(actionItemsMatch[1]);
+    const full = await messenger.messages.getFull(msgId);
+    const text = extractParts(full).text || "";
+    const items = extractActionItems(text);
+    return { items, markdown: actionItemsToMarkdown(items) };
+  }
+
+  // Deterministic (no LLM) event-draft extraction — see extension/src/email-event-parse.js
+  // (pure function, unit tested independently of the bridge). (ODIAA-2333)
+  const eventDraftMatch = path.match(/^\/messages\/(\d+)\/event-draft$/);
+  if (eventDraftMatch && method === "POST") {
+    const msgId = parseInt(eventDraftMatch[1]);
+    const msg = await messenger.messages.get(msgId);
+    const full = await messenger.messages.getFull(msgId);
+    const text = extractParts(full).text || "";
+    return parseEventDraft({ subject: msg?.subject, body: text, date: msg?.date?.toISOString() });
+  }
+
   // Read message (default — must be AFTER all /messages/:id/* sub-routes)
   const msgMatch = path.match(/^\/messages\/(\d+)$/);
   if (msgMatch && method === "GET") {
@@ -960,6 +1119,105 @@ async function handleRequest({ method, path, body }) {
     return result;
   }
 
+  // ─── Calendars (ODIAA-2327 proof, read-only) ────────────────────
+  // Requires the calendar_calendars Experiment API (manifest experiment_apis, see
+  // extension/experiments/calendar/) to have loaded successfully.
+
+  if (path === "/calendars" && method === "GET") {
+    if (!messenger.calendar?.calendars?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const calendars = await messenger.calendar.calendars.query({});
+    return calendars;
+  }
+
+  // ─── Tasks (ODIAA-2329, VTODO through the calendar_tasks Experiment API) ────
+  // Requires the calendar_tasks Experiment API (manifest experiment_apis, see
+  // extension/experiments/calendar/) to have loaded successfully.
+
+  if (path === "/tasks/list" && method === "POST") {
+    if (!messenger.calendar?.tasks?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, completed } = body || {};
+    return await messenger.calendar.tasks.query({ calendarId, completed });
+  }
+
+  if (path === "/tasks/create" && method === "POST") {
+    if (!messenger.calendar?.tasks?.create) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, ...properties } = body || {};
+    if (!calendarId) return { error: "calendarId is required" };
+    if (!properties.title) return { error: "title is required" };
+    return await messenger.calendar.tasks.create(calendarId, properties);
+  }
+
+  if (path === "/tasks/update" && method === "POST") {
+    if (!messenger.calendar?.tasks?.update) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, id, ...properties } = body || {};
+    if (!calendarId || !id) return { error: "calendarId and id are required" };
+    return await messenger.calendar.tasks.update(calendarId, id, properties);
+  }
+
+  // ─── Calendar events (ODIAA-2328) ────────────────────────────────
+  // Requires the calendar_items Experiment API (manifest experiment_apis, see
+  // extension/experiments/calendar/) to have loaded successfully.
+
+  if (path === "/calendar/events/list" && method === "POST") {
+    if (!messenger.calendar?.items?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { start, end, calendarId } = body || {};
+    if (!start || !end) return { error: "start and end are required" };
+    return await messenger.calendar.items.query({ calendarId, start, end, expand: true });
+  }
+
+  if (path === "/calendar/events/create" && method === "POST") {
+    if (!messenger.calendar?.items?.create) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, ...properties } = body || {};
+    if (!calendarId) return { error: "calendarId is required" };
+    if (!properties.title || !properties.start || !properties.end) {
+      return { error: "title, start, and end are required" };
+    }
+    return await messenger.calendar.items.create(calendarId, properties);
+  }
+
+  if (path === "/calendar/events/update" && method === "POST") {
+    if (!messenger.calendar?.items?.update) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, id, ...properties } = body || {};
+    if (!calendarId || !id) return { error: "calendarId and id are required" };
+    return await messenger.calendar.items.update(calendarId, id, properties);
+  }
+
+  if (path === "/calendar/events/delete" && method === "POST") {
+    if (!messenger.calendar?.items?.remove) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { calendarId, id } = body || {};
+    if (!calendarId || !id) return { error: "calendarId and id are required" };
+    return await messenger.calendar.items.remove(calendarId, id);
+  }
+
+  // Cross-calendar overlap detection. Ignores cancelled/transparent events, handles all-day
+  // events and DST correctly — see extension/src/calendar-clash.js (pure function, unit
+  // tested independently of this bridge).
+  if (path === "/calendar/clashes" && method === "POST") {
+    if (!messenger.calendar?.items?.query) {
+      return { error: "calendar experiment not loaded" };
+    }
+    const { start, end } = body || {};
+    if (!start || !end) return { error: "start and end are required" };
+    const events = await messenger.calendar.items.query({ start, end, expand: true });
+    return { clashes: detectCalendarClashes(events) };
+  }
+
   // ─── Contacts search (must be before /contacts/:id) ─────────────
 
   if (path === "/contacts/search" && method === "POST") {
@@ -1028,6 +1286,13 @@ async function handleRequest({ method, path, body }) {
     const contactId = contactMatch[1];
     const contact = await messenger.contacts.get(contactId);
     return { id: contact.id, properties: contact.properties };
+  }
+
+  // ─── Address books ────────────────────────────────────────────── (ODIAA-2333)
+
+  if (path === "/addressbooks" && method === "GET") {
+    const books = await messenger.addressBooks.list();
+    return books.map((b) => ({ id: b.id, name: b.name }));
   }
 
   // ─── Sync ───────────────────────────────────────────────────────

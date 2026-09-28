@@ -25,6 +25,8 @@ const ACCESS_DEFAULTS = Object.freeze({
   folderRename: true,
   folderDelete: false,
   contactsWrite: false,
+  calendarWrite: false,
+  tasksWrite: false,
 });
 
 function normalizeAccessPolicy(config) {
@@ -52,11 +54,11 @@ function accessPermissions(policy, permissions) {
 }
 
 // GET routes, and POST routes that only read, never need a policy switch.
-const UNGATED_GET = /^\/(health|access|accounts(?:\/[^/]+(?:\/folders)?)?|identities|tags|stats|contacts(?:\/[^/]+)?|messages\/\d+(?:\/(raw|headers|full|check-download|download-status|attachments|thread))?)$/;
+const UNGATED_GET = /^\/(health|access|accounts(?:\/[^/]+(?:\/folders)?)?|identities|tags|stats|contacts(?:\/[^/]+)?|addressbooks|calendars|messages\/\d+(?:\/(raw|headers|full|check-download|download-status|attachments|thread))?)$/;
 const UNGATED_POST = new Set([
   "/folders/info", "/messages/search", "/messages/list", "/messages/read-batch",
   "/messages/fetch", "/stats", "/recent", "/contacts/search", "/sync", "/sync/status",
-  "/bulk/fetch", "/extension/reload",
+  "/bulk/fetch", "/extension/reload", "/calendar/events/list", "/calendar/clashes", "/tasks/list",
 ]);
 
 // POST routes with one fixed policy switch each.
@@ -73,6 +75,11 @@ const WRITE_PATHS = Object.freeze({
   "/folders/delete": "folderDelete",
   "/contacts/create": "contactsWrite",
   "/contacts/update": "contactsWrite",
+  "/calendar/events/create": "calendarWrite",
+  "/calendar/events/update": "calendarWrite",
+  "/calendar/events/delete": "calendarWrite",
+  "/tasks/create": "tasksWrite",
+  "/tasks/update": "tasksWrite",
 });
 
 function enforceAccess(method, path, body, policy = ACCESS_POLICY) {
@@ -91,6 +98,11 @@ function enforceAccess(method, path, body, policy = ACCESS_POLICY) {
   // Attachment content download, distinct from the (ungated) attachment listing.
   if (method === "POST" && /^\/messages\/\d+\/attachment$/.test(path)) {
     return requireAccess("downloadAttachments");
+  }
+
+  // Deterministic, read-only extraction — no mutation, so no policy switch needed.
+  if (method === "POST" && /^\/messages\/\d+\/(action-items|event-draft)$/.test(path)) {
+    return;
   }
 
   if (method === "POST" && (path === "/compose" || path === "/compose/edit" || path === "/reply" || path === "/forward")) {

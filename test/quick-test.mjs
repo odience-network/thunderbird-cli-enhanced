@@ -64,6 +64,15 @@ function handle({ method, path, body }) {
   if (path === "/contacts/update") return { id: body?.id, properties: body?.properties || {} };
   if (path === "/contacts" && method === "GET") return [{ id: "c1", name: "John", email: "j@e.com", book: "P" }];
   if (path?.match(/^\/contacts\/[^/]+$/)) return { id: "c1", properties: { DisplayName: "John" } };
+  if (path === "/addressbooks" && method === "GET") return [{ id: "ab1", name: "Personal" }];
+  if (path?.match(/\/action-items$/) && method === "POST") return { items: [{ text: "Please review the attached doc", checked: false, dueHint: null }], markdown: "- [ ] Please review the attached doc" };
+  if (path?.match(/\/event-draft$/) && method === "POST") return { title: "T", description: "Hello", start: "2026-01-02T15:00:00.000Z", end: "2026-01-02T16:00:00.000Z", allDay: false, location: "Somewhere", needsReview: false };
+  if (path === "/calendars" && method === "GET") return [{ id: "cal1", type: "storage", name: "Home", url: "moz-storage-calendar://cal1", readOnly: false, enabled: true, color: null }];
+  if (path === "/calendar/events/list") return [{ id: "ev1", calendarId: "cal1", title: "Standup", start: "2026-01-15T10:00:00Z", end: "2026-01-15T10:30:00Z", allDay: false, status: "CONFIRMED", transparency: "OPAQUE" }];
+  if (path === "/calendar/events/create") return { id: "ev2", calendarId: body?.calendarId, title: body?.title, start: body?.start, end: body?.end };
+  if (path === "/calendar/events/update") return { id: body?.id, calendarId: body?.calendarId, title: body?.title };
+  if (path === "/calendar/events/delete") return { id: body?.id, calendarId: body?.calendarId };
+  if (path === "/calendar/clashes") return { clashes: [{ start: "2026-01-15T10:00:00Z", end: "2026-01-15T11:00:00Z", events: [{ id: "ev1" }, { id: "ev3" }] }] };
   if (path === "/sync") return { success: true, synced: body?.all ? "all" : body?.folderId };
   if (path === "/sync/status") return { folderId: body?.folderId, totalMessages: 50, unread: 5 };
   if (path === "/bulk/delete") return { success: true, deleted: 3 };
@@ -259,6 +268,33 @@ test("POST /contacts/create",
 test("POST /contacts/update",
   await httpCall("POST", "/contacts/update", { id: "c1", properties: { LastName: "Doe" } }),
   r => r.id === "c1" && r.properties.LastName === "Doe");
+test("GET /addressbooks", await httpCall("GET", "/addressbooks"), r => Array.isArray(r) && r[0].id === "ab1");
+
+console.log("\n\x1b[1mFast Actions\x1b[0m");
+test("POST /messages/1/action-items",
+  await httpCall("POST", "/messages/1/action-items", {}),
+  r => r.items?.[0]?.text === "Please review the attached doc");
+test("POST /messages/1/event-draft",
+  await httpCall("POST", "/messages/1/event-draft", {}),
+  r => r.title === "T" && r.allDay === false && r.needsReview === false);
+
+console.log("\n\x1b[1mCalendar\x1b[0m");
+test("GET /calendars", await httpCall("GET", "/calendars"), r => Array.isArray(r) && r[0].id === "cal1");
+test("POST /calendar/events/list",
+  await httpCall("POST", "/calendar/events/list", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" }),
+  r => Array.isArray(r) && r[0].id === "ev1");
+test("POST /calendar/events/create",
+  await httpCall("POST", "/calendar/events/create", { calendarId: "cal1", title: "Sync", start: "2026-01-15T10:00:00Z", end: "2026-01-15T11:00:00Z" }),
+  r => r.id === "ev2" && r.title === "Sync");
+test("POST /calendar/events/update",
+  await httpCall("POST", "/calendar/events/update", { calendarId: "cal1", id: "ev1", title: "Renamed" }),
+  r => r.id === "ev1" && r.title === "Renamed");
+test("POST /calendar/events/delete",
+  await httpCall("POST", "/calendar/events/delete", { calendarId: "cal1", id: "ev1" }),
+  r => r.id === "ev1" && r.calendarId === "cal1");
+test("POST /calendar/clashes",
+  await httpCall("POST", "/calendar/clashes", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" }),
+  r => Array.isArray(r.clashes) && r.clashes[0]?.events?.length === 2);
 
 console.log("\n\x1b[1mSync\x1b[0m");
 test("POST /sync", await httpCall("POST", "/sync", { all: true }), r => r.success);

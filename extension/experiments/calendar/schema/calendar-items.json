@@ -1,0 +1,101 @@
+[
+  {
+    "namespace": "calendar.items",
+    "types": [
+      {
+        "id": "CalendarEvent",
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "calendarId": { "type": "string" },
+          "calendarName": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "location": { "type": "string" },
+          "start": { "type": "string", "description": "ISO 8601 date-time (UTC), or a plain YYYY-MM-DD date when allDay is true" },
+          "end": { "type": "string", "description": "ISO 8601 date-time (UTC), or a plain YYYY-MM-DD date when allDay is true" },
+          "allDay": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["CONFIRMED", "TENTATIVE", "CANCELLED"] },
+          "transparency": { "type": "string", "enum": ["OPAQUE", "TRANSPARENT"] },
+          "recurring": { "type": "boolean", "description": "true if this event is (an occurrence of) a recurring series" },
+          "recurrenceId": { "type": "string", "optional": true, "description": "Set on expanded occurrences of a recurring event; identifies which occurrence this is" }
+        }
+      },
+      {
+        "id": "CalendarEventProperties",
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "optional": true },
+          "description": { "type": "string", "optional": true },
+          "location": { "type": "string", "optional": true },
+          "start": { "type": "string", "optional": true },
+          "end": { "type": "string", "optional": true },
+          "allDay": { "type": "boolean", "optional": true },
+          "status": { "type": "string", "enum": ["CONFIRMED", "TENTATIVE", "CANCELLED"], "optional": true },
+          "transparency": { "type": "string", "enum": ["OPAQUE", "TRANSPARENT"], "optional": true }
+        }
+      }
+    ],
+    "functions": [
+      {
+        "name": "query",
+        "async": true,
+        "type": "function",
+        "description": "List events across one or all calendars in a date range, with recurring events expanded into individual occurrences.",
+        "parameters": [
+          {
+            "type": "object",
+            "name": "queryInfo",
+            "properties": {
+              "calendarId": { "type": "string", "optional": true, "description": "Limit to one calendar; all calendars if omitted" },
+              "start": { "type": "string", "optional": true, "description": "Range start, ISO 8601 date-time" },
+              "end": { "type": "string", "optional": true, "description": "Range end, ISO 8601 date-time" },
+              "expand": { "type": "boolean", "optional": true, "description": "Expand recurring events into occurrences (default true)" }
+            }
+          }
+        ]
+      },
+      {
+        "name": "get",
+        "async": true,
+        "type": "function",
+        "description": "Get a single event by calendar id and item id.",
+        "parameters": [
+          { "type": "string", "name": "calendarId" },
+          { "type": "string", "name": "id" }
+        ]
+      },
+      {
+        "name": "create",
+        "async": true,
+        "type": "function",
+        "description": "Create an event in a calendar.",
+        "parameters": [
+          { "type": "string", "name": "calendarId" },
+          { "$ref": "CalendarEventProperties", "name": "properties" }
+        ]
+      },
+      {
+        "name": "update",
+        "async": true,
+        "type": "function",
+        "description": "Update the given fields of an existing event.",
+        "parameters": [
+          { "type": "string", "name": "calendarId" },
+          { "type": "string", "name": "id" },
+          { "$ref": "CalendarEventProperties", "name": "properties" }
+        ]
+      },
+      {
+        "name": "remove",
+        "async": true,
+        "type": "function",
+        "description": "Delete an event.",
+        "parameters": [
+          { "type": "string", "name": "calendarId" },
+          { "type": "string", "name": "id" }
+        ]
+      }
+    ]
+  }
+]

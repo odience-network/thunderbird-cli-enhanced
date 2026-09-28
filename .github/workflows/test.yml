@@ -17,10 +17,10 @@ jobs:
         node-version: [20, 22]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -58,3 +58,9 @@ jobs:
 
       - name: Run MCP server integration tests (mock)
         run: npm run test:mcp
+
+      - name: Check npm package contents (npm pack --dry-run)
+        run: npm run test:pack
+
+      - name: Smoke-test the packed tarball (global install into a temp prefix)
+        run: npm run test:pack-smoke

@@ -28,6 +28,8 @@ function load(config) {
     messagesCopy: [], messagesArchive: [], tagsCreated: [], foldersCreated: [],
     foldersRenamed: [], composeSent: [], composeSaved: [],
     contactsCreated: [], contactsUpdated: [],
+    calendarEventsCreated: [], calendarEventsUpdated: [], calendarEventsDeleted: [],
+    tasksCreated: [], tasksUpdated: [],
   };
   const messenger = {
     runtime: { getManifest: () => manifest, reload: () => {} },
@@ -45,6 +47,41 @@ function load(config) {
         return renamed;
       },
     },
+    calendar: {
+      calendars: {
+        query: async () => [{ id: "cal1", type: "storage", name: "Home", url: "moz-storage-calendar://cal1", readOnly: false, enabled: true, color: null }],
+      },
+      tasks: {
+        query: async ({ calendarId, completed } = {}) => [
+          { id: "t1", calendarId: calendarId || "cal1", title: "Existing task", completed: completed === true },
+        ],
+        create: async (calendarId, properties) => {
+          const task = { id: "t2", calendarId, ...properties };
+          calls.tasksCreated.push(task);
+          return task;
+        },
+        update: async (calendarId, id, properties) => {
+          const task = { id, calendarId, ...properties };
+          calls.tasksUpdated.push(task);
+          return task;
+        },
+      },
+      items: {
+        query: async () => [{ id: "ev1", calendarId: "cal1", title: "Standup", start: "2026-01-15T10:00:00Z", end: "2026-01-15T10:30:00Z", allDay: false, status: "CONFIRMED", transparency: "OPAQUE" }],
+        create: async (calendarId, properties) => {
+          calls.calendarEventsCreated.push({ calendarId, properties });
+          return { id: "ev2", calendarId, ...properties };
+        },
+        update: async (calendarId, id, properties) => {
+          calls.calendarEventsUpdated.push({ calendarId, id, properties });
+          return { id, calendarId, ...properties };
+        },
+        remove: async (calendarId, id) => {
+          calls.calendarEventsDeleted.push({ calendarId, id });
+          return { id, calendarId };
+        },
+      },
+    },
     messages: {
       list: async () => ({ id: null, messages: [{ id: 1, read: true, flagged: false, tags: [] }] }),
       get: async (id) => ({ id, folder: { type: "drafts" } }),
@@ -55,7 +92,10 @@ function load(config) {
       archive: async (ids) => { calls.messagesArchive.push(ids); },
       listTags: async () => [],
       createTag: async (key, tag, color) => { calls.tagsCreated.push({ key, tag, color }); },
-      getFull: async () => ({ contentType: "multipart/mixed", parts: [] }),
+      getFull: async () => ({
+        contentType: "multipart/mixed",
+        parts: [{ contentType: "text/plain", body: "Please review the attached doc by Friday." }],
+      }),
       getAttachmentFile: async (id, partName) => ({
         name: "f.pdf", size: 3, type: "application/pdf",
         arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
@@ -181,6 +221,64 @@ console.log("\n\x1b[1mContacts write policy\x1b[0m");
   const updated = await handle("POST", "/contacts/update", { id: "c1", properties: { LastName: "Doe" } });
   test("contact update allowed with contactsWrite=true",
     updated.id === "c1" && updated.properties.LastName === "Doe" && calls.contactsUpdated.length === 1);
+}
+
+// ─── Tasks write: new switch, default closed like contactsWrite (ODIAA-2329) ───
+
+console.log("\n\x1b[1mTasks write policy\x1b[0m");
+{
+  const { calls, handle } = load();
+  const access = await handle("GET", "/access");
+  test("GET /access reports tasksWrite off", access.policy.tasksWrite === false);
+  test("task create refused by default",
+    await rejects(handle("POST", "/tasks/create", { calendarId: "cal1", title: "New task" }), /^FORBIDDEN: 'tasksWrite'/));
+  test("task update refused by default",
+    await rejects(handle("POST", "/tasks/update", { calendarId: "cal1", id: "t1", completed: true }), /^FORBIDDEN: 'tasksWrite'/));
+  test("no tasks side effect was made", calls.tasksCreated.length === 0 && calls.tasksUpdated.length === 0);
+  test("tasks list still works (ungated)",
+    Array.isArray(await handle("POST", "/tasks/list", {})));
+}
+{
+  const { calls, handle } = load({ tasksWrite: true });
+  const created = await handle("POST", "/tasks/create", { calendarId: "cal1", title: "New task" });
+  test("task create allowed with tasksWrite=true",
+    created.calendarId === "cal1" && created.title === "New task" && calls.tasksCreated.length === 1);
+  const updated = await handle("POST", "/tasks/update", { calendarId: "cal1", id: "t1", completed: true });
+  test("task update allowed with tasksWrite=true",
+    updated.id === "t1" && updated.completed === true && calls.tasksUpdated.length === 1);
+}
+
+// ─── Calendar write: new switch, default closed like delete/folderDelete/contactsWrite ───
+
+console.log("\n\x1b[1mCalendar write policy\x1b[0m");
+{
+  const { calls, handle } = load();
+  const access = await handle("GET", "/access");
+  test("GET /access reports calendarWrite off", access.policy.calendarWrite === false);
+  test("calendar event create refused by default",
+    await rejects(handle("POST", "/calendar/events/create", { calendarId: "cal1", title: "New", start: "2026-01-15T10:00:00Z", end: "2026-01-15T11:00:00Z" }), /^FORBIDDEN: 'calendarWrite'/));
+  test("calendar event update refused by default",
+    await rejects(handle("POST", "/calendar/events/update", { calendarId: "cal1", id: "ev1", title: "Renamed" }), /^FORBIDDEN: 'calendarWrite'/));
+  test("calendar event delete refused by default",
+    await rejects(handle("POST", "/calendar/events/delete", { calendarId: "cal1", id: "ev1" }), /^FORBIDDEN: 'calendarWrite'/));
+  test("no calendar event side effect was made",
+    calls.calendarEventsCreated.length === 0 && calls.calendarEventsUpdated.length === 0 && calls.calendarEventsDeleted.length === 0);
+  test("calendar events list still works (ungated)",
+    Array.isArray(await handle("POST", "/calendar/events/list", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" })));
+  test("calendar clashes still works (ungated)",
+    Array.isArray((await handle("POST", "/calendar/clashes", { start: "2026-01-15T00:00:00Z", end: "2026-01-16T00:00:00Z" })).clashes));
+}
+{
+  const { calls, handle } = load({ calendarWrite: true });
+  const created = await handle("POST", "/calendar/events/create", { calendarId: "cal1", title: "New", start: "2026-01-15T10:00:00Z", end: "2026-01-15T11:00:00Z" });
+  test("calendar event create allowed with calendarWrite=true",
+    created.calendarId === "cal1" && created.title === "New" && calls.calendarEventsCreated.length === 1);
+  const updated = await handle("POST", "/calendar/events/update", { calendarId: "cal1", id: "ev1", title: "Renamed" });
+  test("calendar event update allowed with calendarWrite=true",
+    updated.id === "ev1" && updated.title === "Renamed" && calls.calendarEventsUpdated.length === 1);
+  const deleted = await handle("POST", "/calendar/events/delete", { calendarId: "cal1", id: "ev1" });
+  test("calendar event delete allowed with calendarWrite=true",
+    deleted.id === "ev1" && calls.calendarEventsDeleted.length === 1);
 }
 
 // ─── New switches: default open (unmodified install behaves as before this policy) ──
@@ -352,6 +450,47 @@ console.log("\n\x1b[1mValidation\x1b[0m");
     `accessPermissions(normalizeAccessPolicy(${JSON.stringify(c)}), ${JSON.stringify([...manifest.permissions, "messagesDelete"])})`, ctx);
   test("messagesDelete stripped when delete=false", !perms({}).includes("messagesDelete"));
   test("messagesDelete granted when delete=true", perms({ delete: true }).filter((p) => p === "messagesDelete").length === 1);
+}
+
+// ─── Calendars: new route, ungated read-only (ODIAA-2327) ───────────────
+
+console.log("\n\x1b[1mCalendars route\x1b[0m");
+{
+  const { handle } = load();
+  const calendars = await handle("GET", "/calendars");
+  test("GET /calendars is ungated with the default (all-closed) policy", Array.isArray(calendars) && calendars[0]?.id === "cal1");
+}
+
+// ─── Action items: new route, ungated (deterministic, read-only) (ODIAA-2329) ──
+
+console.log("\n\x1b[1mAction items route\x1b[0m");
+{
+  const { handle } = load();
+  const result = await handle("POST", "/messages/1/action-items", {});
+  test("POST /messages/:id/action-items is ungated with the default (all-closed) policy",
+    Array.isArray(result.items) && result.items.length === 1 && result.items[0].text === "Please review the attached doc by Friday");
+  test("action-items markdown reflects the extracted item",
+    result.markdown === "- [ ] Please review the attached doc by Friday (by Friday)");
+}
+
+// ─── Address books: new route, ungated read-only (ODIAA-2333) ───────────
+
+console.log("\n\x1b[1mAddress books route\x1b[0m");
+{
+  const { handle } = load();
+  const books = await handle("GET", "/addressbooks");
+  test("GET /addressbooks is ungated with the default (all-closed) policy",
+    Array.isArray(books) && books[0]?.id === "ab1");
+}
+
+// ─── Event draft: new route, ungated (deterministic, read-only) (ODIAA-2333) ──
+
+console.log("\n\x1b[1mEvent draft route\x1b[0m");
+{
+  const { handle } = load();
+  const draft = await handle("POST", "/messages/1/event-draft", {});
+  test("POST /messages/:id/event-draft is ungated with the default (all-closed) policy",
+    typeof draft.title === "string" && typeof draft.start === "string");
 }
 
 console.log(`\n\x1b[1m${"─".repeat(40)}\x1b[0m`);

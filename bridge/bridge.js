@@ -36,6 +36,8 @@ import { WebSocketServer } from "ws";
 import { randomUUID, timingSafeEqual } from "crypto";
 import { EventEmitter } from "events";
 import { pathToFileURL } from "url";
+import { realpathSync } from "fs";
+import { createRequire } from "module";
 
 // ─── Helper: resolve CLI arg value ────────────────────────────────
 
@@ -450,10 +452,30 @@ export async function startBridge(opts = {}) {
 
 // ─── CLI entrypoint (only when run directly) ──────────────────────
 
-const _entryHref = process.argv[1]
-  ? pathToFileURL(process.argv[1]).href.toLowerCase()
-  : "";
-if (_entryHref === import.meta.url.toLowerCase()) {
+// Resolve symlinks: a global npm install runs us through bin/tb-bridge -> bridge.js,
+// while import.meta.url always points at the real file.
+function entryHref() {
+  if (!process.argv[1]) return "";
+  let entry = process.argv[1];
+  try { entry = realpathSync(entry); } catch { /* keep the raw path */ }
+  return pathToFileURL(entry).href.toLowerCase();
+}
+
+if (entryHref() === import.meta.url.toLowerCase()) {
+  const args = process.argv.slice(2);
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(createRequire(import.meta.url)("./package.json").version);
+    process.exit(0);
+  }
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(`Usage: tb-bridge [--port 7700] [--ws-port 7701] [--host 127.0.0.1]
+
+HTTP<->WebSocket bridge between tb / tb-mcp and the Thunderbird add-on.
+
+Environment: TB_BRIDGE_PORT, TB_BRIDGE_WS_PORT, TB_BRIDGE_HOST, TB_BRIDGE_TIMEOUT,
+TB_AUTH_TOKEN, TB_BRIDGE_CORS_ORIGINS, TB_BRIDGE_ALLOWED_HOSTS, TB_BRIDGE_WS_HEARTBEAT_MS`);
+    process.exit(0);
+  }
   startBridge().catch((err) => {
     console.error("[bridge] Fatal:", err);
     process.exit(1);

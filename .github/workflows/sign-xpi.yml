@@ -7,6 +7,12 @@ name: sign-xpi
 # Requires repository secrets MOZILLA_HUB_JWT_ISSUER and MOZILLA_HUB_JWT_SECRET
 # (ATN → Tools → Manage API Keys). The manifest's add-on ID must be new or owned by
 # that ATN account.
+#
+# Versions with experiment_apis in the manifest (calendar_calendars) need a human ATN
+# reviewer and may not be approved within this run: `sign-xpi` then exits 0 without a
+# signed file rather than failing. Re-run this workflow (workflow_dispatch) once ATN's
+# review completes — the script resumes via the existing upload (HTTP 409) and, if a
+# signed file is already in dist/releases/, the commit step below is a no-op.
 
 on:
   push:
@@ -25,10 +31,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm

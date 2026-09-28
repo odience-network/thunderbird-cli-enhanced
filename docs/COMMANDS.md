@@ -278,6 +278,81 @@ tb notes to-draft <name> --to <address> [--cc <a>] [--bcc <a>] [--subject <t>] [
                                                        # render Markdown to sanitized HTML, open as draft (never sends)
 ```
 
+## Calendars
+
+Experimental (see `docs/decisions/calendar-backend.md`). Calendar listing and event reads are
+ungated; `create`/`update`/`delete` require the `calendarWrite` access switch (default `false`,
+see `docs/ACCESS-CONTROL.md`).
+
+```bash
+tb calendar list                          # list calendars
+tb calendar events --start <date> --end <date> [--calendar <calendarId>]
+                                           # list events in a range
+tb calendar create --calendar <calendarId> --title <title> --start <date> --end <date>
+                    [--all-day] [--location <l>] [--description <d>]
+                                           # create an event (requires calendarWrite)
+tb calendar update <eventId> --calendar <calendarId> [--title <t>] [--start <d>] [--end <d>]
+                    [--all-day] [--location <l>] [--description <d>]
+                                           # update an event (requires calendarWrite)
+tb calendar delete <eventId> --calendar <calendarId>
+                                           # delete an event (requires calendarWrite)
+tb calendar clashes --start <date> --end <date>
+                                           # find overlapping events across all calendars
+```
+
+## Tasks
+
+Calendar tasks (VTODO), through the vendored `calendar.tasks` Experiment API (see
+`docs/decisions/calendar-backend.md`).
+
+```bash
+tb tasks list [--calendar <calendarId>] [--completed] [--pending]  # list tasks
+
+# Requires tasksWrite access switch (default off, see docs/ACCESS-CONTROL.md)
+tb tasks create --calendar <calendarId> --title <title> [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>]
+tb tasks update <taskId> --calendar <calendarId> [--title <title>] [--due <date>] [--all-day] \
+  [--priority <n>] [--description <description>] [--source <messageId>] [--completed] [--pending]
+```
+
+## Action Items
+
+```bash
+tb action-items <messageId>   # deterministic (no LLM) extraction of candidate action items
+                               # from a message body, rendered as a Markdown checklist
+```
+
+## Fast Actions
+
+One-click Email → Note / Task / Event / Contact (ODIAA-2333). Each command reuses
+the same route (and access switch) as its underlying resource — there is no
+bypass for these composite commands.
+
+```bash
+tb address-books # list address books
+
+tb email-to-note <messageId> [--name <name>] [--append]
+# save a message to the local notes workspace (no access switch — notes are local-only)
+
+tb email-to-task <messageId> --calendar <calendarId> [--due <date>] [--all-day] [--priority <n>]
+# create a task from deterministic action-item extraction (requires tasksWrite)
+
+tb email-to-event <messageId> --calendar <calendarId>
+# create a calendar event via deterministic date/time/location parsing (requires calendarWrite)
+# falls back to a draft event (status TENTATIVE) when no date/time could be detected —
+# review and correct it before relying on it
+
+tb email-to-contact <messageId> --book <bookId>
+# add the message's sender as a contact, deduped by email address (requires contactsWrite)
+
+tb notes listen [--timeout <ms>] [--name <name>] [--append]
+# waits for a "Save to Notes" context-menu click in Thunderbird, then saves the note.
+# Thunderbird can't write to the local filesystem, so the extension pushes a
+# note-save-requested event over the bridge and this command is the CLI-side
+# listener that turns it into a note; run it (or the equivalent MCP tool,
+# notes_listen_once) before clicking "Save to Notes" in Thunderbird.
+```
+
 ## Bulk Operations
 
 ```bash
