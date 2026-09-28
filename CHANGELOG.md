@@ -55,6 +55,18 @@ First release of the fork on npm as `@odience-network/thunderbird-cli-enhanced`.
   actively maintained) and sanitizes with
   [`sanitize-html`](https://www.npmjs.com/package/sanitize-html) (parser-driven, not regex-based)
   before the HTML ever reaches an email draft.
+- **`tb notes transcribe <audioFile>`** / MCP `note_transcribe` — voice memo transcription into
+  Notes. Local-first: at runtime it detects a locally-installed speech-to-text engine —
+  [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli` on PATH, or
+  `TB_WHISPER_CPP_BIN`; needs a model via `--model`/`TB_WHISPER_CPP_MODEL`) or
+  [faster-whisper](https://github.com/SYSTRAN/faster-whisper)'s `whisper-ctranslate2` CLI wrapper
+  (on PATH, or `TB_FASTER_WHISPER_BIN`) — and shells out to it; no audio or text ever leaves the
+  machine, and no API key is read. Absence of either engine is a clean `NO_ENGINE` error with
+  install hints, not a stack trace. The transcript is saved as a note with the source audio
+  filename and engine used recorded in front matter (`source`, `engine`). No cloud STT provider
+  is implemented — that's a separate vendor/stack decision requiring its own sign-off before any
+  network path ships (see the ODIAA-2331 PR for the option A vs B trade-off). Tested against a
+  stubbed engine (`test/fixtures/stub-*.mjs`).
 - `--from <identityId>` on `tb forward` (`from` on MCP `email_forward`); `--from` on reply/forward may now name an identity from any account (unknown identities are still rejected).
 - `--subject <text>` on `tb reply` (`subject` on MCP `email_reply`).
 - `npm run test:draft` — draft-routing regression suite (identity resolution, cross-account `--from`, Gmail dual-drafts warning, unconfirmed-save errors, reply subject/quote/HTML handling), also part of `test:extension`.

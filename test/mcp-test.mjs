@@ -13,7 +13,7 @@ import { randomUUID, randomUUID as uuid } from "crypto";
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { mkdtempSync, rmSync } from "fs";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 
 // skill_today/skill_week render dates/times using the local Date getters (see lib/skills.js),
@@ -22,6 +22,7 @@ process.env.TZ = "UTC";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MCP_SERVER = join(__dirname, "../mcp/src/server.js");
+const STUB_FASTER_WHISPER = join(__dirname, "fixtures/stub-faster-whisper.mjs");
 const PORT = 19800;
 const WS_PORT = 19801;
 
@@ -391,11 +392,16 @@ const servers = await startBridge();
 await new Promise((r) => setTimeout(r, 300));
 
 const notesDir = mkdtempSync(join(tmpdir(), "tb-mcp-notes-test-"));
+const audioDir = mkdtempSync(join(tmpdir(), "tb-mcp-audio-test-"));
+const audioFile = join(audioDir, "memo.wav");
+writeFileSync(audioFile, "fake audio bytes");
 
 const client = new McpClient(MCP_SERVER, {
   TB_BRIDGE_HOST: "127.0.0.1",
   TB_BRIDGE_PORT: String(PORT),
   TB_NOTES_DIR: notesDir,
+  TB_FASTER_WHISPER_BIN: STUB_FASTER_WHISPER,
+  STUB_TRANSCRIPT: "Hello from the transcription stub\n",
 });
 
 console.log("\n\x1b[1m=== thunderbird-cli MCP Server Tests ===\x1b[0m\n");
@@ -404,7 +410,7 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 41 tools", toolList, (r) => Array.isArray(r) && r.length === 41);
+test("tools/list returns 42 tools", toolList, (r) => Array.isArray(r) && r.length === 42);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
@@ -762,6 +768,21 @@ test(
   (r) => r.body === "Hello **world**\n\nMore text"
 );
 test(
+  "note_transcribe transcribes audio via a stubbed local engine and saves it as a note",
+  await client.callTool("note_transcribe", { audioFile }),
+  (r) => r.engine === "faster-whisper" && r.transcript === "Hello from the transcription stub" && r.name === "memo"
+);
+test(
+  "note_transcribe records source and engine in the saved note's front matter",
+  await client.callTool("note_read", { name: "memo" }),
+  (r) => r.source === "voice-memo:memo.wav" && r.engine === "faster-whisper" && r.body === "Hello from the transcription stub"
+);
+test(
+  "note_transcribe errors on a missing audio file",
+  await client.callTool("note_transcribe", { audioFile: join(audioDir, "missing.wav") }),
+  (r) => r.code === "NOT_FOUND"
+);
+test(
   "note_to_draft renders Markdown to a sanitized HTML draft",
   await client.callTool("note_to_draft", { name: "meeting-notes", to: "a@b.com" }),
   (r) => r.success === true && r.action === "draft_saved"
@@ -840,7 +861,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 41 && r.toolsBCount === 41
+  (r) => r.toolsACount === 42 && r.toolsBCount === 42
 );
 clientA.close();
 clientB.close();
@@ -862,4 +883,5 @@ servers.mock.close();
 servers.wss.close();
 servers.httpServer.close();
 rmSync(notesDir, { recursive: true, force: true });
+rmSync(audioDir, { recursive: true, force: true });
 process.exit(failed > 0 ? 1 : 0);

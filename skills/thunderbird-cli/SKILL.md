@@ -63,6 +63,7 @@ For "what's on my plate" style asks, prefer `skill_today`/`skill_week`/`skill_cl
 | `note_read` | Read a note's Markdown body — "Use as Context" | ✅ read-only |
 | `note_save` | Save/overwrite a note — "Save to Notes" | ✅ local file only |
 | `note_append` | Append to a note, creating it if missing | ✅ local file only |
+| `note_transcribe` | Transcribe a local audio file with a local speech-to-text engine (whisper.cpp or faster-whisper, auto-detected) and save it as a note | ✅ local file + local process only |
 | `note_to_draft` | Render a note's Markdown to sanitized HTML and open it as an email draft. `mode: draft` / `open`. Never sends | ✅ draft by default |
 | `contact_search` | Search/list address book contacts across all books, matching name or any email | ✅ read-only |
 | `contact_create` | Create a contact in an address book | ⚠️ requires `contactsWrite` access switch (default off) |
@@ -85,6 +86,10 @@ For "what's on my plate" style asks, prefer `skill_today`/`skill_week`/`skill_cl
 Notes live entirely on disk (`~/.config/thunderbird-cli/notes` by default) —
 no Thunderbird round-trip except `note_to_draft`, which reuses the same
 compose route as `email_compose` and never exposes a `send` mode.
+`note_transcribe` is also local-only: it shells out to a speech-to-text
+engine the user installed themselves (no audio ever leaves the machine, no
+cloud provider, no API key) and errors with an install hint if none is
+found.
 
 ## Core patterns — always apply these
 
@@ -346,6 +351,7 @@ MCP tool → CLI command mapping:
 | `note_read` | `tb notes read <name>` |
 | `note_save` | `tb notes save <name> --body "..."` |
 | `note_append` | `tb notes append <name> --body "..."` |
+| `note_transcribe` | `tb notes transcribe <audioFile>` |
 | `note_to_draft` | `tb notes to-draft <name> --to X` |
 | `contact_search` | `tb contacts-search <query>` |
 | `contact_create` | `tb contacts create --book <bookId> ...` |

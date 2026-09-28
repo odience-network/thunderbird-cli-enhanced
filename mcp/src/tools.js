@@ -12,6 +12,8 @@
 
 import { parseRelativeDate } from "./client.js";
 import { listNotes, readNote, saveNote, appendNote, renderNoteHtml } from "./notes.js";
+import { transcribeAudio } from "./stt.js";
+import { basename, extname } from "path";
 import {
   startOfDay,
   addDays,
@@ -784,7 +786,43 @@ export const tools = [
     handler: async (args) => appendNote(args.name, args.body, { title: args.title, source: args.source }),
   },
 
-  // ─── 21. Notes: to draft ─────────────────────────────────────────
+  // ─── 21. Notes: transcribe ────────────────────────────────────────
+  {
+    name: "note_transcribe",
+    description:
+      "Transcribe a local audio file to text with a local speech-to-text engine (whisper.cpp or " +
+      "faster-whisper, auto-detected on this machine) and save the transcript as a note. Local-first: " +
+      "no audio or text ever leaves this machine, and no cloud STT provider is used. Source metadata " +
+      "(the audio file name and engine used) is recorded in the note's front matter.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        audioFile: { type: "string", description: "Path to a local audio file (format support depends on the detected engine)" },
+        name: { type: "string", description: "Note name to save as (defaults to the audio file's base name); letters, numbers, spaces, '.', '_', '-' only" },
+        title: { type: "string", description: "Note title (defaults to the note name)" },
+        engine: { type: "string", description: "STT engine to use: 'whisper-cpp' or 'faster-whisper' (default: auto-detect)" },
+        model: { type: "string", description: "Model file path (required for whisper.cpp; optional override for faster-whisper)" },
+        language: { type: "string", description: "Spoken language hint, e.g. 'en'" },
+        append: { type: "boolean", description: "Append to an existing note instead of overwriting it" },
+      },
+      required: ["audioFile"],
+    },
+    handler: async (args) => {
+      const { text, engine } = transcribeAudio(args.audioFile, {
+        engine: args.engine,
+        model: args.model,
+        language: args.language,
+      });
+      const name = args.name || basename(args.audioFile, extname(args.audioFile));
+      const source = `voice-memo:${basename(args.audioFile)}`;
+      const result = args.append
+        ? appendNote(name, text, { title: args.title, source, engine })
+        : saveNote(name, text, { title: args.title, source, engine });
+      return { ...result, engine, transcript: text };
+    },
+  },
+
+  // ─── 22. Notes: to draft ────────────────────────────────────────
   {
     name: "note_to_draft",
     description:

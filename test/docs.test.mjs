@@ -42,8 +42,14 @@ function section(text, title) {
   const m = text.match(new RegExp(`\\n${title}:\\n([\\s\\S]*?)(\\n\\n|$)`));
   return m ? m[1].split("\n") : [];
 }
+// Commander wraps long descriptions onto indented continuation lines (e.g. "  transcribe\n" +
+// "  [options] <audioFile>  Transcribe...\n                          as a note)"); only lines
+// starting with exactly two leading spaces are real command rows, not description wrap.
 const commandsOf = (text) =>
-  section(text, "Commands").map((l) => l.trim().split(/\s/)[0]).filter((c) => c && c !== "help");
+  section(text, "Commands")
+    .filter((l) => /^ {2}\S/.test(l))
+    .map((l) => l.trim().split(/\s/)[0])
+    .filter((c) => c && c !== "help");
 const flagsOf = (text) =>
   section(text, "Options").flatMap((l) => l.match(/--[a-z][a-z-]*/g) || []).filter((f) => f !== "--help");
 

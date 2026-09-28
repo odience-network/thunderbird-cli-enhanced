@@ -10,7 +10,7 @@
 import { createRequire } from "module";
 import { Command } from "commander";
 import { api, output, outputError, getConfig, parseRelativeDate } from "./client.js";
-import { extname } from "path";
+import { basename, extname } from "path";
 import {
   listNotes,
   readNote,
@@ -20,6 +20,7 @@ import {
   searchNotes,
   renderNoteHtml,
 } from "./notes.js";
+import { transcribeAudio } from "./stt.js";
 import {
   startOfDay,
   addDays,
@@ -1493,6 +1494,33 @@ notes
   .action(run(async (query) => {
     const g = program.opts();
     output(searchNotes(query), getFormat(g), getOutputOpts(g));
+  }));
+
+notes
+  .command("transcribe <audioFile>")
+  .description(
+    "Transcribe a local audio file to text with a local speech-to-text engine and save it as a note " +
+      "(no audio ever leaves this machine)"
+  )
+  .option("--engine <id>", "STT engine to use: whisper-cpp or faster-whisper (default: auto-detect)")
+  .option("--model <path>", "model file path (required for whisper.cpp; optional override for faster-whisper)")
+  .option("--language <code>", "spoken language hint, e.g. en")
+  .option("--save-as <name>", "note name to save as (defaults to the audio file's base name)")
+  .option("--title <text>", "note title (defaults to the note name)")
+  .option("--append", "append to an existing note instead of overwriting")
+  .action(run(async (audioFile, opts) => {
+    const g = program.opts();
+    const { text, engine } = transcribeAudio(audioFile, {
+      engine: opts.engine,
+      model: opts.model,
+      language: opts.language,
+    });
+    const name = opts.saveAs || basename(audioFile, extname(audioFile));
+    const source = `voice-memo:${basename(audioFile)}`;
+    const result = opts.append
+      ? appendNote(name, text, { title: opts.title, source, engine })
+      : saveNote(name, text, { title: opts.title, source, engine });
+    output({ ...result, engine, transcript: text }, getFormat(g), getOutputOpts(g));
   }));
 
 notes
