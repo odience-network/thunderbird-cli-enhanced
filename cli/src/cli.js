@@ -21,6 +21,15 @@ import {
   renderNoteHtml,
 } from "./notes.js";
 import { transcribeAudio } from "./stt.js";
+import {
+  startOfDay,
+  addDays,
+  renderToday,
+  renderWeek,
+  renderClashes,
+  groupMessagesIntoThreads,
+  renderFrom,
+} from "../../lib/skills.js";
 
 const MIME_TO_EXT = {
   "application/pdf": ".pdf",
@@ -156,6 +165,23 @@ function parseIds(str) {
   return str.split(",").map(id => parseInt(id.trim()));
 }
 
+// /calendar/events/list and /calendar/clashes return { error } (not a thrown error) when the
+// calendar Experiment API hasn't loaded — see docs/decisions/calendar-backend.md.
+function calendarErrorOf(result) {
+  return !Array.isArray(result) && result?.error ? result.error : null;
+}
+
+// Deterministic skill commands (ODIAA-2332) print compact Markdown by default — that's the
+// point of a zero-parsing "skill" — but still honor an explicit --format for scripting, going
+// through the normal v1/v2 JSON envelope machinery in that case.
+function outputSkill(globalOpts, structuredData, markdown) {
+  if (globalOpts.format) {
+    output(structuredData, getFormat(globalOpts), getOutputOpts(globalOpts));
+  } else {
+    process.stdout.write(markdown);
+  }
+}
+
 // ─── Health ───────────────────────────────────────────────────────────
 
 program
@@ -277,6 +303,74 @@ calendar
     const g = program.opts();
     const data = await api("POST", "/calendar/clashes", { start: opts.start, end: opts.end }, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
+  }));
+
+// ─── Deterministic skills (ODIAA-2332) ─────────────────────────────────
+// Zero-LLM-reasoning shortcuts: compose existing read-only endpoints, print compact Markdown.
+
+program
+  .command("today")
+  .description("Today's calendar events plus unread/flagged mail counts (compact Markdown)")
+  .action(run(async () => {
+    const g = program.opts();
+    const date = startOfDay(new Date());
+    const end = addDays(date, 1);
+    const [eventsResult, stats, flaggedResult] = await Promise.all([
+      api("POST", "/calendar/events/list", { start: date.toISOString(), end: end.toISOString() }, getTimeout(g)),
+      api("GET", "/stats", null, getTimeout(g)),
+      api("POST", "/messages/search", { flagged: true, limit: 200 }, getTimeout(g)),
+    ]);
+    const calendarError = calendarErrorOf(eventsResult);
+    const flagged = flaggedResult?.messages
+      ? { count: flaggedResult.messages.length, hasMore: !!flaggedResult.hasMore }
+      : null;
+    const markdown = renderToday({
+      date, calendarError, flagged,
+      events: calendarError ? [] : eventsResult,
+      unreadTotal: stats?.totalUnread,
+    });
+    outputSkill(g, { date: date.toISOString(), events: eventsResult, unreadTotal: stats?.totalUnread, flagged }, markdown);
+  }));
+
+program
+  .command("week")
+  .description("Calendar events for the next 7 days, grouped by day (compact Markdown)")
+  .action(run(async () => {
+    const g = program.opts();
+    const start = startOfDay(new Date());
+    const end = addDays(start, 7);
+    const eventsResult = await api("POST", "/calendar/events/list", { start: start.toISOString(), end: end.toISOString() }, getTimeout(g));
+    const calendarError = calendarErrorOf(eventsResult);
+    const markdown = renderWeek({ start, numDays: 7, calendarError, events: calendarError ? [] : eventsResult });
+    outputSkill(g, { start: start.toISOString(), end: end.toISOString(), events: eventsResult }, markdown);
+  }));
+
+program
+  .command("clashes")
+  .description("Overlapping events across all calendars in the next N days (compact Markdown)")
+  .option("--days <n>", "look ahead this many days", "7")
+  .action(run(async (opts) => {
+    const g = program.opts();
+    const days = parseInt(opts.days) || 7;
+    const start = startOfDay(new Date());
+    const end = addDays(start, days);
+    const result = await api("POST", "/calendar/clashes", { start: start.toISOString(), end: end.toISOString() }, getTimeout(g));
+    const calendarError = calendarErrorOf(result);
+    const markdown = renderClashes({ start, end, calendarError, clashes: result?.clashes });
+    outputSkill(g, result, markdown);
+  }));
+
+program
+  .command("from <address>")
+  .description("Recent mail from a sender address or domain, grouped into threads (compact Markdown)")
+  .option("-l, --limit <n>", "max messages to consider", "50")
+  .action(run(async (address, opts) => {
+    const g = program.opts();
+    const limit = parseInt(opts.limit) || 50;
+    const result = await api("POST", "/messages/search", { fromAddress: address, limit }, getTimeout(g));
+    const threads = groupMessagesIntoThreads(result?.messages);
+    const markdown = renderFrom({ address, threads, hasMore: !!result?.hasMore });
+    outputSkill(g, result, markdown);
   }));
 
 // ─── Bridge Status ────────────────────────────────────────────────────

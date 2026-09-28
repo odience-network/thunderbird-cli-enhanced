@@ -38,9 +38,11 @@ Equivalent to `tb health` — returns account count and bridge status. If it err
 - **EXTENSION_DISCONNECTED** — open Thunderbird. The WebExtension auto-connects within 3s of Thunderbird being open.
 - **NOT_FOUND** on account/folder — the user hasn't added that account to Thunderbird yet.
 
-## The 37 MCP tools
+## The 41 MCP tools
 
-Use these; don't reach for the CLI unless the user explicitly asks for a bulk operation not covered here.
+Use these; don't reach for the 47-command CLI unless the user explicitly asks for a bulk operation not covered here.
+
+For "what's on my plate" style asks, prefer `skill_today`/`skill_week`/`skill_clashes`/`skill_from` over composing `email_search` + `calendar_events` + `email_stats` yourself — they return ready-to-show Markdown built deterministically (no model reasoning), so pass their output straight through to the user instead of re-summarizing it.
 
 | Tool | Purpose | Safe by default? |
 |---|---|---|
@@ -72,6 +74,10 @@ Use these; don't reach for the CLI unless the user explicitly asks for a bulk op
 | `calendar_event_update` | Update a calendar event's properties by id | ⚠️ requires `calendarWrite` access switch (default off) |
 | `calendar_event_delete` | Delete a calendar event by id | ⚠️ requires `calendarWrite` access switch (default off) |
 | `calendar_clashes` | Detect overlapping events across all calendars in a date range | ✅ read-only |
+| `skill_today` | Today's calendar events plus unread/flagged mail counts — pre-formatted Markdown | ✅ read-only |
+| `skill_week` | This week's calendar events, grouped by day — pre-formatted Markdown | ✅ read-only |
+| `skill_clashes` | Overlapping events across all calendars in the next N days — pre-formatted Markdown | ✅ read-only |
+| `skill_from` | Recent mail from a sender/domain, grouped into threads — pre-formatted Markdown | ✅ read-only |
 | `task_list` | List calendar tasks (VTODO), optionally filtered by calendar or completion state | ✅ read-only |
 | `task_create` | Create a calendar task | ⚠️ requires `tasksWrite` access switch (default off) |
 | `task_update` | Update a task's fields (title, due, priority, description, completed) by id | ⚠️ requires `tasksWrite` access switch (default off) |
@@ -326,7 +332,7 @@ Some IMAP servers don't preload attachments. Call `email_read id=<id> mode="chec
 
 ## CLI fallback (for power users)
 
-If the user says "from the terminal" or asks about scripting, the same capabilities are available via the `tb` CLI (43 commands, JSON output). Full reference: `tb <cmd> --help` or https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/COMMANDS.md.
+If the user says "from the terminal" or asks about scripting, the same capabilities are available via the `tb` CLI (47 commands, JSON output). Full reference: `tb <cmd> --help` or https://github.com/odience-network/thunderbird-cli-enhanced/blob/main/docs/COMMANDS.md.
 
 MCP tool → CLI command mapping:
 
