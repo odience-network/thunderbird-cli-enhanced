@@ -21,7 +21,7 @@
 │       ┌────────────────────┬──────────────────────┐         │
 │       ↕                    ↕                      ↕         │
 │  tb CLI (Node)      tb-mcp Server          Direct HTTP      │
-│  (43 commands)      (27 MCP tools)         (curl, scripts)  │
+│  (47 commands)      (31 MCP tools)         (curl, scripts)  │
 │       ↕                    ↕                                │
 │  AI Agent           Claude Desktop                          │
 │  (Claude Code)      (stdio MCP transport)                   │
@@ -40,8 +40,8 @@
 | **Thunderbird** | Host | Source of truth. Stores all emails, syncs IMAP, renders UI for human oversight |
 | **Extension** (background.js) | Inside Thunderbird | Pure WebExtension. Connects to bridge via WebSocket. Checks every request against the build-time access policy (`access-control.js`, see [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md)), then translates it into `messenger.*` API calls |
 | **Bridge** (bridge.js) | Host (daemon) | Stateless HTTP↔WebSocket proxy. Receives HTTP from CLI/MCP, forwards to extension, returns response. No business logic |
-| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 43 commands. Auto-starts bridge daemon if not running. Zero state |
-| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 26 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
+| **CLI** (tb) | Host or Docker | Thin HTTP client. Parses args, calls bridge, outputs JSON to stdout. 47 commands. Auto-starts bridge daemon if not running. Zero state |
+| **MCP Server** (tb-mcp) | Host (alongside Claude Desktop) | Stdio-based MCP server. Exposes 41 curated tools to Claude Desktop and other MCP clients. Auto-starts bridge daemon if not running. Reuses CLI's HTTP client to call bridge |
 
 ### Request flow
 
@@ -694,6 +694,33 @@ right after the click, within the listener's timeout) to catch the event.
 
 ---
 
+### 20. Deterministic Skills
+
+Zero-LLM-reasoning shortcuts (ODIAA-2332): each composes existing read-only
+endpoints (`/calendar/events/list`, `/calendar/clashes`, `/stats`,
+`/messages/search`) and hands back pre-formatted, compact Markdown — no JSON
+parsing or summarizing required by the caller. The same rendering functions
+(`lib/skills.js`) back both the CLI and the matching `skill_*` MCP tools, so
+output is byte-identical across surfaces. `--format json|compact|table`
+opts back into the standard JSON envelope; otherwise Markdown is printed
+regardless of `--output-version`.
+
+```bash
+# Today's events plus unread/flagged mail counts
+tb today
+
+# This week's events, grouped by day
+tb week
+
+# Overlapping events across all calendars in the next N days (default 7)
+tb clashes [--days <n>]
+
+# Recent mail from a sender address or domain, grouped into threads
+tb from <address> [--limit <n>]
+```
+
+---
+
 ## Implementation Details
 
 ### Token Optimization Strategy
@@ -1285,12 +1312,12 @@ Claude Desktop ──stdio JSON-RPC──> tb-mcp ──HTTP──> Bridge ─�
 The MCP server:
 - Has **no state** — every tool call is independent
 - **Reuses** `cli/src/client.js` for HTTP calls (no code duplication)
-- Exposes **31 high-level tools** rather than all CLI commands
+- Exposes **41 high-level tools** rather than all CLI commands
 - Defaults to **safe behavior** (compose/reply/forward/edit → draft, not send)
 
 ### Tool Catalog
 
-The 37 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
+The 41 MCP tools are **curated** for AI agent use cases. Bulk admin operations (folder CRUD, identity management, bulk delete, etc.) are intentionally excluded — they belong in the CLI for explicit human control.
 
 | MCP Tool | Maps to CLI commands |
 |----------|---------------------|
@@ -1322,6 +1349,10 @@ The 37 MCP tools are **curated** for AI agent use cases. Bulk admin operations (
 | `calendar_event_update` | `tb calendar update` (requires `calendarWrite`) |
 | `calendar_event_delete` | `tb calendar delete` (requires `calendarWrite`) |
 | `calendar_clashes` | `tb calendar clashes` |
+| `skill_today` | `tb today` |
+| `skill_week` | `tb week` |
+| `skill_clashes` | `tb clashes` |
+| `skill_from` | `tb from` |
 | `task_list` | `tb tasks list` |
 | `task_create` | `tb tasks create` (requires `tasksWrite`) |
 | `task_update` | `tb tasks update` (requires `tasksWrite`) |
@@ -1339,7 +1370,7 @@ local notes workspace directly.
 
 ### Why fewer MCP tools than CLI commands?
 
-| | CLI (43 commands) | MCP (27 tools) |
+| | CLI (47 commands) | MCP (31 tools) |
 |---|---|---|
 | Audience | Humans + scripts | AI agents |
 | Discovery | `tb --help` | Tool descriptions in LLM context |

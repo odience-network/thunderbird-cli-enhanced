@@ -10,7 +10,7 @@ Four artifacts, one architecture. The three Node workspaces below are private an
 
 | Artifact | What | Where |
 |---|---|---|
-| `thunderbird-cli` | `tb` CLI (43 commands) | `cli/` → bin `tb` in `@odience-network/thunderbird-cli-enhanced` |
+| `thunderbird-cli` | `tb` CLI (47 commands) | `cli/` → bin `tb` in `@odience-network/thunderbird-cli-enhanced` |
 | `thunderbird-cli-bridge` | Stateless HTTP↔WS proxy daemon | `bridge/` → bin `tb-bridge` in `@odience-network/thunderbird-cli-enhanced` |
 | `thunderbird-cli-mcp` | MCP server (16 tools for Claude Desktop) | `mcp/` → bin `tb-mcp` in `@odience-network/thunderbird-cli-enhanced` |
 | Thunderbird WebExtension | WS client inside Thunderbird | `extension/` → Mozilla-signed (unlisted) XPI in `dist/releases/` |

@@ -16,6 +16,10 @@ import { dirname, join } from "path";
 import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 
+// skill_today/skill_week render dates/times using the local Date getters (see lib/skills.js),
+// so pin TZ for deterministic assertions regardless of the machine running the suite.
+process.env.TZ = "UTC";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MCP_SERVER = join(__dirname, "../mcp/src/server.js");
 const PORT = 19800;
@@ -400,7 +404,7 @@ await client.initialize();
 
 console.log("\x1b[1mProtocol\x1b[0m");
 const toolList = await client.listTools();
-test("tools/list returns 37 tools", toolList, (r) => Array.isArray(r) && r.length === 37);
+test("tools/list returns 41 tools", toolList, (r) => Array.isArray(r) && r.length === 41);
 test("each tool has name+description+inputSchema", toolList, (r) =>
   r.every((t) => t.name && t.description && t.inputSchema)
 );
@@ -687,6 +691,40 @@ test(
   (r) => Array.isArray(r.clashes) && r.clashes[0]?.events?.length === 2
 );
 
+console.log("\n\x1b[1mDeterministic skills\x1b[0m");
+// The MCP server subprocess picks up TZ=UTC from its env at spawn, but mutating
+// process.env.TZ mid-process here isn't reliably honored by this process's own Date
+// getters — so derive today's date from toISOString(), which is always UTC regardless.
+const todayStr = new Date().toISOString().slice(0, 10);
+test(
+  "skill_today returns pre-formatted markdown",
+  await client.callTool("skill_today", {}),
+  (r) => typeof r === "string" && r.startsWith(`# Today — ${todayStr}\n`) && r.includes("Standup") && r.includes("5 unread") && r.includes("1 flagged")
+);
+test(
+  // The mock's fixed event (2026-01-15) falls outside any 7-day window from "today", so this
+  // exercises the "no events this week" path rather than the event-rendering path (already
+  // covered exhaustively by test/skills.test.mjs's fixed-date snapshots).
+  "skill_week returns pre-formatted markdown",
+  await client.callTool("skill_week", {}),
+  (r) => typeof r === "string" && r.startsWith(`# Week of ${todayStr}\n`) && r.includes("7 of 7 days free")
+);
+test(
+  "skill_clashes returns pre-formatted markdown",
+  await client.callTool("skill_clashes", {}),
+  (r) => typeof r === "string" && r.startsWith("# Clashes — ") && r.includes("Standup") && r.includes("Overlap")
+);
+test(
+  "skill_from returns pre-formatted markdown",
+  await client.callTool("skill_from", { address: "a@b.com" }),
+  (r) => typeof r === "string" && r.startsWith("# Mail from a@b.com (1 message, 1 thread)\n") && r.includes("Test")
+);
+test(
+  "skill_from requires address",
+  await client.callTool("skill_from", {}),
+  (r) => r.error === "address required"
+);
+
 console.log("\n\x1b[1mNotes\x1b[0m");
 test(
   "note_list starts empty",
@@ -802,7 +840,7 @@ const toolsB = await clientB.listTools();
 test(
   "concurrent MCP server instances initialize and list tools",
   { toolsACount: toolsA.length, toolsBCount: toolsB.length },
-  (r) => r.toolsACount === 37 && r.toolsBCount === 37
+  (r) => r.toolsACount === 41 && r.toolsBCount === 41
 );
 clientA.close();
 clientB.close();

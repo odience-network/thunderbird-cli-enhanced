@@ -76,6 +76,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     const result = await tool.handler(args || {}, api);
+    // Deterministic "skill" tools (skill_today, skill_week, ...) hand back pre-formatted
+    // Markdown meant to be read as-is, not re-serialized as a JSON string — that's the whole
+    // point of a zero-LLM-reasoning tool (ODIAA-2332).
+    if (result && typeof result.markdown === "string" && Object.keys(result).length === 1) {
+      return { content: [{ type: "text", text: result.markdown }] };
+    }
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
