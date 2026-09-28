@@ -1,6 +1,6 @@
 {
   "name": "thunderbird-cli",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "private": true,
   "description": "Low-level CLI to manage Mozilla Thunderbird email from the shell. 41 commands for search, read, compose, reply, edit drafts, attachments, folders, bulk ops. Designed for AI agents.",
   "type": "module",

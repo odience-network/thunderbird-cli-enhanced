@@ -1,7 +1,7 @@
 {
   "name": "@odience-network/thunderbird-cli-enhanced",
   "mcpName": "io.github.odience-network/thunderbird-cli-enhanced",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Thunderbird email for AI agents: the tb CLI, the tb-bridge daemon and the tb-mcp MCP server in one package. Enhanced fork of thunderbird-cli by Vitalii Ionov.",
   "type": "module",
   "workspaces": [

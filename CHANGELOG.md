@@ -7,12 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-09-28
+
+Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN finishes its manual review of 2.4.0 (required for Experiment APIs), this release attaches the signed 2.1.0 XPI plus an unsigned 2.4.0 build. The email, contacts and notes commands work with either.
+
+### Security
+- New `calendarWrite` and `tasksWrite` access switches, both default `false` and failing closed, gate every calendar-event and task write. See [docs/ACCESS-CONTROL.md](docs/ACCESS-CONTROL.md).
+
 ### Added
-- Read-only `tb calendars` / `calendar_list` / `GET /calendars`, backed by a vendored `calendar_calendars` Experiment API. See [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md).
+- Calendars and events: `tb calendar list|events|create|update|delete|clashes` and MCP `calendar_list`/`calendar_events`/`calendar_event_create`/`calendar_event_update`/`calendar_event_delete`/`calendar_clashes`, backed by vendored `calendar_calendars` and events-only `calendar_items` Experiment APIs (see [docs/decisions/calendar-backend.md](docs/decisions/calendar-backend.md)). Clash detection across calendars is a pure function (`extension/src/calendar-clash.js`). Writes are gated by `calendarWrite`. (ODIAA-2328)
+- Tasks: `tb tasks list|create|update` and MCP `task_list`/`task_create`/`task_update` through a vendored `calendar_tasks` Experiment API, with writes gated by `tasksWrite`. `tb action-items <messageId>` turns an email body into a Markdown checklist with a deterministic (no LLM) extractor. (ODIAA-2329)
+- Deterministic skills: `tb today`/`week`/`clashes`/`from` and MCP `skill_today`/`skill_week`/`skill_clashes`/`skill_from` render compact Markdown from existing read-only endpoints; CLI and MCP output are byte-identical. (ODIAA-2332)
 - Fast Actions: one-click Email → Note / Task / Event / Contact (`tb email-to-note`/`email-to-task`/`email-to-event`/`email-to-contact`, matching MCP tools, and context-menu items in Thunderbird's message list/display). `email-to-event` uses a new deterministic (no LLM) date/time/location parser (`extension/src/email-event-parse.js`) and falls back to a tentative draft event when it can't detect one. `email-to-contact` dedupes by sender email. Two new ungated routes (`GET /addressbooks`, `POST /messages/:id/event-draft`); no new access switch — writes are gated by the existing `tasksWrite`/`calendarWrite`/`contactsWrite` switches. (ODIAA-2333)
+- **`tb notes transcribe <audioFile>`** / MCP `note_transcribe` — voice memo transcription into
+  Notes. Local-first: at runtime it detects a locally-installed speech-to-text engine —
+  [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli` on PATH, or
+  `TB_WHISPER_CPP_BIN`; needs a model via `--model`/`TB_WHISPER_CPP_MODEL`) or
+  [faster-whisper](https://github.com/SYSTRAN/faster-whisper)'s `whisper-ctranslate2` CLI wrapper
+  (on PATH, or `TB_FASTER_WHISPER_BIN`) — and shells out to it; no audio or text ever leaves the
+  machine, and no API key is read. Absence of either engine is a clean `NO_ENGINE` error with
+  install hints, not a stack trace. The transcript is saved as a note with the source audio
+  filename and engine used recorded in front matter (`source`, `engine`). No cloud STT provider
+  is implemented — that's a separate vendor/stack decision requiring its own sign-off before any
+  network path ships (see the ODIAA-2331 PR for the option A vs B trade-off). Tested against a
+  stubbed engine (`test/fixtures/stub-*.mjs`). (ODIAA-2331)
 
 ### Changed
-- Extension 2.2.0 declares `strict_max_version: "155.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.
+- Extension 2.4.0 declares `strict_max_version: "155.*"`. ATN requires a max version for any add-on with Experiment APIs, so each new Thunderbird major needs a manifest bump and re-signing. Signing also waits for ATN's manual review.
+- Release and sign-xpi workflows build on Node 22 (was Node 20, past end of life). The package still declares `engines.node >= 18`.
 
 ## [1.2.1] — 2026-09-27
 
@@ -55,18 +77,6 @@ First release of the fork on npm as `@odience-network/thunderbird-cli-enhanced`.
   actively maintained) and sanitizes with
   [`sanitize-html`](https://www.npmjs.com/package/sanitize-html) (parser-driven, not regex-based)
   before the HTML ever reaches an email draft.
-- **`tb notes transcribe <audioFile>`** / MCP `note_transcribe` — voice memo transcription into
-  Notes. Local-first: at runtime it detects a locally-installed speech-to-text engine —
-  [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`whisper-cli` on PATH, or
-  `TB_WHISPER_CPP_BIN`; needs a model via `--model`/`TB_WHISPER_CPP_MODEL`) or
-  [faster-whisper](https://github.com/SYSTRAN/faster-whisper)'s `whisper-ctranslate2` CLI wrapper
-  (on PATH, or `TB_FASTER_WHISPER_BIN`) — and shells out to it; no audio or text ever leaves the
-  machine, and no API key is read. Absence of either engine is a clean `NO_ENGINE` error with
-  install hints, not a stack trace. The transcript is saved as a note with the source audio
-  filename and engine used recorded in front matter (`source`, `engine`). No cloud STT provider
-  is implemented — that's a separate vendor/stack decision requiring its own sign-off before any
-  network path ships (see the ODIAA-2331 PR for the option A vs B trade-off). Tested against a
-  stubbed engine (`test/fixtures/stub-*.mjs`).
 - `--from <identityId>` on `tb forward` (`from` on MCP `email_forward`); `--from` on reply/forward may now name an identity from any account (unknown identities are still rejected).
 - `--subject <text>` on `tb reply` (`subject` on MCP `email_reply`).
 - `npm run test:draft` — draft-routing regression suite (identity resolution, cross-account `--from`, Gmail dual-drafts warning, unconfirmed-save errors, reply subject/quote/HTML handling), also part of `test:extension`.
