@@ -160,6 +160,11 @@ function handle({ method, path, body }) {
       previousMessageId: body.messageId,
     };
   }
+  if (path === "/identities" && method === "GET")
+    return [
+      { id: "id1", email: "me@example.com", name: "Me", accountId: "acct1" },
+      { id: "id2", email: "Work@Example.org", name: "Me (work)", accountId: "acct2" },
+    ];
   if (path === "/reply") return {
     success: true,
     action: body?.send ? "sent" : "draft_saved",
@@ -534,6 +539,16 @@ test(
   "email_reply explicit identity",
   await client.callTool("email_reply", { messageId: 1, body: "Thanks", from: "id1" }),
   (r) => r.identityId === "id1"
+);
+test(
+  "email_reply from email address resolves to identity ID",
+  await client.callTool("email_reply", { messageId: 1, body: "Thanks", from: "work@example.org" }),
+  (r) => r.identityId === "id2"
+);
+test(
+  "email_reply from unknown address returns error without replying",
+  await client.callTool("email_reply", { messageId: 1, body: "Thanks", from: "nobody@example.com" }),
+  (r) => /No Thunderbird identity has the address nobody@example.com/.test(r.error) && /me@example.com/.test(r.error)
 );
 
 test(
