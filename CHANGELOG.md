@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- `tb attachment-download --all` now strips directory parts and unsafe characters from attachment names before writing, so a crafted name such as `../../.bashrc` can no longer write outside `--output-dir`. Unnamed attachments are saved as `attachment-<partName>`. Idea from DreatNU-oss/thunderbird-cli `651d9f1` (reimplemented, not copied).
+
 ## [1.3.0] — 2026-09-28
 
 Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN finishes its manual review of 2.4.0 (required for Experiment APIs), this release attaches the signed 2.1.0 XPI plus an unsigned 2.4.0 build. The email, contacts and notes commands work with either.

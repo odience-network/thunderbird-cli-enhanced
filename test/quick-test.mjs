@@ -7,6 +7,7 @@
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
+import { safeFileName } from "../cli/src/client.js";
 
 const PORT = 19700;
 const WS_PORT = 19701;
@@ -318,6 +319,16 @@ const liveWait = httpCall("GET", "/bridge/events?wait=test-event&since=0&timeout
 await new Promise(r => setTimeout(r, 200)); // ensure the waiter is registered before the push
 servers.mock.send(JSON.stringify({ type: "event", name: "test-event", data: { hello: "world" } }));
 test("GET /bridge/events?wait=test-event (live push)", await liveWait, r => r.event?.name === "test-event" && r.event?.data?.hello === "world");
+
+console.log("\n\x1b[1mAttachment file names\x1b[0m");
+test("safeFileName keeps a plain name", safeFileName("report.pdf"), r => r === "report.pdf");
+test("safeFileName strips ../ traversal", safeFileName("../../.bashrc"), r => r === ".bashrc");
+test("safeFileName strips absolute paths", safeFileName("/etc/cron.d/job"), r => r === "job");
+test("safeFileName strips Windows separators", safeFileName("..\\..\\evil.exe"), r => r === "evil.exe");
+test("safeFileName replaces control and reserved chars", safeFileName("a\x00b:c?.txt"), r => r === "a_b_c_.txt");
+test("safeFileName falls back on '..'", safeFileName("..", "attachment-1.2"), r => r === "attachment-1.2");
+test("safeFileName falls back on trailing separator", safeFileName("dir/", "attachment-1.2"), r => r === "attachment-1.2");
+test("safeFileName falls back on missing name", safeFileName(undefined, "attachment-1.2"), r => r === "attachment-1.2");
 
 console.log(`\n\x1b[1m${"─".repeat(40)}\x1b[0m`);
 console.log(`\x1b[1m${passed} passed, ${failed} failed, ${passed + failed} total\x1b[0m\n`);

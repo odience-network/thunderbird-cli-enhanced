@@ -229,6 +229,10 @@ tb attachment-download <messageId> <partName> --output <path>  # download one
 tb attachment-download <messageId> --all --output-dir <dir>    # download all
 ```
 
+With `--all`, each file is named after the attachment with any directory part and
+unsafe characters stripped, so a crafted name like `../../.bashrc` lands in `<dir>`
+(as `.bashrc`). Unnamed attachments are saved as `attachment-<partName>`.
+
 ## Fetch & Sync
 
 ```bash
