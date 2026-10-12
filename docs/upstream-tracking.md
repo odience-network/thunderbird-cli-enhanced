@@ -11,14 +11,14 @@ batched into one add-on version and one ATN manual review.
 
 ## Watermark
 
-Last run: **2026-10-05** (first run).
+Last run: **2026-10-12** (ODIAA-2491). Previous: 2026-10-05 (ODIAA-2402, first run).
 
 Upstream `vitalio-sh/thunderbird-cli` `main`: **`465613d`** (unchanged since our baseline, 2026-09-14).
 Other upstream heads: `fix/1.1.1` `27b8c70` (open PR #26), `integrate/open-prs` `c5e5d02`.
 Latest upstream release: `v1.1.0` (2026-09-14).
 
-Thunderbird: release 157.0.1, beta 158.0b2, ESR 140.17.0esr, next ESR 153.4.0esr. Our
-`strict_max_version` is `156.*` (see ODIAA-2403). webext-experiments `calendar/`: no commits since 2026-08-01.
+Thunderbird: release 157.0.1, beta 158.0b5, ESR 140.17.0esr, next ESR 153.4.0esr. Our
+`strict_max_version` is `156.*` (see ODIAA-2403). webext-experiments `calendar/`: latest commit is still `b7f7cb3` (our pin).
 
 Forks (13), last-seen head per branch with commits ahead of upstream `main`:
 
@@ -29,6 +29,7 @@ Forks (13), last-seen head per branch with commits ahead of upstream `main`:
 | bfg1981 | feat/reply-threading-identity-quoting | 1 | `56f9118` |
 | bfg1981 | feat/security-dependency-updates | 1 | `eb742b6` |
 | bfg1981 | fix/1.1.1 | 6 | `27b8c70` (= upstream PR #26) |
+| broadaxe | main | 6 | `e895b20` |
 | broadaxe | bridge-auth-hardening | 2 | `41ed108` |
 | ph-fritsch | fix/reply-identity-and-sort-pagination | 1 | `e399149` |
 | DreatNU-oss | meu | 15 | `5f25ddd` |
@@ -42,10 +43,10 @@ Forks (13), last-seen head per branch with commits ahead of upstream `main`:
 | KaiSingL | main | 29 | `0b3a5d7` |
 
 No unique commits: mikepage, FernDragonborn (Dependabot branches only), and the `main` of
-broadaxe, ph-fritsch, DreatNU-oss, jctots and marcreynolds. Dependabot branches on forks are
+ph-fritsch, DreatNU-oss, jctots and marcreynolds. Dependabot branches on forks are
 ignored, because our own `npm audit` covers dependencies.
 
-Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-10-05.
+Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-10-12 (only our own PRs #36, #37, #38).
 
 ## Triage ledger
 
@@ -95,6 +96,17 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | broadaxe | `636235a`, `41ed108` | Bearer auth, no CORS, WS origin check | already in main (stricter: timing-safe auth, CORS allowlist, Host check) |
 | marcreynolds | `43b5c17`, `dc4fa05` | Bridge transport hardening | already in main (PR #25 browser defense and bridge auth) |
 | Thunderbird | 157.0.1 release | Above our `strict_max_version` `156.*` | backlog ODIAA-2403 (extension batch, top item) |
+
+### 2026-10-12
+
+| Source | Ref | Summary | Decision |
+|---|---|---|---|
+| upstream | `main`, releases, issues, PRs | No change since 2026-10-05 (`main` `465613d`, last activity 2026-09-29) | nothing new |
+| upstream | PR #26 `dd95a6a` (`TIMEOUT` part) | Bridge timeouts come back as 500 with no code | adopted PR #38 (bridge-only, so moved out of ODIAA-2403) |
+| broadaxe | `1b07d17`…`e895b20` (6 commits) | Teams notifications, `fedtest.yml` workflow, `decode_jwt.sh` | rejected: personal CI, not product |
+| Thunderbird | 158.0b5 | 158 release due about 2026-10-27; ODIAA-2403 should target `158.*` or later | backlog ODIAA-2403 (comment added) |
+| static9/thunderbird-mcp | idea | Reply/forward quoting that Gmail collapses | deferred: `extension/` change, consider with the #29 reply work in ODIAA-2403 |
+| emercons/thundersend-mcp | idea | Compose-only server (least privilege) | already in main (access switches; `contactsWrite`, `calendarWrite`, `tasksWrite`, `delete`, `folderDelete` default off) |
 
 ### Ideas from similar projects (ideas only, no code read)
 
