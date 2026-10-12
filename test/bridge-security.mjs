@@ -190,6 +190,40 @@ await withBridge({ TB_BRIDGE_WS_HEARTBEAT_MS: "150" }, async () => {
   test("unresponsive socket is terminated", await extensionStatus(), "disconnected");
 });
 
+// ─── Error codes ────────────────────────────────────────────────────
+
+console.log("\n\x1b[1mError codes\x1b[0m");
+await withBridge({}, async () => {
+  const none = await http("POST", "/messages/search", { body: "{}" });
+  test("no extension → 503", none.status, 503);
+  test("no extension → EXTENSION_DISCONNECTED", none.json?.code, "EXTENSION_DISCONNECTED");
+
+  // A fake extension that never answers, so the bridge's own timer fires.
+  const silent = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
+  await new Promise((r) => silent.on("open", r));
+  const slow = await http("POST", "/messages/search", { headers: { "X-TB-Timeout": "200" }, body: "{}" });
+  test("extension timeout → 504", slow.status, 504);
+  test("extension timeout → TIMEOUT", slow.json?.code, "TIMEOUT");
+  silent.close();
+  await sleep(100);
+
+  // A fake extension that fails every request, with and without its own code.
+  const failing = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
+  failing.on("message", (d) => {
+    const msg = JSON.parse(d.toString());
+    const error = msg.path === "/denied" ? { message: "denied", code: "FORBIDDEN" } : { message: "boom" };
+    failing.send(JSON.stringify({ id: msg.id, error }));
+  });
+  await new Promise((r) => failing.on("open", r));
+  const boom = await http("POST", "/messages/search", { body: "{}" });
+  test("uncoded extension error → 500", boom.status, 500);
+  test("uncoded extension error → THUNDERBIRD_ERROR", boom.json?.code, "THUNDERBIRD_ERROR");
+  const denied = await http("GET", "/denied");
+  test("extension FORBIDDEN → 403", denied.status, 403);
+  test("extension FORBIDDEN code kept", denied.json?.code, "FORBIDDEN");
+  failing.close();
+});
+
 // ─── Startup: port already taken ────────────────────────────────────
 
 console.log("\n\x1b[1mPort in use\x1b[0m");

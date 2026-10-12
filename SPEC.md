@@ -824,13 +824,13 @@ covered by it.
 | Code | Meaning |
 |------|---------|
 | `BRIDGE_UNREACHABLE` | Bridge is not running |
-| `EXTENSION_DISCONNECTED` | Thunderbird extension not connected to bridge |
+| `EXTENSION_DISCONNECTED` | Thunderbird extension not connected to bridge (HTTP 503) |
 | `AUTH_REQUIRED` | Bridge requires `TB_AUTH_TOKEN`; the request had none or the wrong one |
 | `FORBIDDEN` | Bridge refused a browser `Origin` or non-local `Host` header (see `TB_BRIDGE_CORS_ORIGINS`, `TB_BRIDGE_ALLOWED_HOSTS`) |
-| `TIMEOUT` | Request to extension timed out (30s) |
+| `TIMEOUT` | Request to extension timed out (HTTP 504; default 120s, `TB_BRIDGE_TIMEOUT` / `X-TB-Timeout`). The outcome is unknown: the extension may still complete it |
 | `NOT_FOUND` | Message/folder/account not found |
 | `INVALID_ARGS` | Bad CLI arguments |
-| `THUNDERBIRD_ERROR` | Error from Thunderbird messenger API |
+| `THUNDERBIRD_ERROR` | Error from Thunderbird messenger API (HTTP 500; the bridge's default when the extension gives no code) |
 | `EVENT_TIMEOUT` | No matching bridge event arrived before the wait timeout |
 | `RECONNECT_TIMEOUT` | Extension did not reconnect after `tb extension-reload` |
 
