@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The bridge now names every forwarded failure: a request the extension didn't answer in time returns HTTP 504 `TIMEOUT` (it used to be a 500 with no code, which clients reported as `THUNDERBIRD_ERROR`), a missing extension returns 503 `EXTENSION_DISCONNECTED`, and an extension error without its own code returns 500 `THUNDERBIRD_ERROR`. Agents can now tell "timed out, outcome unknown" apart from a real Thunderbird error. Idea from vitalio-sh/thunderbird-cli#26 / dd95a6a, reimplemented.
+
 ## [1.3.0] — 2026-09-28
 
 Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN finishes its manual review of 2.4.0 (required for Experiment APIs), this release attaches the signed 2.1.0 XPI plus an unsigned 2.4.0 build. The email, contacts and notes commands work with either.

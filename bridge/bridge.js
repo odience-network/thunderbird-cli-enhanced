@@ -228,13 +228,15 @@ export async function startBridge(opts = {}) {
   function forwardToExtension(method, path, body, timeoutMs = DEFAULT_TIMEOUT) {
     return new Promise((resolve, reject) => {
       if (!extensionSocket || extensionSocket.readyState !== 1) {
-        reject({ message: "Thunderbird extension not connected. Is Thunderbird running?" });
+        reject({ message: "Thunderbird extension not connected. Is Thunderbird running?", code: "EXTENSION_DISCONNECTED" });
         return;
       }
       const id = randomUUID();
+      // A timeout means the outcome is unknown (the extension may still finish the request), so
+      // it gets its own code rather than looking like a Thunderbird error or an empty result.
       const timer = setTimeout(() => {
         pending.delete(id);
-        reject({ message: `Request timed out (${Math.round(timeoutMs / 1000)}s)` });
+        reject({ message: `Request timed out (${Math.round(timeoutMs / 1000)}s)`, code: "TIMEOUT" });
       }, timeoutMs);
       pending.set(id, { resolve, reject, timer });
       extensionSocket.send(JSON.stringify({ id, method, path, body }));
@@ -383,9 +385,11 @@ export async function startBridge(opts = {}) {
       res.writeHead(200);
       res.end(JSON.stringify(result));
     } catch (err) {
-      const status = err.code === "FORBIDDEN" ? 403 : err.message?.includes("not connected") ? 503 : 500;
+      // Always name the failure so clients don't have to guess from the status code.
+      const code = err.code || "THUNDERBIRD_ERROR";
+      const status = { FORBIDDEN: 403, EXTENSION_DISCONNECTED: 503, TIMEOUT: 504 }[code] || 500;
       res.writeHead(status);
-      res.end(JSON.stringify({ error: err.message || "Unknown error", code: err.code }));
+      res.end(JSON.stringify({ error: err.message || "Unknown error", code }));
     }
   });
 
