@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- Refresh the lockfile to clear every `npm audit` finding. These are transitive dependencies of `@modelcontextprotocol/sdk` (1.29.0 → 1.32.1, GHSA-6qxp-vccf-f47h) and `sanitize-html`: `proxy-addr` 2.0.8 (critical, GHSA-jqcg-44mw-7w3h), `ip-address` 10.7.4 (GHSA-j6r3-76f7-8jcv, GHSA-h3mg-xc3c-68pw), `fast-uri` 3.1.8 (GHSA-hrr3-gc8f-f4qj) and `source-map-js` 1.2.2 (GHSA-68fv-2mgg-jv7q). Only `package-lock.json` changes; the `package.json` ranges stay as they are. (Upstream has the same `proxy-addr` bump open as vitalio-sh/thunderbird-cli#31.)
+
 ## [1.3.0] — 2026-09-28
 
 Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN finishes its manual review of 2.4.0 (required for Experiment APIs), this release attaches the signed 2.1.0 XPI plus an unsigned 2.4.0 build. The email, contacts and notes commands work with either.
