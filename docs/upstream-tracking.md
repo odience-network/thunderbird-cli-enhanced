@@ -11,17 +11,18 @@ batched into one add-on version and one ATN manual review.
 
 ## Watermark
 
-Last run: **2026-10-19** (ODIAA-2541). Previous: 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
+Last run: **2026-10-26** (ODIAA-2614). Previous: 2026-10-19 (ODIAA-2541), 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
 
 Upstream `vitalio-sh/thunderbird-cli` `main`: **`465613d`** (unchanged since our baseline, 2026-09-14).
 Other upstream heads: `fix/1.1.1` `27b8c70` (open PR #26), `integrate/open-prs` `c5e5d02`,
-`dependabot/npm_and_yarn/proxy-addr-2.0.8` `0467f53` (open PR #31).
+`dependabot/npm_and_yarn/proxy-addr-2.0.8` `0467f53` (open PR #31),
+`dependabot/npm_and_yarn/modelcontextprotocol/sdk-1.32.0` `ca02f56` (open PR #32).
 Latest upstream release: `v1.1.0` (2026-09-14).
 
-Thunderbird: release 158.0, beta 159.0b2, ESR 153.5.0esr (140 ESR no longer listed). Our
+Thunderbird: release 158.0.1, beta 159.0b5, ESR 153.5.1esr. Our
 `strict_max_version` is `156.*` (see ODIAA-2403). webext-experiments `calendar/`: latest commit is still `b7f7cb3` (our pin).
 
-Forks (13), last-seen head per branch with commits ahead of upstream `main`:
+Forks (14), last-seen head per branch with commits ahead of upstream `main`:
 
 | Fork | Branch | Ahead | Last-seen SHA |
 |---|---|---|---|
@@ -43,11 +44,11 @@ Forks (13), last-seen head per branch with commits ahead of upstream `main`:
 | marcreynolds | security/bridge-hardening | 2 | `43b5c17` |
 | KaiSingL | main | 29 | `0b3a5d7` |
 
-No unique commits: mikepage, FernDragonborn (Dependabot branches only), and the `main` of
-ph-fritsch, DreatNU-oss, jctots and marcreynolds. Dependabot branches on forks are
+No unique commits: mikepage, FernDragonborn (Dependabot branches only), stutiredboy (new
+2026-10-20, `main` = upstream `465613d`), and the `main` of ph-fritsch, DreatNU-oss, jctots and marcreynolds. Dependabot branches on forks are
 ignored, because our own `npm audit` covers dependencies.
 
-Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-10-19 (only our own PRs #36–#39).
+Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-10-26 (only our own PRs #36–#39).
 
 ## Triage ledger
 
@@ -119,6 +120,18 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | other forks | — | No push since 2026-10-12 | nothing new |
 | Thunderbird | 158.0 release, ESR 153.5.0esr | 158 shipped; ESR 140 is no longer listed | backlog ODIAA-2403 (comment: target `158.*` or later) |
 
+### 2026-10-26
+
+| Source | Ref | Summary | Decision |
+|---|---|---|---|
+| upstream | `main`, releases, issues | No change since 2026-10-19 (`main` `465613d`) | nothing new |
+| upstream | PR #32 `ca02f56` (Dependabot) | `@modelcontextprotocol/sdk` 1.29.0 → 1.32.0 | already covered: PR #39 moves our lockfile to 1.32.1 |
+| `npm audit` | new advisories | `sanitize-html` XSS bypasses (direct dependency; sanitises note HTML), `body-parser` (high), `fast-uri`, `hono` | adopted PR #39 (second lockfile refresh, `8f06b14`) |
+| stutiredboy | `main` | New fork (2026-10-20), no commits ahead | nothing new |
+| other forks | — | No push since 2026-10-19 | nothing new |
+| TKasperczyk/thunderbird-mcp | v0.9.3, GHSA-85q9-f237-654v | Attachment reads followed `X-Mozilla-External-Attachment-URL` to local files or URLs | backlog ODIAA-2615 (live check; fix goes in the ODIAA-2403 batch) |
+| Thunderbird | 158.0.1, ESR 153.5.1esr | Point releases; webext-experiments `calendar/` still `b7f7cb3` | backlog ODIAA-2403 (target `158.*` or later, unchanged) |
+
 ### Ideas from similar projects (ideas only, no code read)
 
 | Project | Idea | Decision |
@@ -129,3 +142,6 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | localai-org/thunderbird-mcp | A few grouped MCP tools (`thunderbird_mail`, `_contacts`, `_calendar`) with an action argument instead of one tool per operation, so the tool list costs less context | deferred: would change our 42-tool MCP contract; consider an opt-in grouped mode |
 | commonpost/thunderbird-mcp | Read OpenPGP-encrypted messages through the add-on | deferred: `extension/` + security-sensitive; needs a design and an access switch |
 | yuhang2551/thunderbird-mail-agent | Triage digest that only counts low-priority mail instead of listing it | deferred: candidate for a deterministic skill next to `tb today` |
+| TKasperczyk/thunderbird-mcp (v0.10.0) | Dry-run compose: report what a send would do (identity, recipients including automatic Cc/Bcc, attachments, size) without sending | deferred: candidate for a `tb send --dry-run` / MCP flag; touches `extension/`, so next extension batch |
+| TKasperczyk/thunderbird-mcp (v0.10.0) | Ask Thunderbird to sync an IMAP/Exchange folder or a calendar and wait for the result | deferred: new feature under `extension/` |
+| TKasperczyk/thunderbird-mcp (v0.10.0) | Scheduled sending of drafts through the Send Later add-on | deferred: depends on a third-party add-on; new feature |
