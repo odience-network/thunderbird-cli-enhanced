@@ -30,6 +30,25 @@ function calendarErrorOf(result) {
   return !Array.isArray(result) && result?.error ? result.error : null;
 }
 
+// `from` takes a Thunderbird identity ID ("id2") or that identity's email address. No tool
+// lists identity IDs, so agents naturally pass the address; resolve it via GET /identities.
+async function setIdentity(payload, from, api) {
+  if (!from) return null;
+  if (!from.includes("@")) {
+    payload.identityId = from;
+    return null;
+  }
+  const wanted = from.trim().toLowerCase();
+  const identities = await api("GET", "/identities");
+  const match = Array.isArray(identities) && identities.find((i) => i.email?.toLowerCase() === wanted);
+  if (!match) {
+    const known = Array.isArray(identities) ? identities.map((i) => i.email).filter(Boolean).join(", ") : "";
+    return { error: `No Thunderbird identity has the address ${from}${known ? ` (known: ${known})` : ""}` };
+  }
+  payload.identityId = match.id;
+  return null;
+}
+
 export const tools = [
   // ─── 0. Calendar list (ODIAA-2327 proof, read-only) ─────────────
   {
@@ -269,7 +288,7 @@ export const tools = [
         from: {
           type: "string",
           description:
-            "Identity ID to send from (use email_identities-equivalent or check email_stats for accounts)",
+            "Thunderbird identity ID (e.g. id2) or the identity's email address to send from",
         },
         priority: {
           type: "string",
@@ -293,7 +312,8 @@ export const tools = [
       };
       if (args.cc) payload.cc = args.cc;
       if (args.bcc) payload.bcc = args.bcc;
-      if (args.from) payload.identityId = args.from;
+      const identityError = await setIdentity(payload, args.from, api);
+      if (identityError) return identityError;
       if (args.priority) payload.priority = args.priority;
       const mode = args.mode || "draft";
       if (mode === "send") payload.send = true;
@@ -314,7 +334,7 @@ export const tools = [
         messageId: { type: "number", description: "Message ID to reply to" },
         body: { type: "string", description: "Reply body" },
         replyAll: { type: "boolean", description: "Reply to all recipients" },
-        from: { type: "string", description: "Thunderbird identity ID to reply from (default: inferred from the message account)" },
+        from: { type: "string", description: "Thunderbird identity ID or email address to reply from (default: inferred from the message account)" },
         subject: { type: "string", description: "Override the subject (default: Thunderbird's, Re:-prefixed)" },
         includeHistory: { type: "boolean", description: "Append the earlier thread as quoted conversation history (default: true)" },
         mode: {
@@ -332,7 +352,8 @@ export const tools = [
         replyAll: args.replyAll || false,
         includeHistory: args.includeHistory !== false,
       };
-      if (args.from) payload.identityId = args.from;
+      const identityError = await setIdentity(payload, args.from, api);
+      if (identityError) return identityError;
       if (args.subject) payload.subject = args.subject;
       const mode = args.mode || "draft";
       if (mode === "send") payload.send = true;
@@ -353,7 +374,7 @@ export const tools = [
         messageId: { type: "number", description: "Message ID to forward" },
         to: { type: "string", description: "Recipient address" },
         body: { type: "string", description: "Optional additional text" },
-        from: { type: "string", description: "Thunderbird identity ID to forward from (default: inferred from the message account)" },
+        from: { type: "string", description: "Thunderbird identity ID or email address to forward from (default: inferred from the message account)" },
         includeHistory: { type: "boolean", description: "Append the earlier thread as quoted conversation history (default: true)" },
         mode: {
           type: "string",
@@ -370,7 +391,8 @@ export const tools = [
         body: args.body || "",
         includeHistory: args.includeHistory !== false,
       };
-      if (args.from) payload.identityId = args.from;
+      const identityError = await setIdentity(payload, args.from, api);
+      if (identityError) return identityError;
       const mode = args.mode || "draft";
       if (mode === "send") payload.send = true;
       else if (mode === "open") payload.open = true;
@@ -406,7 +428,7 @@ export const tools = [
         },
         from: {
           type: "string",
-          description: "Identity ID to send from",
+          description: "Thunderbird identity ID or email address to send from",
         },
         priority: {
           type: "string",
@@ -431,7 +453,8 @@ export const tools = [
         payload.body = args.body;
         payload.isHTML = args.html || false;
       }
-      if (args.from) payload.identityId = args.from;
+      const identityError = await setIdentity(payload, args.from, api);
+      if (identityError) return identityError;
       if (args.priority) payload.priority = args.priority;
 
       const mode = args.mode || "draft";
@@ -835,7 +858,7 @@ export const tools = [
         cc: { type: "string", description: "CC recipients" },
         bcc: { type: "string", description: "BCC recipients" },
         subject: { type: "string", description: "Subject line (defaults to the note's title)" },
-        from: { type: "string", description: "Identity ID to send from" },
+        from: { type: "string", description: "Thunderbird identity ID or email address to send from" },
         mode: {
           type: "string",
           enum: ["draft", "open"],
@@ -855,7 +878,8 @@ export const tools = [
       };
       if (args.cc) payload.cc = args.cc;
       if (args.bcc) payload.bcc = args.bcc;
-      if (args.from) payload.identityId = args.from;
+      const identityError = await setIdentity(payload, args.from, api);
+      if (identityError) return identityError;
       if (args.mode === "open") payload.open = true;
       else payload.draft = true;
       return await api("POST", "/compose", payload);

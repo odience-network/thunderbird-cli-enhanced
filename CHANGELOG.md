@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- MCP `email_compose`, `email_reply`, `email_forward`, `email_edit` and `note_to_draft` now accept the sender identity's email address in `from` as well as its identity ID. No MCP tool lists identity IDs, so agents passed the address and got `Identity not found`. The address is resolved through `GET /identities`. An unknown address returns an error listing the known addresses instead of silently using the default identity. Idea from vitalio-sh/thunderbird-cli#30.
+
+### Docs
+- `docs/upstream-tracking.md`: watermark and triage ledger for the weekly upstream & forks scan (ODIAA-2402).
+
 ## [1.3.0] — 2026-09-28
 
 Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN finishes its manual review of 2.4.0 (required for Experiment APIs), this release attaches the signed 2.1.0 XPI plus an unsigned 2.4.0 build. The email, contacts and notes commands work with either.
