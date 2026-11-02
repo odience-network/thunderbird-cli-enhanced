@@ -11,18 +11,20 @@ batched into one add-on version and one ATN manual review.
 
 ## Watermark
 
-Last run: **2026-10-26** (ODIAA-2614). Previous: 2026-10-19 (ODIAA-2541), 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
+Last run: **2026-11-02** (ODIAA-2682). Previous: 2026-10-26 (ODIAA-2614), 2026-10-19 (ODIAA-2541), 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
 
 Upstream `vitalio-sh/thunderbird-cli` `main`: **`465613d`** (unchanged since our baseline, 2026-09-14).
 Other upstream heads: `fix/1.1.1` `27b8c70` (open PR #26), `integrate/open-prs` `c5e5d02`,
 `dependabot/npm_and_yarn/proxy-addr-2.0.8` `0467f53` (open PR #31),
-`dependabot/npm_and_yarn/modelcontextprotocol/sdk-1.32.0` `ca02f56` (open PR #32).
+`dependabot/npm_and_yarn/modelcontextprotocol/sdk-1.32.0` `ca02f56` (open PR #32),
+`dependabot/npm_and_yarn/fast-uri-3.1.9` `e8d9ee4` (PR #33), `dependabot/npm_and_yarn/ip-address-10.7.5` `bc033e5` (PR #34),
+`dependabot/npm_and_yarn/body-parser-2.4.0` `aa4a156` (PR #35).
 Latest upstream release: `v1.1.0` (2026-09-14).
 
-Thunderbird: release 158.0.1, beta 159.0b5, ESR 153.5.1esr. Our
+Thunderbird: release 159.0, beta 160.0b2, ESR 153.6.0esr. Our
 `strict_max_version` is `156.*` (see ODIAA-2403). webext-experiments `calendar/`: latest commit is still `b7f7cb3` (our pin).
 
-Forks (14), last-seen head per branch with commits ahead of upstream `main`:
+Forks (16), last-seen head per branch with commits ahead of upstream `main`:
 
 | Fork | Branch | Ahead | Last-seen SHA |
 |---|---|---|---|
@@ -43,12 +45,13 @@ Forks (14), last-seen head per branch with commits ahead of upstream `main`:
 | dboeckenhoff | feat/compose-attachments | 6 | `b784183` |
 | marcreynolds | security/bridge-hardening | 2 | `43b5c17` |
 | KaiSingL | main | 29 | `0b3a5d7` |
+| helios57 | main, hardening | 16 | `75c6a6c` (first 6 = upstream PR #26) |
 
 No unique commits: mikepage, FernDragonborn (Dependabot branches only), stutiredboy (new
 2026-10-20, `main` = upstream `465613d`), and the `main` of ph-fritsch, DreatNU-oss, jctots and marcreynolds. Dependabot branches on forks are
 ignored, because our own `npm audit` covers dependencies.
 
-Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-10-26 (only our own PRs #36–#39).
+Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-11-02 (only our own PRs #36–#39).
 
 ## Triage ledger
 
@@ -132,6 +135,26 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | TKasperczyk/thunderbird-mcp | v0.9.3, GHSA-85q9-f237-654v | Attachment reads followed `X-Mozilla-External-Attachment-URL` to local files or URLs | backlog ODIAA-2615 (live check; fix goes in the ODIAA-2403 batch) |
 | Thunderbird | 158.0.1, ESR 153.5.1esr | Point releases; webext-experiments `calendar/` still `b7f7cb3` | backlog ODIAA-2403 (target `158.*` or later, unchanged) |
 
+### 2026-11-02
+
+| Source | Ref | Summary | Decision |
+|---|---|---|---|
+| upstream | `main`, releases, issues | No change since 2026-10-26 (`main` `465613d`) | nothing new |
+| upstream | PRs #33–#35 (Dependabot) | `fast-uri` 3.1.9, `body-parser` 2.4.0, `ip-address` 10.7.5 | already covered: PR #39 has `fast-uri` 3.1.9 and `body-parser` 2.4.0; `ip-address` 10.7.4 has no open advisory |
+| `npm audit` | GHSA-rmxm-3fg6-px4f | `@hono/node-server` (moderate, transitive via the MCP SDK) | adopted PR #39 (third lockfile refresh, `bd27d42`) |
+| helios57 | `7c4661a` (part) | In-flight requests wait for the full timeout when the extension disconnects | adopted PR #38 (`6d39a1b`) |
+| helios57 | `7c4661a` (part) | Request body cap; bridge reads its token from `config.json` | backlog ODIAA-2404 (comment) |
+| helios57 | `7c4661a` (part) | Bridge-level `read`/`draft`/`organize`/`full` policy | rejected: our add-on enforces 16 finer switches; a second coarse policy would duplicate it |
+| helios57 | `75c6a6c` | `Connection: keep-alive` so Windows `Connection: close` clients don't get a reset mid-response | deferred: not reproduced; noted on ODIAA-2404 for a Windows check |
+| helios57 | `ff7d4ef` | Newest-first date-sliced search; native sorted `messages.list` | backlog ODIAA-2403 (comment, item 3) |
+| helios57 | `d4746e5` | MCP `email_identities`/`email_recent`, tool annotations, HTML as text, download to file | backlog ODIAA-2683 |
+| helios57 | `bb7791b`, `99ba773`, `7ba1962` | Partial search results within the time budget; cancel abandoned work | backlog ODIAA-2684 (extension batch) |
+| helios57 | `bb8d2f2` | Collapse Gmail per-label copies of one message | backlog ODIAA-2685 (extension batch) |
+| helios57 | `185481a` | Windows PowerShell setup, German guide | deferred: Windows setup script is a candidate; German guide rejected (we have no translated docs to keep in step) |
+| helios57 | `7fb07cf`…`27b8c70` | Same commits as upstream PR #26 | already triaged (2026-10-05) |
+| other forks | — | No push since 2026-10-26 | nothing new |
+| Thunderbird | 159.0 release, ESR 153.6.0esr | Above our `strict_max_version` `156.*`; webext-experiments `calendar/` still `b7f7cb3` | backlog ODIAA-2403 (comment: target `159.*` or later) |
+
 ### Ideas from similar projects (ideas only, no code read)
 
 | Project | Idea | Decision |
@@ -145,3 +168,5 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | TKasperczyk/thunderbird-mcp (v0.10.0) | Dry-run compose: report what a send would do (identity, recipients including automatic Cc/Bcc, attachments, size) without sending | deferred: candidate for a `tb send --dry-run` / MCP flag; touches `extension/`, so next extension batch |
 | TKasperczyk/thunderbird-mcp (v0.10.0) | Ask Thunderbird to sync an IMAP/Exchange folder or a calendar and wait for the result | deferred: new feature under `extension/` |
 | TKasperczyk/thunderbird-mcp (v0.10.0) | Scheduled sending of drafts through the Send Later add-on | deferred: depends on a third-party add-on; new feature |
+| TKasperczyk/thunderbird-mcp (v0.9.3) | Refuse credential and profile files as attachments | backlog ODIAA-2407 (comment) |
+| localai-org/thunderbird-mcp | Serve MCP over Streamable HTTP with a bearer token, for remote clients | deferred: would widen the attack surface; only with a design and an access switch |
