@@ -434,7 +434,7 @@ Config file: `~/.config/thunderbird-cli/config.json`
 |------|---------|
 | `BRIDGE_UNREACHABLE` | Bridge is not running |
 | `EXTENSION_DISCONNECTED` | Thunderbird extension not connected |
-| `TIMEOUT` | Request timed out (30s default) |
+| `TIMEOUT` | Request timed out (120s default); the outcome is unknown, not empty |
 | `NOT_FOUND` | Message/folder/account not found |
 | `INVALID_ARGS` | Bad arguments or missing `--confirm` |
 | `THUNDERBIRD_ERROR` | Error from Thunderbird messenger API |
