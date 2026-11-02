@@ -824,7 +824,7 @@ covered by it.
 | Code | Meaning |
 |------|---------|
 | `BRIDGE_UNREACHABLE` | Bridge is not running |
-| `EXTENSION_DISCONNECTED` | Thunderbird extension not connected to bridge (HTTP 503) |
+| `EXTENSION_DISCONNECTED` | Thunderbird extension not connected to bridge, or it disconnected before answering (HTTP 503; in the second case the outcome is unknown) |
 | `AUTH_REQUIRED` | Bridge requires `TB_AUTH_TOKEN`; the request had none or the wrong one |
 | `FORBIDDEN` | Bridge refused a browser `Origin` or non-local `Host` header (see `TB_BRIDGE_CORS_ORIGINS`, `TB_BRIDGE_ALLOWED_HOSTS`) |
 | `TIMEOUT` | Request to extension timed out (HTTP 504; default 120s, `TB_BRIDGE_TIMEOUT` / `X-TB-Timeout`). The outcome is unknown: the extension may still complete it |

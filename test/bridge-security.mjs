@@ -207,6 +207,17 @@ await withBridge({}, async () => {
   silent.close();
   await sleep(100);
 
+  // The extension goes away mid-request: the caller hears about it at once, not after the timeout.
+  const dropping = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
+  dropping.on("message", () => dropping.terminate());
+  await new Promise((r) => dropping.on("open", r));
+  const started = Date.now();
+  const dropped = await http("POST", "/messages/search", { headers: { "X-TB-Timeout": "5000" }, body: "{}" });
+  test("disconnect mid-request → 503", dropped.status, 503);
+  test("disconnect mid-request → EXTENSION_DISCONNECTED", dropped.json?.code, "EXTENSION_DISCONNECTED");
+  test("disconnect mid-request fails before the timeout", Date.now() - started < 2000, true);
+  await sleep(100);
+
   // A fake extension that fails every request, with and without its own code.
   const failing = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
   failing.on("message", (d) => {

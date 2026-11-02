@@ -138,7 +138,7 @@ export async function startBridge(opts = {}) {
   }
 
   let extensionSocket = null;
-  const pending = new Map(); // id → { resolve, reject, timer }
+  const pending = new Map(); // id → { resolve, reject, timer, ws }
 
   // Unsolicited push messages from the extension (e.g. "extension-ready" after a reload).
   // Ring-buffered so a long-poller that arrives just after an event can still see it.
@@ -203,6 +203,14 @@ export async function startBridge(opts = {}) {
     ws.on("close", () => {
       console.log("[bridge] Extension disconnected");
       if (extensionSocket === ws) extensionSocket = null;
+      // Nothing can answer requests sent over this socket any more, so fail them now
+      // instead of leaving the caller waiting for the per-request timeout.
+      for (const [id, p] of pending) {
+        if (p.ws !== ws) continue;
+        pending.delete(id);
+        clearTimeout(p.timer);
+        p.reject({ message: "Thunderbird extension disconnected before answering", code: "EXTENSION_DISCONNECTED" });
+      }
     });
   });
 
@@ -238,7 +246,7 @@ export async function startBridge(opts = {}) {
         pending.delete(id);
         reject({ message: `Request timed out (${Math.round(timeoutMs / 1000)}s)`, code: "TIMEOUT" });
       }, timeoutMs);
-      pending.set(id, { resolve, reject, timer });
+      pending.set(id, { resolve, reject, timer, ws: extensionSocket });
       extensionSocket.send(JSON.stringify({ id, method, path, body }));
     });
   }
