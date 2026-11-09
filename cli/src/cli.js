@@ -9,7 +9,7 @@
 
 import { createRequire } from "module";
 import { Command } from "commander";
-import { api, output, outputError, getConfig, parseRelativeDate, safeFileName } from "./client.js";
+import { api, output, outputError, getConfig, parseRelativeDate, pathId, safeFileName } from "./client.js";
 import { basename, extname } from "path";
 import {
   listNotes,
@@ -400,7 +400,7 @@ program
   .description("Get account details")
   .action(run(async (accountId) => {
     const g = program.opts();
-    const data = await api("GET", `/accounts/${accountId}`, null, getTimeout(g));
+    const data = await api("GET", `/accounts/${pathId(accountId, "accountId")}`, null, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
@@ -431,7 +431,7 @@ program
       const accounts = await api("GET", "/accounts", null, timeout);
       const allFolders = [];
       for (const acct of accounts) {
-        const folders = await api("GET", `/accounts/${acct.id}/folders`, null, timeout);
+        const folders = await api("GET", `/accounts/${pathId(acct.id, "accountId")}/folders`, null, timeout);
         for (const f of folders) allFolders.push({ ...f, accountId: acct.id });
       }
       output(allFolders, fmt, outOpts);
@@ -440,7 +440,7 @@ program
         outputError({ message: "Provide accountId or use --all", code: "INVALID_ARGS" }, fmt, outOpts);
         return;
       }
-      const data = await api("GET", `/accounts/${accountId}/folders`, null, timeout);
+      const data = await api("GET", `/accounts/${pathId(accountId, "accountId")}/folders`, null, timeout);
       output(data, fmt, outOpts);
     }
   }));
@@ -605,22 +605,22 @@ program
     const outOpts = getOutputOpts(g);
 
     if (opts.raw) {
-      const data = await api("GET", `/messages/${messageId}/raw`, null, timeout);
+      const data = await api("GET", `/messages/${pathId(messageId, "messageId")}/raw`, null, timeout);
       output(data, getFormat(g), outOpts);
     } else if (opts.headers) {
-      const data = await api("GET", `/messages/${messageId}/headers`, null, timeout);
+      const data = await api("GET", `/messages/${pathId(messageId, "messageId")}/headers`, null, timeout);
       output(data, getFormat(g), outOpts);
     } else if (opts.full) {
-      const data = await api("GET", `/messages/${messageId}/full`, null, timeout);
+      const data = await api("GET", `/messages/${pathId(messageId, "messageId")}/full`, null, timeout);
       output(data, getFormat(g), outOpts);
     } else if (opts.checkDownload) {
-      const data = await api("GET", `/messages/${messageId}/check-download`, null, timeout);
+      const data = await api("GET", `/messages/${pathId(messageId, "messageId")}/check-download`, null, timeout);
       output(data, getFormat(g), outOpts);
     } else if (opts.bodyOnly) {
-      const data = await api("GET", `/messages/${messageId}`, null, timeout);
+      const data = await api("GET", `/messages/${pathId(messageId, "messageId")}`, null, timeout);
       output(data.parts?.text || data.body || "", getFormat(g), { ...outOpts, raw: true });
     } else {
-      const data = await api("GET", `/messages/${messageId}`, null, timeout);
+      const data = await api("GET", `/messages/${pathId(messageId, "messageId")}`, null, timeout);
       output(data, getFormat(g), outOpts);
     }
   }));
@@ -645,7 +645,7 @@ program
   .option("--headers", "headers only for each message")
   .action(run(async (messageId) => {
     const g = program.opts();
-    const data = await api("GET", `/messages/${messageId}/thread`, null, getTimeout(g));
+    const data = await api("GET", `/messages/${pathId(messageId, "messageId")}/thread`, null, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
@@ -799,7 +799,7 @@ program
     const g = program.opts();
     const timeout = getTimeout(g);
 
-    const msg = await api("GET", `/messages/${messageId}`, null, timeout);
+    const msg = await api("GET", `/messages/${pathId(messageId, "messageId")}`, null, timeout);
     let tags = msg.tags || [];
     if (opts.remove) {
       tags = tags.filter(t => t !== tag);
@@ -1024,7 +1024,7 @@ program
   .description("List attachments for a message")
   .action(run(async (messageId) => {
     const g = program.opts();
-    const data = await api("GET", `/messages/${messageId}/attachments`, null, getTimeout(g));
+    const data = await api("GET", `/messages/${pathId(messageId, "messageId")}/attachments`, null, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
@@ -1043,12 +1043,12 @@ program
     const { join } = await import("path");
 
     if (opts.all) {
-      const attachments = await api("GET", `/messages/${messageId}/attachments`, null, timeout);
+      const attachments = await api("GET", `/messages/${pathId(messageId, "messageId")}/attachments`, null, timeout);
       const dir = opts.outputDir || ".";
       mkdirSync(dir, { recursive: true });
       const results = [];
       for (const att of attachments) {
-        const data = await api("POST", `/messages/${messageId}/attachment`, { partName: att.partName }, timeout);
+        const data = await api("POST", `/messages/${pathId(messageId, "messageId")}/attachment`, { partName: att.partName }, timeout);
         let fileName = safeFileName(data.name || att.name, `attachment-${att.partName}`);
         if (!extname(fileName)) {
           fileName += mimeToExt(data.contentType || att.contentType);
@@ -1063,7 +1063,7 @@ program
         outputError({ message: "Provide partName or use --all", code: "INVALID_ARGS" }, getFormat(g), { outputVersion: isV2(g) ? 2 : 1 });
         return;
       }
-      const data = await api("POST", `/messages/${messageId}/attachment`, { partName }, timeout);
+      const data = await api("POST", `/messages/${pathId(messageId, "messageId")}/attachment`, { partName }, timeout);
       if (opts.output) {
         let outPath = opts.output;
         if (!extname(outPath)) {
@@ -1104,7 +1104,7 @@ program
   .description("Check download status of a message")
   .action(run(async (messageId) => {
     const g = program.opts();
-    const data = await api("GET", `/messages/${messageId}/download-status`, null, getTimeout(g));
+    const data = await api("GET", `/messages/${pathId(messageId, "messageId")}/download-status`, null, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
@@ -1211,7 +1211,7 @@ program
   .description("Get contact details")
   .action(run(async (contactId) => {
     const g = program.opts();
-    const data = await api("GET", `/contacts/${contactId}`, null, getTimeout(g));
+    const data = await api("GET", `/contacts/${pathId(contactId, "contactId")}`, null, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
@@ -1633,7 +1633,7 @@ program
   .description("Extract candidate action items from a message body as a Markdown checklist (deterministic, no LLM)")
   .action(run(async (messageId) => {
     const g = program.opts();
-    const data = await api("POST", `/messages/${messageId}/action-items`, {}, getTimeout(g));
+    const data = await api("POST", `/messages/${pathId(messageId, "messageId")}/action-items`, {}, getTimeout(g));
     output(data, getFormat(g), getOutputOpts(g));
   }));
 
@@ -1672,7 +1672,7 @@ program
   .option("--append", "append to an existing note instead of overwriting")
   .action(run(async (messageId, opts) => {
     const g = program.opts();
-    const msg = await api("GET", `/messages/${messageId}/full`, null, getTimeout(g));
+    const msg = await api("GET", `/messages/${pathId(messageId, "messageId")}/full`, null, getTimeout(g));
     const name = opts.name || slugify(msg.subject) || `message-${messageId}`;
     const body = [
       `**From:** ${msg.author || "unknown"}`,
@@ -1695,8 +1695,8 @@ program
   .option("--priority <n>", "priority 0-9 (1-4 high, 5 normal, 6-9 low)")
   .action(run(async (messageId, opts) => {
     const g = program.opts();
-    const msg = await api("GET", `/messages/${messageId}/full`, null, getTimeout(g));
-    const extracted = await api("POST", `/messages/${messageId}/action-items`, {}, getTimeout(g));
+    const msg = await api("GET", `/messages/${pathId(messageId, "messageId")}/full`, null, getTimeout(g));
+    const extracted = await api("POST", `/messages/${pathId(messageId, "messageId")}/action-items`, {}, getTimeout(g));
     const properties = {
       title: extracted.items?.[0]?.text || msg.subject || `Task from message ${messageId}`,
       source: String(messageId),
@@ -1715,7 +1715,7 @@ program
   .requiredOption("--calendar <calendarId>", "target calendar")
   .action(run(async (messageId, opts) => {
     const g = program.opts();
-    const draft = await api("POST", `/messages/${messageId}/event-draft`, {}, getTimeout(g));
+    const draft = await api("POST", `/messages/${pathId(messageId, "messageId")}/event-draft`, {}, getTimeout(g));
     const properties = {
       title: draft.title,
       description: draft.description,
@@ -1738,7 +1738,7 @@ program
     const g = program.opts();
     const fmt = getFormat(g);
     const outOpts = getOutputOpts(g);
-    const msg = await api("GET", `/messages/${messageId}/full`, null, getTimeout(g));
+    const msg = await api("GET", `/messages/${pathId(messageId, "messageId")}/full`, null, getTimeout(g));
     const { name, email } = parseSenderAuthor(msg.author);
     if (!email) {
       outputError({ message: "Could not extract a sender email address from this message", code: "INVALID_ARGS" }, fmt, outOpts);

@@ -57,6 +57,7 @@ npm run test:sign            # XPI signing script (mock ATN API)
 npm run test:docs            # docs/COMMANDS.md and README match `tb --help`; diagrams are complete
 npm run test:notes           # notes workspace and transcription (stubbed STT engine)
 npm run test:skills          # deterministic skills (today/week/clashes/from)
+npm run test:path-ids        # IDs in bridge request paths cannot change the route (CLI and MCP)
 npm run test:mcp             # MCP server integration (spawns server)
 npm run test:all             # all of the above + MCP concurrency + npm pack check
 npm run verify               # everything CI runs: build XPI, lint, all test suites
