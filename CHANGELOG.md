@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- The CLI and MCP server check every message, account and contact ID before putting it into a bridge request path. An ID such as `1/../../compose` (for example from a prompt-injected model) used to be resolved by `fetch()` into a different bridge route; it now fails with `INVALID_ARGS` and nothing is sent. `api()` also rejects any path with `.`/`..` segments or backslashes, including percent-encoded ones. Covered by `npm run test:path-ids`. Idea from FernDragonborn/thunderbird-cli `ac402d3` (vitalio-sh/thunderbird-cli#38; reimplemented, not copied).
+
 ## [1.3.0] — 2026-09-28
 
 Needs add-on 2.4.0 for the calendar, task and Fast Actions commands. Until ATN finishes its manual review of 2.4.0 (required for Experiment APIs), this release attaches the signed 2.1.0 XPI plus an unsigned 2.4.0 build. The email, contacts and notes commands work with either.

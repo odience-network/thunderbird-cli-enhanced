@@ -163,10 +163,48 @@ export async function ensureBridge() {
   bridgeEnsured = true;
 }
 
+function invalidId(message) {
+  return Object.assign(new Error(message), { code: "INVALID_ARGS" });
+}
+
+/**
+ * Encode an ID (message, account, contact) for use as one bridge path segment.
+ * Tool arguments come from the model, and fetch() resolves `.`/`..` segments,
+ * so an ID like "1/../../compose" would otherwise reach a route the caller never named.
+ * Same guard as cli/src/client.js (the two packages don't share code).
+ */
+export function pathId(value, name = "id") {
+  const id = String(value ?? "");
+  if (!id || id === "." || id === ".." || /[/\\?#%\s\u0000-\u001f]/.test(id)) {
+    throw invalidId(`Invalid ${name}: ${JSON.stringify(value)}`);
+  }
+  return encodeURIComponent(id);
+}
+
+/**
+ * Reject bridge paths with dot segments or backslashes, raw or percent-encoded
+ * (the URL parser treats `%2e%2e` as `..` and `\` as `/`).
+ */
+export function assertSafePath(path) {
+  const pathname = String(path).split("?")[0];
+  for (const segment of pathname.split("/")) {
+    let decoded;
+    try {
+      decoded = decodeURIComponent(segment);
+    } catch {
+      throw invalidId(`Invalid request path: ${pathname}`);
+    }
+    if (decoded === "." || decoded === ".." || decoded.includes("\\") || segment.includes("\\")) {
+      throw invalidId(`Invalid request path: ${pathname}`);
+    }
+  }
+}
+
 /**
  * Make an HTTP call to the bridge daemon.
  */
 export async function api(method, path, body = null, timeout = 30000) {
+  assertSafePath(path);
   await ensureBridge();
 
   const url = `${BASE_URL}${path}`;
