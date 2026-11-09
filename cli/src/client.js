@@ -864,6 +864,18 @@ export function outputError(err, format = "json", opts = {}) {
 }
 
 /**
+ * Turn a sender-controlled attachment name into a bare file name that stays inside the
+ * output directory: drops any directory part (either separator), control characters and
+ * characters Windows rejects, and falls back when nothing usable is left ("", ".", "..").
+ */
+export function safeFileName(name, fallback = "attachment") {
+  const base = String(name ?? "").split(/[\\/]/).pop();
+  const cleaned = base.replace(/[\x00-\x1f\x7f<>:"|?*]/g, "_").trim();
+  if (!cleaned || /^\.+$/.test(cleaned)) return fallback;
+  return cleaned;
+}
+
+/**
  * Parse relative date strings (7d, 2w, 3m, 1y, today, yesterday) to ISO dates
  */
 export function parseRelativeDate(input) {

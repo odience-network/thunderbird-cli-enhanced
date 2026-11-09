@@ -9,7 +9,7 @@
 
 import { createRequire } from "module";
 import { Command } from "commander";
-import { api, output, outputError, getConfig, parseRelativeDate } from "./client.js";
+import { api, output, outputError, getConfig, parseRelativeDate, safeFileName } from "./client.js";
 import { basename, extname } from "path";
 import {
   listNotes,
@@ -1049,7 +1049,7 @@ program
       const results = [];
       for (const att of attachments) {
         const data = await api("POST", `/messages/${messageId}/attachment`, { partName: att.partName }, timeout);
-        let fileName = data.name || att.name || att.partName;
+        let fileName = safeFileName(data.name || att.name, `attachment-${att.partName}`);
         if (!extname(fileName)) {
           fileName += mimeToExt(data.contentType || att.contentType);
         }
