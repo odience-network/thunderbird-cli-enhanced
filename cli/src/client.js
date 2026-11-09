@@ -153,10 +153,47 @@ export async function ensureBridge() {
   bridgeEnsured = true;
 }
 
+function invalidId(message) {
+  return Object.assign(new Error(message), { code: "INVALID_ARGS" });
+}
+
+/**
+ * Encode an ID (message, account, contact) for use as one bridge path segment.
+ * IDs can come from a model or a script, and fetch() resolves `.`/`..` segments,
+ * so an ID like "1/../../compose" would otherwise reach a route the caller never named.
+ */
+export function pathId(value, name = "id") {
+  const id = String(value ?? "");
+  if (!id || id === "." || id === ".." || /[/\\?#%\s\u0000-\u001f]/.test(id)) {
+    throw invalidId(`Invalid ${name}: ${JSON.stringify(value)}`);
+  }
+  return encodeURIComponent(id);
+}
+
+/**
+ * Reject bridge paths with dot segments or backslashes, raw or percent-encoded
+ * (the URL parser treats `%2e%2e` as `..` and `\` as `/`).
+ */
+export function assertSafePath(path) {
+  const pathname = String(path).split("?")[0];
+  for (const segment of pathname.split("/")) {
+    let decoded;
+    try {
+      decoded = decodeURIComponent(segment);
+    } catch {
+      throw invalidId(`Invalid request path: ${pathname}`);
+    }
+    if (decoded === "." || decoded === ".." || decoded.includes("\\") || segment.includes("\\")) {
+      throw invalidId(`Invalid request path: ${pathname}`);
+    }
+  }
+}
+
 /**
  * Make API call to bridge
  */
 export async function api(method, path, body = null, timeout = 30000) {
+  assertSafePath(path);
   if (!bridgeEnsured) await ensureBridge();
 
   const url = `${BASE_URL}${path}`;
@@ -861,6 +898,18 @@ export function outputError(err, format = "json", opts = {}) {
   const indent = opts.outputVersion === 2 ? (process.stderr.isTTY ? 2 : undefined) : 2;
   process.stderr.write(JSON.stringify(data, null, indent) + "\n");
   process.exit(1);
+}
+
+/**
+ * Turn a sender-controlled attachment name into a bare file name that stays inside the
+ * output directory: drops any directory part (either separator), control characters and
+ * characters Windows rejects, and falls back when nothing usable is left ("", ".", "..").
+ */
+export function safeFileName(name, fallback = "attachment") {
+  const base = String(name ?? "").split(/[\\/]/).pop();
+  const cleaned = base.replace(/[\x00-\x1f\x7f<>:"|?*]/g, "_").trim();
+  if (!cleaned || /^\.+$/.test(cleaned)) return fallback;
+  return cleaned;
 }
 
 /**

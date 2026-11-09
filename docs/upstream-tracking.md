@@ -57,6 +57,7 @@ No unique commits: mikepage, FernDragonborn `main`, stutiredboy (new
 ignored, because our own `npm audit` covers dependencies.
 
 Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-11-09 (only our own PRs #36–#40).
+PRs #36–#40 were merged into `main` on 2026-11-09 with board approval (ODIAA-2762); no tag or release.
 
 ## Triage ledger
 

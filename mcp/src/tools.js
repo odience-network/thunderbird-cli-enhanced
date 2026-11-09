@@ -10,7 +10,7 @@
  * `api` is injected by the server: api(method, path, body?) → response
  */
 
-import { parseRelativeDate } from "./client.js";
+import { parseRelativeDate, pathId } from "./client.js";
 import { listNotes, readNote, saveNote, appendNote, renderNoteHtml } from "./notes.js";
 import { transcribeAudio } from "./stt.js";
 import { basename, extname } from "path";
@@ -231,12 +231,12 @@ export const tools = [
       const id = args.messageId;
       const mode = args.mode || "default";
       let result;
-      if (mode === "raw") result = await api("GET", `/messages/${id}/raw`);
-      else if (mode === "headers") result = await api("GET", `/messages/${id}/headers`);
-      else if (mode === "full") result = await api("GET", `/messages/${id}/full`);
+      if (mode === "raw") result = await api("GET", `/messages/${pathId(id, "messageId")}/raw`);
+      else if (mode === "headers") result = await api("GET", `/messages/${pathId(id, "messageId")}/headers`);
+      else if (mode === "full") result = await api("GET", `/messages/${pathId(id, "messageId")}/full`);
       else if (mode === "check-download")
-        result = await api("GET", `/messages/${id}/check-download`);
-      else result = await api("GET", `/messages/${id}`);
+        result = await api("GET", `/messages/${pathId(id, "messageId")}/check-download`);
+      else result = await api("GET", `/messages/${pathId(id, "messageId")}`);
 
       // Apply maxBody truncation
       if (args.maxBody && result?.parts?.text && result.parts.text.length > args.maxBody) {
@@ -260,7 +260,7 @@ export const tools = [
       required: ["messageId"],
     },
     handler: async (args, api) => {
-      return await api("GET", `/messages/${args.messageId}/thread`);
+      return await api("GET", `/messages/${pathId(args.messageId, "messageId")}/thread`);
     },
   },
 
@@ -587,11 +587,11 @@ export const tools = [
     },
     handler: async (args, api) => {
       if (args.operation === "list") {
-        return await api("GET", `/messages/${args.messageId}/attachments`);
+        return await api("GET", `/messages/${pathId(args.messageId, "messageId")}/attachments`);
       }
       if (args.operation === "download") {
         if (!args.partName) return { error: "partName required for download" };
-        return await api("POST", `/messages/${args.messageId}/attachment`, {
+        return await api("POST", `/messages/${pathId(args.messageId, "messageId")}/attachment`, {
           partName: args.partName,
         });
       }
@@ -626,13 +626,13 @@ export const tools = [
     handler: async (args, api) => {
       if (args.operation === "list") {
         if (!args.accountId) return { error: "accountId required for list" };
-        return await api("GET", `/accounts/${args.accountId}/folders`);
+        return await api("GET", `/accounts/${pathId(args.accountId, "accountId")}/folders`);
       }
       if (args.operation === "all") {
         const accounts = await api("GET", "/accounts");
         const all = [];
         for (const acct of accounts) {
-          const folders = await api("GET", `/accounts/${acct.id}/folders`);
+          const folders = await api("GET", `/accounts/${pathId(acct.id, "accountId")}/folders`);
           for (const f of folders) all.push({ ...f, accountId: acct.id });
         }
         return all;
@@ -986,7 +986,7 @@ export const tools = [
     },
     handler: async (args, api) => {
       if (!args.messageId) return { error: "messageId is required" };
-      return await api("POST", `/messages/${args.messageId}/action-items`, {});
+      return await api("POST", `/messages/${pathId(args.messageId, "messageId")}/action-items`, {});
     },
   },
 
@@ -1234,7 +1234,7 @@ export const tools = [
     },
     handler: async (args, api) => {
       if (!args.messageId) return { error: "messageId is required" };
-      const msg = await api("GET", `/messages/${args.messageId}/full`);
+      const msg = await api("GET", `/messages/${pathId(args.messageId, "messageId")}/full`);
       const name = args.name || slugify(msg.subject) || `message-${args.messageId}`;
       const body = [
         `**From:** ${msg.author || "unknown"}`,
@@ -1264,8 +1264,8 @@ export const tools = [
     },
     handler: async (args, api) => {
       if (!args.messageId || !args.calendarId) return { error: "messageId and calendarId required" };
-      const msg = await api("GET", `/messages/${args.messageId}/full`);
-      const extracted = await api("POST", `/messages/${args.messageId}/action-items`, {});
+      const msg = await api("GET", `/messages/${pathId(args.messageId, "messageId")}/full`);
+      const extracted = await api("POST", `/messages/${pathId(args.messageId, "messageId")}/action-items`, {});
       const properties = {
         title: extracted.items?.[0]?.text || msg.subject || `Task from message ${args.messageId}`,
         source: String(args.messageId),
@@ -1292,7 +1292,7 @@ export const tools = [
     },
     handler: async (args, api) => {
       if (!args.messageId || !args.calendarId) return { error: "messageId and calendarId required" };
-      const draft = await api("POST", `/messages/${args.messageId}/event-draft`, {});
+      const draft = await api("POST", `/messages/${pathId(args.messageId, "messageId")}/event-draft`, {});
       const properties = {
         title: draft.title,
         description: draft.description,
@@ -1321,7 +1321,7 @@ export const tools = [
     },
     handler: async (args, api) => {
       if (!args.messageId || !args.book) return { error: "messageId and book required" };
-      const msg = await api("GET", `/messages/${args.messageId}/full`);
+      const msg = await api("GET", `/messages/${pathId(args.messageId, "messageId")}/full`);
       const { name, email } = parseSenderAuthor(msg.author);
       if (!email) return { error: "could not extract a sender email address from this message" };
       const existing = await api("POST", "/contacts/search", { query: email, book: args.book });
