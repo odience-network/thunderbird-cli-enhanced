@@ -11,20 +11,21 @@ batched into one add-on version and one ATN manual review.
 
 ## Watermark
 
-Last run: **2026-11-02** (ODIAA-2682). Previous: 2026-10-26 (ODIAA-2614), 2026-10-19 (ODIAA-2541), 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
+Last run: **2026-11-09** (ODIAA-2762). Previous: 2026-11-02 (ODIAA-2682), 2026-10-26 (ODIAA-2614), 2026-10-19 (ODIAA-2541), 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
 
 Upstream `vitalio-sh/thunderbird-cli` `main`: **`465613d`** (unchanged since our baseline, 2026-09-14).
 Other upstream heads: `fix/1.1.1` `27b8c70` (open PR #26), `integrate/open-prs` `c5e5d02`,
 `dependabot/npm_and_yarn/proxy-addr-2.0.8` `0467f53` (open PR #31),
 `dependabot/npm_and_yarn/modelcontextprotocol/sdk-1.32.0` `ca02f56` (open PR #32),
 `dependabot/npm_and_yarn/fast-uri-3.1.9` `e8d9ee4` (PR #33), `dependabot/npm_and_yarn/ip-address-10.7.5` `bc033e5` (PR #34),
-`dependabot/npm_and_yarn/body-parser-2.4.0` `aa4a156` (PR #35).
+`dependabot/npm_and_yarn/body-parser-2.4.0` `aa4a156` (PR #35), `dependabot/npm_and_yarn/zod-4.6.7` `65c2690` (PR #37).
+Open fork PR: #38 (FernDragonborn `harden-bridge-paths` `e942f70`).
 Latest upstream release: `v1.1.0` (2026-09-14).
 
-Thunderbird: release 159.0, beta 160.0b2, ESR 153.6.0esr. Our
+Thunderbird: release 159.0, beta 160.0b5, ESR 153.6.0esr. Our
 `strict_max_version` is `156.*` (see ODIAA-2403). webext-experiments `calendar/`: latest commit is still `b7f7cb3` (our pin).
 
-Forks (16), last-seen head per branch with commits ahead of upstream `main`:
+Forks (15), last-seen head per branch with commits ahead of upstream `main`:
 
 | Fork | Branch | Ahead | Last-seen SHA |
 |---|---|---|---|
@@ -45,13 +46,17 @@ Forks (16), last-seen head per branch with commits ahead of upstream `main`:
 | dboeckenhoff | feat/compose-attachments | 6 | `b784183` |
 | marcreynolds | security/bridge-hardening | 2 | `43b5c17` |
 | KaiSingL | main | 29 | `0b3a5d7` |
-| helios57 | main, hardening | 16 | `75c6a6c` (first 6 = upstream PR #26) |
+| helios57 | hardening | 16 | `75c6a6c` (first 6 = upstream PR #26) |
+| helios57 | main | 18 | `97dfe94` |
+| helios57 | feat/drafts-and-attachments | 17 | `ba1fe9a` (= `main` minus `97dfe94`) |
+| FernDragonborn | harden-bridge-paths | 4 | `e942f70` (= upstream PR #38) |
+| FernDragonborn | personal-build-1.1 | 4 | `0e6499e` (same changes as `harden-bridge-paths`) |
 
-No unique commits: mikepage, FernDragonborn (Dependabot branches only), stutiredboy (new
+No unique commits: mikepage, FernDragonborn `main`, stutiredboy (new
 2026-10-20, `main` = upstream `465613d`), and the `main` of ph-fritsch, DreatNU-oss, jctots and marcreynolds. Dependabot branches on forks are
 ignored, because our own `npm audit` covers dependencies.
 
-Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-11-02 (only our own PRs #36–#39).
+Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-11-09 (only our own PRs #36–#40).
 
 ## Triage ledger
 
@@ -155,6 +160,24 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | other forks | — | No push since 2026-10-26 | nothing new |
 | Thunderbird | 159.0 release, ESR 153.6.0esr | Above our `strict_max_version` `156.*`; webext-experiments `calendar/` still `b7f7cb3` | backlog ODIAA-2403 (comment: target `159.*` or later) |
 
+### 2026-11-09
+
+| Source | Ref | Summary | Decision |
+|---|---|---|---|
+| upstream | `main`, releases | No change since 2026-11-02 (`main` `465613d`, release `v1.1.0`) | nothing new |
+| upstream | PR #37 `65c2690` (Dependabot) | `zod` 4.3.6 → 4.6.7 | already covered: PR #39's lockfile has `zod` 4.6.7; `npm audit` clean |
+| upstream | issue #36 | commonpost/thunderbird-mcp offers upstream a collaboration; says Thunderbird plans to stop running Experiment add-ons on Release | no action (read-only on upstream). The Experiment claim is unverified (developer.thunderbird.net says nothing); flagged on ODIAA-2403 because our calendar and tasks use Experiment APIs |
+| FernDragonborn | `ac402d3` (upstream PR #38) | IDs from the model are spliced into bridge paths; `1/../../compose` reaches another route | adopted PR #40 (`pathId()` + central path check in the CLI and MCP clients) |
+| FernDragonborn | `ebbf03f` (upstream PR #38) | `attachment-download --all` escapes `--output-dir` | already covered: PR #36 |
+| FernDragonborn | `285b130` (upstream PR #38) | One WebSocket client per slot (409); body cap; cap on `X-TB-Timeout`; status from an error code | slot and body cap: backlog ODIAA-2404; `X-TB-Timeout` cap added to ODIAA-2404 (comment); error codes: PR #38 |
+| FernDragonborn | `e942f70` (upstream PR #38) | SECURITY.md describes unbuilt defences as shipped; SKILL.md promises `junk_score`/`spf`/`dkim` | already in main (status banner and Status column in SECURITY.md; our SKILL.md doesn't promise those fields) |
+| helios57 | `ba1fe9a`, `97dfe94` (part) | `messages.delete(ids, false)` follows the account setting and can delete for good; move to Trash explicitly | backlog ODIAA-2403 (comment; our `delete` switch is off by default) |
+| helios57 | `ba1fe9a`, `97dfe94` (part) | Attach local files (base64, 20 MB cap); refuse to send with attachments if the add-on is too old to handle them | backlog ODIAA-2407 (comment) |
+| helios57 | `ba1fe9a` (part) | Edit saved drafts | already in main (`tb edit`) |
+| helios57 | `ba1fe9a`, `97dfe94` (part) | Windows `start-bridge.ps1` restart fixes | deferred (with the 2026-11-02 Windows setup item) |
+| other forks | — | No push since 2026-11-02 | nothing new |
+| Thunderbird | 160.0b5 | Release still 159.0, ESR 153.6.0esr; webext-experiments `calendar/` still `b7f7cb3` | backlog ODIAA-2403 (target `159.*` or later, unchanged) |
+
 ### Ideas from similar projects (ideas only, no code read)
 
 | Project | Idea | Decision |
@@ -170,3 +193,5 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | TKasperczyk/thunderbird-mcp (v0.10.0) | Scheduled sending of drafts through the Send Later add-on | deferred: depends on a third-party add-on; new feature |
 | TKasperczyk/thunderbird-mcp (v0.9.3) | Refuse credential and profile files as attachments | backlog ODIAA-2407 (comment) |
 | localai-org/thunderbird-mcp | Serve MCP over Streamable HTTP with a bearer token, for remote clients | deferred: would widen the attack surface; only with a design and an access switch |
+| commonpost/thunderbird-mcp (v0.22.2) | Calendar tools give times in the calendar's time zone, not UTC only, so an assistant doesn't report false clashes | already in main (`tb today`/`week`/`clashes` use local day boundaries and render local times) |
+| commonpost/thunderbird-mcp (v0.21.0) | A tool that lists address books so contact writes can target any of them | already in main (`tb address-books`, MCP `address_book_list`) |
