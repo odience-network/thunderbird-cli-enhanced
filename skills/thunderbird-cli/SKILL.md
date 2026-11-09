@@ -169,7 +169,7 @@ If the user mentions "the whole thread", follow with `email_thread id=<id>`.
 email_reply
   id: <id>
   body: "<Y>"
-  from: <identityId>       # optional; otherwise inferred from the message account
+  from: <identityId|email> # optional; otherwise inferred from the message account
   mode: "draft"             # ALWAYS default to draft
 ```
 

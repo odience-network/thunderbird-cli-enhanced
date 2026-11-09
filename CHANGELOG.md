@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- MCP `email_compose`, `email_reply`, `email_forward`, `email_edit` and `note_to_draft` now accept the sender identity's email address in `from` as well as its identity ID. No MCP tool lists identity IDs, so agents passed the address and got `Identity not found`. The address is resolved through `GET /identities`. An unknown address returns an error listing the known addresses instead of silently using the default identity. Idea from vitalio-sh/thunderbird-cli#30.
 - The bridge now names every forwarded failure: a request the extension didn't answer in time returns HTTP 504 `TIMEOUT` (it used to be a 500 with no code, which clients reported as `THUNDERBIRD_ERROR`), a missing extension returns 503 `EXTENSION_DISCONNECTED`, and an extension error without its own code returns 500 `THUNDERBIRD_ERROR`. Agents can now tell "timed out, outcome unknown" apart from a real Thunderbird error. Idea from vitalio-sh/thunderbird-cli#26 / dd95a6a, reimplemented.
 - Requests in flight when the extension disconnects (Thunderbird quit, reloaded the add-on, or stopped answering the heartbeat) now fail at once with 503 `EXTENSION_DISCONNECTED` instead of waiting for the full timeout (120 s by default). As with `TIMEOUT`, the outcome of such a request is unknown. Idea from helios57/thunderbird-cli 7c4661a, reimplemented.
 
@@ -17,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - And once more for `@hono/node-server` 2.1.5 (moderate, GHSA-rmxm-3fg6-px4f: `serveStatic` decoded the path twice). It is a transitive dependency of `@modelcontextprotocol/sdk`, whose range (`^1.19.9 || ^2.0.5`) allows 2.x; `tb-mcp` does not serve static files.
 - `tb attachment-download --all` now strips directory parts and unsafe characters from attachment names before writing, so a crafted name such as `../../.bashrc` can no longer write outside `--output-dir`. Unnamed attachments are saved as `attachment-<partName>`. Idea from DreatNU-oss/thunderbird-cli `651d9f1` (reimplemented, not copied).
 - The CLI and MCP server check every message, account and contact ID before putting it into a bridge request path. An ID such as `1/../../compose` (for example from a prompt-injected model) used to be resolved by `fetch()` into a different bridge route; it now fails with `INVALID_ARGS` and nothing is sent. `api()` also rejects any path with `.`/`..` segments or backslashes, including percent-encoded ones. Covered by `npm run test:path-ids`. Idea from FernDragonborn/thunderbird-cli `ac402d3` (vitalio-sh/thunderbird-cli#38; reimplemented, not copied).
+
+### Docs
+- `docs/upstream-tracking.md`: watermark and triage ledger for the weekly upstream & forks scan (ODIAA-2402).
 
 ## [1.3.0] — 2026-09-28
 
