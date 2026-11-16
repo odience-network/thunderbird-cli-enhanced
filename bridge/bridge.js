@@ -364,9 +364,20 @@ export async function startBridge(opts = {}) {
       return;
     }
 
-    // Read body
-    let body = "";
-    for await (const chunk of req) body += chunk;
+    // Read body. Decode once at the end: a multi-byte character can straddle two chunks.
+    const chunks = [];
+    try {
+      for await (const chunk of req) chunks.push(chunk);
+    } catch {
+      // The client went away mid-upload. Answer if the socket is still there, and don't let
+      // the rejection escape this async handler, where it would end the bridge process.
+      if (!res.destroyed) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "Request body aborted", code: "INVALID_ARGS" }));
+      }
+      return;
+    }
+    const body = Buffer.concat(chunks).toString("utf8");
 
     let parsedBody = null;
     if (body.trim()) {

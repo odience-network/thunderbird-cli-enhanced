@@ -7,7 +7,7 @@
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "crypto";
-import { safeFileName } from "../cli/src/client.js";
+import { safeFileName, truncateBody } from "../cli/src/client.js";
 
 const PORT = 19700;
 const WS_PORT = 19701;
@@ -319,6 +319,15 @@ const liveWait = httpCall("GET", "/bridge/events?wait=test-event&since=0&timeout
 await new Promise(r => setTimeout(r, 200)); // ensure the waiter is registered before the push
 servers.mock.send(JSON.stringify({ type: "event", name: "test-event", data: { hello: "world" } }));
 test("GET /bridge/events?wait=test-event (live push)", await liveWait, r => r.event?.name === "test-event" && r.event?.data?.hello === "world");
+
+console.log("\n\x1b[1m--max-body truncation\x1b[0m");
+const fullMsg = { id: 1, parts: { text: "Hello world", html: "<p>Hello world</p>" } };
+const cut = truncateBody(fullMsg, 5);
+test("--max-body truncates the text part", cut, r => r.parts.text === "Hello\n...[truncated]" && r.parts.textTruncated === true);
+test("--max-body truncates the HTML part", cut, r => r.parts.html === "<p>He\n...[truncated]" && r.parts.htmlTruncated === true);
+test("--max-body leaves the input untouched", fullMsg.parts.html, r => r === "<p>Hello world</p>");
+test("--max-body truncates raw RFC822", truncateBody({ raw: "From: a@b\n\nBody" }, 4), r => r.raw === "From\n...[truncated]" && r.rawTruncated === true);
+test("--max-body leaves short bodies alone", truncateBody({ parts: { text: "Hi", html: "" } }, 5), r => r.parts.text === "Hi" && !r.parts.textTruncated && !r.parts.htmlTruncated);
 
 console.log("\n\x1b[1mAttachment file names\x1b[0m");
 test("safeFileName keeps a plain name", safeFileName("report.pdf"), r => r === "report.pdf");

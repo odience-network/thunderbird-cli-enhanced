@@ -9,7 +9,7 @@ tb [command] [options]
   -f, --format <type>      # json (default) | compact | table
   --fields <csv>           # comma-separated fields to include (or short|full preset, --output-version 2)
   --compact                # strip null values (default behavior, no-op under --output-version 2)
-  --max-body <chars>       # truncate message bodies
+  --max-body <chars>       # truncate message bodies (text, HTML and raw)
   --timeout <ms>           # request timeout (default: 30000)
   --output-version <n>     # 1 (default) | 2 (opt-in leaner output — see "Output Format" below)
   --verbose                # (--output-version 2 only) include nulls/empty arrays
