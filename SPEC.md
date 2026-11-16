@@ -752,7 +752,7 @@ tb from <address> [--limit <n>]
    - Agent decides which messages matter
    - Agent calls `tb read <id>` only for relevant messages (expensive)
 
-3. **Body truncation** — `--max-body <chars>` truncates body at N characters:
+3. **Body truncation** — `--max-body <chars>` truncates the text, HTML and raw body at N characters each (MCP: `maxBody` on `email_read`):
    ```bash
    tb read <id> --max-body 2000  # first 2000 chars of body
    ```

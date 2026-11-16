@@ -272,25 +272,29 @@ function compactify(data) {
   return data;
 }
 
-function truncateBody(data, maxChars) {
+export function truncateBody(data, maxChars) {
   if (!maxChars || maxChars <= 0) return data;
   if (data && typeof data === "object") {
     const result = { ...data };
     if (result.parts && typeof result.parts === "object") {
       result.parts = { ...result.parts };
-      if (typeof result.parts.text === "string" && result.parts.text.length > maxChars) {
-        result.parts.text = result.parts.text.slice(0, maxChars) + "\n...[truncated]";
-        result.parts.textTruncated = true;
-      }
+      truncateField(result.parts, "text", maxChars);
+      truncateField(result.parts, "html", maxChars);
     }
-    if (typeof result.body === "string" && result.body.length > maxChars) {
-      result.body = result.body.slice(0, maxChars) + "\n...[truncated]";
-      result.bodyTruncated = true;
-    }
+    truncateField(result, "body", maxChars);
+    truncateField(result, "raw", maxChars);
     if (result.messages) result.messages = result.messages.map((m) => truncateBody(m, maxChars));
     return result;
   }
   return data;
+}
+
+/** Cut obj[key] to maxChars and flag it as <key>Truncated. Mutates obj. */
+function truncateField(obj, key, maxChars) {
+  if (typeof obj[key] === "string" && obj[key].length > maxChars) {
+    obj[key] = obj[key].slice(0, maxChars) + "\n...[truncated]";
+    obj[`${key}Truncated`] = true;
+  }
 }
 
 // ─── Grid Table Formatting (--output-version 2 only) ───────────────────

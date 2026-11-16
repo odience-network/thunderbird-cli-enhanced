@@ -502,6 +502,16 @@ test(
   await client.callTool("email_read", { messageId: 1, maxBody: 5 }),
   (r) => r.parts?.textTruncated === true
 );
+test(
+  "email_read full with maxBody truncates HTML too",
+  await client.callTool("email_read", { messageId: 1, mode: "full", maxBody: 3 }),
+  (r) => r.parts?.htmlTruncated === true && r.parts.html.startsWith("<p>\n")
+);
+test(
+  "email_read raw with maxBody",
+  await client.callTool("email_read", { messageId: 1, mode: "raw", maxBody: 4 }),
+  (r) => r.rawTruncated === true && r.raw.startsWith("From\n")
+);
 
 test(
   "email_thread",
