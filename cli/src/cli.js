@@ -147,7 +147,14 @@ function getOutputOpts(globalOpts, defaultFieldsPreset) {
 }
 
 function getTimeout(globalOpts) {
-  return parseInt(globalOpts.timeout) || 30000;
+  if (globalOpts.timeout === undefined) return 30000;
+  const ms = Number(globalOpts.timeout);
+  if (!Number.isInteger(ms) || ms <= 0) {
+    throw Object.assign(new Error(`--timeout must be a positive number of milliseconds, got "${globalOpts.timeout}"`), {
+      code: "INVALID_ARGS",
+    });
+  }
+  return ms;
 }
 
 function run(fn) {

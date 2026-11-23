@@ -577,6 +577,16 @@ test(
   await client.callTool("email_edit", { messageId: 10, subject: "Go", mode: "send" }),
   (r) => r.action === "sent" && r.previousMessageId === 10
 );
+test(
+  "HTTP-200 { error } payload is flagged isError",
+  (await client.send("tools/call", { name: "email_edit", arguments: { messageId: 0, body: "x" } })).result,
+  (r) => r.isError === true && JSON.parse(r.content[0].text).error === "messageId is required"
+);
+test(
+  "a successful result is not flagged isError",
+  (await client.send("tools/call", { name: "email_stats", arguments: {} })).result,
+  (r) => r.isError === undefined
+);
 
 test(
   "email_mark read",

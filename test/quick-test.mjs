@@ -327,6 +327,9 @@ test("--max-body truncates the text part", cut, r => r.parts.text === "Hello\n..
 test("--max-body truncates the HTML part", cut, r => r.parts.html === "<p>He\n...[truncated]" && r.parts.htmlTruncated === true);
 test("--max-body leaves the input untouched", fullMsg.parts.html, r => r === "<p>Hello world</p>");
 test("--max-body truncates raw RFC822", truncateBody({ raw: "From: a@b\n\nBody" }, 4), r => r.raw === "From\n...[truncated]" && r.rawTruncated === true);
+test("--max-body keeps a read-batch array an array and cuts each message",
+  truncateBody([{ id: 1, parts: { text: "Hello world" } }, { id: 2, parts: { text: "Hi" } }], 5),
+  r => Array.isArray(r) && r[0].parts.text === "Hello\n...[truncated]" && r[1].parts.text === "Hi");
 test("--max-body leaves short bodies alone", truncateBody({ parts: { text: "Hi", html: "" } }, 5), r => r.parts.text === "Hi" && !r.parts.textTruncated && !r.parts.htmlTruncated);
 
 console.log("\n\x1b[1mAttachment file names\x1b[0m");

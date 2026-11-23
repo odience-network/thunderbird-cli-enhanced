@@ -224,7 +224,18 @@ export async function api(method, path, body = null, timeout = 30000) {
     throw err;
   }
 
-  const data = await res.json();
+  // The timeout signal also covers reading the body, so a stalled body is a TIMEOUT too.
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (err.name === "TimeoutError") {
+      throw Object.assign(new Error("Request timed out"), { code: "TIMEOUT" });
+    }
+    throw Object.assign(new Error(`Bridge sent a response that is not JSON (HTTP ${res.status})`), {
+      code: "THUNDERBIRD_ERROR",
+    });
+  }
   if (res.status >= 400) {
     const err = new Error(data.error || `HTTP ${res.status}`);
     err.code = data.code || (res.status === 503 ? "EXTENSION_DISCONNECTED" : "THUNDERBIRD_ERROR");
@@ -274,6 +285,8 @@ function compactify(data) {
 
 export function truncateBody(data, maxChars) {
   if (!maxChars || maxChars <= 0) return data;
+  // read-batch returns a bare array of messages
+  if (Array.isArray(data)) return data.map((m) => truncateBody(m, maxChars));
   if (data && typeof data === "object") {
     const result = { ...data };
     if (result.parts && typeof result.parts === "object") {
@@ -881,6 +894,8 @@ function outputV2(data, format, opts) {
  *   pretty, maxBody, raw, utc} — see outputV1/outputV2 for which opts apply to which version.
  */
 export function output(data, format = "json", opts = {}) {
+  // The bridge can answer HTTP 200 with an { error } payload; scripts still need a failing exit code.
+  if (data && data.error) process.exitCode = 1;
   if (opts.outputVersion === 2) {
     outputV2(data, format, opts);
   } else {

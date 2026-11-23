@@ -86,7 +86,7 @@ Manifest format: `manifest_version: 2` (MV2). MV3 migration planned for future.
 
 ## Output Format
 
-By default, all commands output JSON to stdout. Errors output JSON to stderr with exit code 1.
+By default, all commands output JSON to stdout. Errors output JSON to stderr with exit code 1. An error the bridge returns as an HTTP-200 `{ error }` payload is printed to stdout as the `ok: false` envelope, also with exit code 1.
 
 ```json
 // Success
