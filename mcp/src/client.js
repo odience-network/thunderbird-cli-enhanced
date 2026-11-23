@@ -239,7 +239,18 @@ export async function api(method, path, body = null, timeout = 30000) {
     throw err;
   }
 
-  const data = await res.json();
+  // The timeout signal also covers reading the body, so a stalled body is a TIMEOUT too.
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (err.name === "TimeoutError") {
+      throw Object.assign(new Error("Request timed out"), { code: "TIMEOUT" });
+    }
+    throw Object.assign(new Error(`Bridge sent a response that is not JSON (HTTP ${res.status})`), {
+      code: "THUNDERBIRD_ERROR",
+    });
+  }
   if (res.status >= 400) {
     const err = new Error(data.error || `HTTP ${res.status}`);
     err.code =

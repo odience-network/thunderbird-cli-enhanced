@@ -502,6 +502,16 @@ test(
   await client.callTool("email_read", { messageId: 1, maxBody: 5 }),
   (r) => r.parts?.textTruncated === true
 );
+test(
+  "email_read full with maxBody truncates HTML too",
+  await client.callTool("email_read", { messageId: 1, mode: "full", maxBody: 3 }),
+  (r) => r.parts?.htmlTruncated === true && r.parts.html.startsWith("<p>\n")
+);
+test(
+  "email_read raw with maxBody",
+  await client.callTool("email_read", { messageId: 1, mode: "raw", maxBody: 4 }),
+  (r) => r.rawTruncated === true && r.raw.startsWith("From\n")
+);
 
 test(
   "email_thread",
@@ -566,6 +576,16 @@ test(
   "email_edit send",
   await client.callTool("email_edit", { messageId: 10, subject: "Go", mode: "send" }),
   (r) => r.action === "sent" && r.previousMessageId === 10
+);
+test(
+  "HTTP-200 { error } payload is flagged isError",
+  (await client.send("tools/call", { name: "email_edit", arguments: { messageId: 0, body: "x" } })).result,
+  (r) => r.isError === true && JSON.parse(r.content[0].text).error === "messageId is required"
+);
+test(
+  "a successful result is not flagged isError",
+  (await client.send("tools/call", { name: "email_stats", arguments: {} })).result,
+  (r) => r.isError === undefined
 );
 
 test(

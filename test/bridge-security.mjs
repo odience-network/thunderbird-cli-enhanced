@@ -54,6 +54,7 @@ function startBridge(env = {}) {
 function stopBridge(proc) {
   return new Promise((resolve) => {
     proc.removeAllListeners("exit");
+    if (proc.exitCode !== null || proc.signalCode !== null) return resolve();
     proc.on("exit", resolve);
     proc.kill();
   });
@@ -233,6 +234,45 @@ await withBridge({}, async () => {
   test("extension FORBIDDEN → 403", denied.status, 403);
   test("extension FORBIDDEN code kept", denied.json?.code, "FORBIDDEN");
   failing.close();
+});
+
+// ─── Request body ───────────────────────────────────────────────────
+
+console.log("\n\x1b[1mRequest body\x1b[0m");
+await withBridge({}, async () => {
+  const echo = new WebSocket(`ws://127.0.0.1:${WS_PORT}`);
+  echo.on("message", (d) => {
+    const msg = JSON.parse(d.toString());
+    echo.send(JSON.stringify({ id: msg.id, result: { body: msg.body } }));
+  });
+  await new Promise((r) => echo.on("open", r));
+
+  // Send "ü" (0xC3 0xBC) with its two bytes in separate chunks.
+  const bytes = Buffer.from(JSON.stringify({ body: "Grüße" }));
+  const cut = bytes.indexOf(0xc3) + 1;
+  const split = await new Promise((resolve, reject) => {
+    const req = request({ host: "127.0.0.1", port: PORT, method: "POST", path: "/compose", headers: { "Content-Length": bytes.length } }, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => resolve(JSON.parse(data)));
+    });
+    req.on("error", reject);
+    req.write(bytes.subarray(0, cut));
+    setTimeout(() => req.end(bytes.subarray(cut)), 50);
+  });
+  test("multi-byte character split across chunks arrives intact", split.body?.body, "Grüße");
+
+  // A client that gives up halfway through its upload must not take the bridge down.
+  await new Promise((resolve) => {
+    const req = request({ host: "127.0.0.1", port: PORT, method: "POST", path: "/compose", headers: { "Content-Length": 1000 } });
+    req.on("error", () => {});
+    req.write("{\"body\":\"");
+    setTimeout(() => { req.destroy(); resolve(); }, 50);
+  });
+  await sleep(100);
+  const after = await http("GET", "/bridge/status").catch((e) => ({ status: e.code }));
+  test("aborted upload leaves the bridge running", after.status, 200);
+  echo.close();
 });
 
 // ─── Startup: port already taken ────────────────────────────────────

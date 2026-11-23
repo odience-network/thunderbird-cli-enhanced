@@ -222,7 +222,7 @@ export const tools = [
         },
         maxBody: {
           type: "number",
-          description: "Truncate body to N characters",
+          description: "Truncate the text, HTML and raw body to N characters each",
         },
       },
       required: ["messageId"],
@@ -238,10 +238,14 @@ export const tools = [
         result = await api("GET", `/messages/${pathId(id, "messageId")}/check-download`);
       else result = await api("GET", `/messages/${pathId(id, "messageId")}`);
 
-      // Apply maxBody truncation
-      if (args.maxBody && result?.parts?.text && result.parts.text.length > args.maxBody) {
-        result.parts.text = result.parts.text.slice(0, args.maxBody) + "\n...[truncated]";
-        result.parts.textTruncated = true;
+      // Apply maxBody truncation to every body form a mode returns (text, HTML, RFC822)
+      if (args.maxBody > 0 && result) {
+        for (const [obj, key] of [[result.parts, "text"], [result.parts, "html"], [result, "raw"]]) {
+          if (typeof obj?.[key] === "string" && obj[key].length > args.maxBody) {
+            obj[key] = obj[key].slice(0, args.maxBody) + "\n...[truncated]";
+            obj[`${key}Truncated`] = true;
+          }
+        }
       }
       return result;
     },

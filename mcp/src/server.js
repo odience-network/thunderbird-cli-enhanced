@@ -82,8 +82,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (result && typeof result.markdown === "string" && Object.keys(result).length === 1) {
       return { content: [{ type: "text", text: result.markdown }] };
     }
+    // An HTTP-200 { error } payload from the bridge is still a failed call.
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      ...(result && result.error ? { isError: true } : {}),
     };
   } catch (err) {
     return {

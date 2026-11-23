@@ -11,19 +11,16 @@ batched into one add-on version and one ATN manual review.
 
 ## Watermark
 
-Last run: **2026-11-09** (ODIAA-2762). Previous: 2026-11-02 (ODIAA-2682), 2026-10-26 (ODIAA-2614), 2026-10-19 (ODIAA-2541), 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
+Last run: **2026-11-23** (ODIAA-2938). Previous: 2026-11-16 (ODIAA-2850), 2026-11-09 (ODIAA-2762), 2026-11-02 (ODIAA-2682), 2026-10-26 (ODIAA-2614), 2026-10-19 (ODIAA-2541), 2026-10-12 (ODIAA-2491), 2026-10-05 (ODIAA-2402, first run).
 
-Upstream `vitalio-sh/thunderbird-cli` `main`: **`465613d`** (unchanged since our baseline, 2026-09-14).
-Other upstream heads: `fix/1.1.1` `27b8c70` (open PR #26), `integrate/open-prs` `c5e5d02`,
-`dependabot/npm_and_yarn/proxy-addr-2.0.8` `0467f53` (open PR #31),
-`dependabot/npm_and_yarn/modelcontextprotocol/sdk-1.32.0` `ca02f56` (open PR #32),
-`dependabot/npm_and_yarn/fast-uri-3.1.9` `e8d9ee4` (PR #33), `dependabot/npm_and_yarn/ip-address-10.7.5` `bc033e5` (PR #34),
-`dependabot/npm_and_yarn/body-parser-2.4.0` `aa4a156` (PR #35), `dependabot/npm_and_yarn/zod-4.6.7` `65c2690` (PR #37).
-Open fork PR: #38 (FernDragonborn `harden-bridge-paths` `e942f70`).
-Latest upstream release: `v1.1.0` (2026-09-14).
+Upstream `vitalio-sh/thunderbird-cli` `main`: **`ac19bd4`** (2026-11-12; was `465613d` from our baseline until then). No change on 2026-11-23.
+Other upstream heads: `fix/1.1.1` `27b8c70` and `integrate/open-prs` `c5e5d02` (both merged into `main`).
+The Dependabot PRs #31–#35, #37, #39 and #41 and the fork PRs #26, #27, #38 and #40 were merged or closed on 2026-11-12.
+Open upstream PRs: #50 and #51 (reinhardullrich). Open upstream issues: #52 and #53.
+Latest upstream release: `v1.2.0` (2026-11-12, add-on 2.2.0). Before that: `v1.1.1` (same day, add-on 2.1.1).
 
-Thunderbird: release 159.0, beta 160.0b5, ESR 153.6.0esr. Our
-`strict_max_version` is `156.*` (see ODIAA-2403). webext-experiments `calendar/`: latest commit is still `b7f7cb3` (our pin).
+Thunderbird: release 160.0, beta 161.0b4, ESR 153.7.0esr. Our
+`strict_max_version` is `156.*` (see ODIAA-2403). webext-experiments `calendar/`: latest commit `b094c85` (2026-11-20); our pin is still `b7f7cb3`.
 
 Forks (15), last-seen head per branch with commits ahead of upstream `main`:
 
@@ -37,26 +34,27 @@ Forks (15), last-seen head per branch with commits ahead of upstream `main`:
 | broadaxe | main | 8 | `c37c772` |
 | broadaxe | bridge-auth-hardening | 2 | `41ed108` |
 | ph-fritsch | fix/reply-identity-and-sort-pagination | 1 | `e399149` |
-| DreatNU-oss | meu | 15 | `5f25ddd` |
-| inrainbws | main | 2 | `5b55c3e` |
+| DreatNU-oss | meu | 28 | `2fb42d7` |
+| inrainbws | main | 11 | `dfaadd1` |
 | jctots | fix/bridge-auth-token | 1 | `ba56442` |
 | le-dawg | main | 16 | `777d58a` |
-| reinhardullrich | main | 7 | `879d596` |
-| dboeckenhoff | main | 5 | `0a6c974` |
-| dboeckenhoff | feat/compose-attachments | 6 | `b784183` |
+| reinhardullrich | main | 9 | `8cf32b9` |
+| reinhardullrich | fix/reply-quoted-images | 1 | `63d298d` (= upstream PR #50) |
+| reinhardullrich | feat/optional-inline-forwarding | 1 | `4a08c03` (= upstream PR #51) |
+| dboeckenhoff | main | 8 | `3d55b5e` |
+| dboeckenhoff | feat/compose-attachments | 7 | `8b203ad` |
 | marcreynolds | security/bridge-hardening | 2 | `43b5c17` |
 | KaiSingL | main | 29 | `0b3a5d7` |
 | helios57 | hardening | 16 | `75c6a6c` (first 6 = upstream PR #26) |
 | helios57 | main | 18 | `97dfe94` |
 | helios57 | feat/drafts-and-attachments | 17 | `ba1fe9a` (= `main` minus `97dfe94`) |
-| FernDragonborn | harden-bridge-paths | 4 | `e942f70` (= upstream PR #38) |
 | FernDragonborn | personal-build-1.1 | 4 | `0e6499e` (same changes as `harden-bridge-paths`) |
 
-No unique commits: mikepage, FernDragonborn `main`, stutiredboy (new
+No unique commits: mikepage, FernDragonborn `main` and `harden-bridge-paths` (`2a5d110`, merged upstream as PR #38), stutiredboy (new
 2026-10-20, `main` = upstream `465613d`), and the `main` of ph-fritsch, DreatNU-oss, jctots and marcreynolds. Dependabot branches on forks are
 ignored, because our own `npm audit` covers dependencies.
 
-Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-11-09 (only our own PRs #36–#40).
+Our repo `odience-network/thunderbird-cli-enhanced`: no issues and no forks as of 2026-11-23 (only our own PRs; #41 still open).
 PRs #36–#40 were merged into `main` on 2026-11-09 with board approval (ODIAA-2762); no tag or release.
 
 ## Triage ledger
@@ -179,6 +177,53 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | other forks | — | No push since 2026-11-02 | nothing new |
 | Thunderbird | 160.0b5 | Release still 159.0, ESR 153.6.0esr; webext-experiments `calendar/` still `b7f7cb3` | backlog ODIAA-2403 (target `159.*` or later, unchanged) |
 
+### 2026-11-16
+
+| Source | Ref | Summary | Decision |
+|---|---|---|---|
+| upstream | `72c1dcf`, `bb52c01` (merged PRs #26, #38) | Same commits as PR #26 and FernDragonborn's PR #38 | already triaged (2026-10-05, 2026-11-09) |
+| upstream | `04892ce`…`1c27a44`, `d1b85aa`, `28d2d04` (Dependabot) | `proxy-addr`, MCP SDK, `fast-uri`, `ip-address`, `body-parser`, `zod`, `@hono/node-server` 2.1.8, `hono` 4.13.18 | adopted (this PR): lockfile refresh to `hono` 4.13.18 and `@hono/node-server` 2.1.8 (7 moderate advisories); the rest already covered by PR #39 |
+| upstream | `a0ae9f8` (bridge part) | Bridge decoded each body chunk separately (split UTF-8 characters); an aborted upload crashed the bridge | adopted (this PR) |
+| upstream | `a0ae9f8` (CLI/MCP part), issue #53 | `--max-body`/`maxBody` cut only the text part, not HTML or raw | adopted (this PR) |
+| upstream | `a0ae9f8` (CLI/MCP part) | Exit non-zero on HTTP-200 error payloads; Ajv argument checks in MCP; reject unknown bridge flags | deferred: check against ours next run (proportionate scope) |
+| upstream | `a0ae9f8` (extension part) | Native tag/size query, thread continuation pages, `/sync` error, folder counts, body validation, reply quotation | backlog ODIAA-2403 (comment) |
+| upstream | `66e7513` (issues #30, #28) | Identity by address; `dateLocal`; identities in `/stats` | identity: already in main (PR #37); `dateLocal`: backlog ODIAA-2403 (comment) |
+| upstream | `d1735ae` (issue #23) | Attachments only from one user folder, by file name | backlog ODIAA-2407 (comment: adopt the model) |
+| upstream | `4bbc831` (issue #18) | Per-account allowlist on an add-on options page | backlog ODIAA-2406 (comment) |
+| upstream | `7fd19d4` | Direct send off by default, user opt-in in add-on options | backlog ODIAA-2851 (our `send` defaults on) |
+| upstream | `ac19bd4`, `f47ab73` | Stored (uncompressed) XPI entries for byte-identical rebuilds | backlog ODIAA-2403 (comment: with the next XPI build) |
+| upstream | issue #52 | `from` needs a full address; domain or part matches nothing | backlog ODIAA-2403 (comment; ours has the same split) |
+| upstream | issue #36 | Closed | nothing new |
+| reinhardullrich | `63d298d`, `247ffeb` (upstream PR #50) | Keep native reply quotation and inline images | backlog ODIAA-2403 (comment, with #29) |
+| reinhardullrich | `4a08c03` (upstream PR #51) | Optional inline forwarding | deferred: new feature under `extension/` |
+| reinhardullrich | `8cf32b9` | Search defaults, client errors, path validation, local dates | already covered: same ground as upstream `a0ae9f8`/`66e7513`, triaged above |
+| dboeckenhoff | `8b203ad`, `3d55b5e` | Fork-only version numbers; merge of `b784183` | rejected: fork-internal (`b784183` already triaged) |
+| other forks | — | No push since 2026-11-09 | nothing new |
+| Thunderbird | 160.0 release, ESR 153.7.0esr | webext-experiments `calendar/` still `b7f7cb3` | backlog ODIAA-2403 (target `160.*` or later) |
+
+### 2026-11-23
+
+| Source | Ref | Summary | Decision |
+|---|---|---|---|
+| upstream | `main`, releases, issues, PRs | No change since 2026-11-16 (`main` `ac19bd4`, release `v1.2.0`; no issue or PR updated) | nothing new |
+| upstream | `a0ae9f8` (CLI/MCP part, deferred 2026-11-16) | Exit non-zero on HTTP-200 error payloads | adopted PR #41 (CLI exits 1; MCP sets `isError`) |
+| upstream | `a0ae9f8` (CLI/MCP part, deferred 2026-11-16) | Ajv argument checks in MCP; reject unknown bridge flags | deferred: MCP schema validation is a wider contract change; unknown bridge flags are harmless today |
+| inrainbws | `dfaadd1` | Client timeout also covers reading the response body | adopted PR #41 (`TIMEOUT` on a stalled body, `THUNDERBIRD_ERROR` on a non-JSON body; CLI and MCP) |
+| inrainbws | `dfaadd1` | `read-batch --max-body` keeps the array and cuts every message | adopted PR #41 (ours turned the array into an object and cut nothing) |
+| inrainbws | `64f78a6` | Reject non-positive `--timeout` with `INVALID_ARGS` | adopted PR #41 (also rejects non-numeric values) |
+| inrainbws | `64f78a6` | Single 120 s timeout default for CLI and bridge | rejected: our CLI sends its own `X-TB-Timeout`, so the bridge never waits longer than the CLI |
+| inrainbws | `dfaadd1` | `--compact` keeps empty arrays (`messages: []`) | deferred: our v2 output documents stripping empty arrays; changing it is an output-contract change |
+| inrainbws | `dfaadd1` (3.0.2) | Replies use Thunderbird's native quote instead of downloading the whole thread; unavailable thread messages (Graph draft copies) blocked replies until timeout | backlog ODIAA-2403 (comment: our auto-appended history from PR #3 has the same risk; pairs with #29/#50) |
+| inrainbws | `dfaadd1` | `tb sync`/`sync-status` only read folder metadata, never synchronise; removed | backlog ODIAA-2403 (comment: check ours, then fix the docs or the command) |
+| inrainbws | `dfaadd1` | `--attach` for compose/reply/forward; `draftId` on save; compose timeout detail; HTML-only full/batch reads as text; faster conversation lookup | `--attach`: backlog ODIAA-2407 (comment); the rest: backlog ODIAA-2403 (comment) |
+| inrainbws | `44e9f83` | Sort before pagination; search `--offset`; release message lists at the limit; missing option values consume the next option | sort/offset: backlog ODIAA-2403 (already item 3); list release: ODIAA-2684; option values: deferred (Commander behaviour, all commands) |
+| inrainbws | `64f78a6`, `8116345` | Calendar: per-calendar partial results, `get --instance`, `events --offset`, `startUtc`/`endUtc`, recurrence expansion, DURATION-preserving updates; `tb search "*"` as match-all | backlog ODIAA-2403 (comment, calendar items); `search "*"`: deferred |
+| inrainbws | `c666a0d` | Reply drafts default to the source account's identity | backlog ODIAA-2403 (comment); `reply --from` already in main (PR #1) |
+| inrainbws | `88e49c9`, `f2c806f`, `6e2b417`, `b6b9dd7` | Conversation-aware thread reads; remove Claude/MCP; agent-neutral skill wording | thread reads: already in main (`tb thread`); the rest rejected (fork-specific) |
+| DreatNU-oss | `924a64e`…`2fb42d7` (13 commits) | Unlock direct send; whole-folder sort; `tb recent` across folders with `--unread`/`--account`; personal triage rules | sort: backlog ODIAA-2403 (already item 3); `recent` filters: already in main; send/triage: rejected (personal deployment) |
+| other forks | — | No push since 2026-11-16 | nothing new |
+| Thunderbird | 161.0b4; webext-experiments `calendar/` `9fee882`…`b094c85` | Calendar Experiment: old item in `onUpdated`, ISO 8601 `items.query` ranges, format detection and capability validation on create/update | backlog ODIAA-2403 (comment: re-pin to `b094c85` and retest with the version bump) |
+
 ### Ideas from similar projects (ideas only, no code read)
 
 | Project | Idea | Decision |
@@ -196,3 +241,7 @@ Decision values: adopted PR #N, backlog ODIAA-N, rejected (reason), already in m
 | localai-org/thunderbird-mcp | Serve MCP over Streamable HTTP with a bearer token, for remote clients | deferred: would widen the attack surface; only with a design and an access switch |
 | commonpost/thunderbird-mcp (v0.22.2) | Calendar tools give times in the calendar's time zone, not UTC only, so an assistant doesn't report false clashes | already in main (`tb today`/`week`/`clashes` use local day boundaries and render local times) |
 | commonpost/thunderbird-mcp (v0.21.0) | A tool that lists address books so contact writes can target any of them | already in main (`tb address-books`, MCP `address_book_list`) |
+| commonpost/thunderbird-mcp (v0.25.0) | Accent-insensitive header and contact search (`quebec` finds `Québec`) | deferred: `extension/` search change, next extension batch |
+| commonpost/thunderbird-mcp (v0.26.0) | `listEvents`/`listTasks` cut long lists and take `offset` | deferred: our `calendar_events` and `task_list` have no paging; candidate MCP/CLI change |
+| commonpost/thunderbird-mcp | One-click `.mcpb` bundle for Claude Desktop | deferred: packaging idea; check with the npm release flow |
+| commonpost/thunderbird-mcp (v0.26.1) | Tool descriptions name the tool to use instead or next | deferred: candidate for an MCP description pass (docs-only, no contract change) |

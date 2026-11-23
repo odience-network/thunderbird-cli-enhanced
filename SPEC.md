@@ -86,7 +86,7 @@ Manifest format: `manifest_version: 2` (MV2). MV3 migration planned for future.
 
 ## Output Format
 
-By default, all commands output JSON to stdout. Errors output JSON to stderr with exit code 1.
+By default, all commands output JSON to stdout. Errors output JSON to stderr with exit code 1. An error the bridge returns as an HTTP-200 `{ error }` payload is printed to stdout as the `ok: false` envelope, also with exit code 1.
 
 ```json
 // Success
@@ -752,7 +752,7 @@ tb from <address> [--limit <n>]
    - Agent decides which messages matter
    - Agent calls `tb read <id>` only for relevant messages (expensive)
 
-3. **Body truncation** — `--max-body <chars>` truncates body at N characters:
+3. **Body truncation** — `--max-body <chars>` truncates the text, HTML and raw body at N characters each (MCP: `maxBody` on `email_read`):
    ```bash
    tb read <id> --max-body 2000  # first 2000 chars of body
    ```
